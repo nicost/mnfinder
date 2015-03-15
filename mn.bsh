@@ -1,0 +1,188 @@
+/**
+ * Beanshell script to find micronuclei in a field of cells stained with a DNA dye
+ * This script prefilters the image, automatically segments it, and find objects
+ * of a certain size (size limits are set just under here)
+ * 
+ * Nico Stuurman, 2015, copyright regents of the University of California
+ * 
+ * 
+ */
+
+import java.util.ArrayList;
+import java.awt.geom.Point2D;
+
+import ij.IJ;
+import ij.plugin.filter.GaussianBlur;
+import ij.plugin.frame.RoiManager;
+import ij.gui.ROI;
+
+import edu.valelab.gaussianfit.FitAllThread;
+import edu.valelab.gaussianfit.algorithm.FindLocalMaxima;
+import edu.valelab.gaussianfit.data.GaussianInfo;
+
+// Imaging parameters
+pixelSize = 665; // in nm
+
+// microNuclei allowed sizes
+mnMinSize = 1.0;
+mnMaxSize = 40.0;
+// nuclei allowed sized
+nMinSize = 125;
+nMaxSize = 600;
+// max distance a micronucleus can be separated from a nucleus
+maxDistance = 30; 
+
+
+
+/**
+ * calculates distance between two points
+ */
+distance(Point2D.Double p1, Point2D.Double p2) {
+	x = p1.x - p2.x;
+	y = p1.y - p2.y;
+	total = x * x + y * y;
+	return Math.sqrt(total);	
+}
+
+/**
+ * Find the closest point in the Arraylist
+ * for now, uses brute force search
+ */
+closest(Point2D.Double p, ArrayList l) {
+	if (l.size() == 0) {
+		return null;
+	}
+	closestNucleus = l.get(0);
+	d = distance(p, closestNucleus);
+	for (p2 : l) {
+		dNew = distance(p, p2);
+		if (dNew < d) {
+			d = dNew;
+			closestNucleus = p2; 
+		}
+	}
+	return closestNucleus;
+}
+
+/**
+ * Utility function for Gaussian fitting
+ */
+updateValues(GaussianInfo tT) {
+         tT.setNoiseTolerance(1000);
+         tT.setPhotonConversionFactor(1);
+         tT.setGain(1);
+         tT.setPixelSize(pixelSize);
+         tT.setZStackStepSize(1);
+         tT.setTimeIntervalMs(1);
+         tT.setBaseLevel(100);
+         tT.setUseWidthFilter(false);
+         tT.setSigmaMin(200);
+         tT.setSigmaMax(2000);
+         tT.setUseNrPhotonsFilter(false);
+         tT.setNrPhotonsMin(100);
+         tT.setNrPhotonsMax(100000);
+         tT.setMaxIterations(50);
+         tT.setBoxSize(8);
+         tT.setShape(1);
+         tT.setFitMode(2);
+         tT.setEndTrackBool(false);
+         tT.setEndTrackAfterNFrames(10);
+}
+
+
+// start of the main code
+
+microNuclei = new ArrayList();
+nuclei = new ArrayList();
+
+imp = IJ.getImage();
+maskedImp = imp.duplicate();
+maskedImp.getProcessor().sharpen();
+g = new GaussianBlur();
+g.blurGaussian(maskedImp.getProcessor(), 1.0, 1.0, 1.0);
+IJ.setAutoThreshold(maskedImp, "Huang dark");
+Prefs.blackBackground = true;
+IJ.run(maskedImp, "Convert to Mask", "");
+IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
+IJ.run(maskedImp, "Analyze Particles...", "  display exclude clear add");
+maskedImp.changes = false;
+maskedImp.close();
+//imp.close();
+
+res = ij.measure.ResultsTable.getResultsTable();
+microNuclei.clear();
+
+for (int i = 0; i < res.getCounter(); i++) {
+   area = res.getValue("Area", i);
+   if (area >= mnMinSize && area <= mnMaxSize) {
+ 	  	p = new Point2D.Double(res.getValue("X", i),res.getValue("Y", i));
+  		microNuclei.add(p);
+  	}
+  	if (area >= nMinSize && area <= nMaxSize) {
+  		p = new Point2D.Double(res.getValue("X", i),res.getValue("Y", i));
+  		nuclei.add(p);
+  	}
+}
+
+// find just the nuclei
+nucleiImp = imp.duplicate();
+IJ.setAutoThreshold(maskedImp, "Otsu dark");
+Prefs.blackBackground = true;
+IJ.run(nucleiImp, "Convert to Mask", "");
+IJ.run(nucleiImp, "Erode", "");
+IJ.run(nucleiImp, "Erode", "");
+IJ.run(nucleiImp, "Dilate", "");
+IJ.run(nucleiImp, "Dilate", "");
+IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
+IJ.run(nucleiImp, "Analyze Particles...", "size=" + nMinSize + "-" + nMaxSize + 
+							"  display exclude clear add");
+nucleiImp.changes = false;
+nucleiImp.close();
+
+// find gaussian spots
+ft = new FitAllThread(1, 2, FindLocalMaxima.FilterType.GAUSSIAN1_5, "0");
+updateValues(ft);
+ft.showDataWindow(false);
+ft.init();
+ft.join(4000);
+spots = ft.getResults();
+
+// figure out if the gaussian spots are inside or outside the nuclei
+rm = RoiManager.getInstance2();
+if (rm != null) {
+	for (spot : spots) {
+		inROI = false;
+		x = spot.getX();
+		y = spot.getY();
+		for (roi : rm.getRoisAsArray()) {
+			if (roi.contains(x, y)) {
+				inROI = true;
+			}
+		}
+		if (!inROI) {
+			gui.message("spot " + x + ", " + y + " was not in an ROI");
+		}
+	}
+}
+
+// report what we found
+res.reset();
+// sanity checks:
+if (microNuclei.size() < 10 && nuclei.size() > 5) {
+	for (mn : microNuclei) {
+		cn = closest(mn, nuclei);
+		if (cn != null && 30 > distance(mn, cn) ) {
+			res.incrementCounter();
+			res.addValue("Pos", imp.getShortTitle());
+			res.addValue("X", mn.x);
+			res.addValue("Y", mn.y);
+			res.addValue("nX", cn.x);
+			res.addValue("nY", cn.y);
+			res.addValue("distance", distance(mn, cn));
+		} 
+	}
+}
+res.show("Results");
+
+
+
