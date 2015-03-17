@@ -96,7 +96,7 @@ gui.message("PixelSize: " + cal.getX(1));
 // maintain some form of persistence using prefs
 prefs = Preferences.userNodeForPackage(this.getClass());
 
-// find just the nuclei
+// find just the nuclei, exclude objects at edges (?needed?)
 nucleiImp = imp.duplicate();
 IJ.setAutoThreshold(nucleiImp, "Otsu dark");
 Prefs.blackBackground = true;
@@ -107,20 +107,22 @@ IJ.run(nucleiImp, "Dilate", "");
 IJ.run(nucleiImp, "Dilate", "");
 IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
 IJ.run(nucleiImp, "Analyze Particles...", "size=" + nMinSize + "-" + nMaxSize + 
-							"  clear add");
+							"  exclude clear add");
 
 // add nuclei to our list of nuclei:
 rm = RoiManager.getInstance2();
 for (roi : rm.getRoisAsArray()) {
+	// approximate nuclear positions as the center of the bounding box
 	rc = roi.getBounds();
 	double xc = rc.x + 0.5 * rc.width;
 	double yc = rc.y + 0.5 * rc.height;
 	xc *= pixelSize;
 	yc *= pixelSize;
-	gui.message("pt: " + xc + ", " + yc);
+	// gui.message("pt: " + xc + ", " + yc);
 	// pt = new Point2D.Double( cal.getX(xc),cal.getX(yc) );
 	pt = new java.awt.geom.Point2D.Double ( xc, yc );
 	nucleiRois.put(pt, roi);
+	nuclei.add(pt);
 }
 
 
@@ -136,13 +138,15 @@ nucleiImp.close();
 // Use local maxima finder to find spots in the original image:
 pol = FindLocalMaxima.FindMax(imp, 4, 1100, FindLocalMaxima.FilterType.GAUSSIAN1_5);
 
+// check for each spot if it was in a nucleus, add it to our micronucleus list if 
+// it was not
 rm = RoiManager.getInstance2();
 if (pol != null) {
 	// gui.message("npoints: " + pol.npoints);
 	for (i = 0; i < pol.npoints; i++) {
 		x = pol.xpoints[i];
 		y = pol.ypoints[i];
-		//gui.message("spot " + x + ", " + y);
+		// gui.message("spot " + x + ", " + y);
 		inROI = false;
 		for (roi : rm.getRoisAsArray()) {
 			if (roi.contains(x, y)) {
@@ -150,7 +154,7 @@ if (pol != null) {
 			}
 		}
 		if (!inROI) {
-			pt = new java.awt.geom.Point2D.Double( cal.getX(x),cal.getX(y) );
+			pt = new java.awt.geom.Point2D.Double( x * pixelSize, y * pixelSize );
 			if ( pt.x > minEdgeDistance && pt.y > minEdgeDistance &&
 						pt.x < (widthUm - minEdgeDistance)  && 
 						pt.y < (heightUm - minEdgeDistance) ) 
@@ -167,6 +171,7 @@ res = ij.measure.ResultsTable.getResultsTable();
 res.reset();
 nMn = 0;
 // sanity checks:
+// gui.message("mn: " + microNuclei.size() + ", n: " + nuclei.size()); 
 if (microNuclei.size() < 20 && nuclei.size() > 5) {
 	nMn += microNuclei.size();
 	for (mn : microNuclei) {
@@ -185,6 +190,7 @@ if (microNuclei.size() < 20 && nuclei.size() > 5) {
 	}
 }
 res.show("Results");
+
 prefs.putInt("nuclei", prefs.getInt("nuclei", 0) + nuclei.size());
 prefs.putInt("microNuclei", prefs.getInt("microNuclei", 0) + nMn);
 prefs.putInt("zappedNuclei", prefs.getInt("zappedNuclei", 0) + zapNuclei.size());
@@ -196,6 +202,8 @@ for (p : zapNuclei) {
 	// gui.message("Zap the roi: " + roi.getBounds());
 	zapRois.add(roi);
 }
+
+gui.message("mn: " + microNuclei.size() + ", n: " + nuclei.size() + ", zap: " + zapRois.size()); 
 
 // convert zapRois in a Roi[] of Polygon Rois
 pcf = ProjectorControlForm.showSingleton(gui.getMMCore(), gui);
