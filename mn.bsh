@@ -13,6 +13,7 @@ import java.util.prefs.Preferences;
 import java.util.HashMap;
 
 import java.awt.geom.Point2D;
+import java.awt.geom.Point2D.Double;
 import java.awt.Polygon;
 
 import ij.IJ;
@@ -41,7 +42,7 @@ maxDistance = 30;
 // min distance a micronucleus should be from the edge of the image
 minEdgeDistance = 10.0; // in microns
 
-
+pixelSize = 0.644; // not sure why, but imp.getCalibration is unreliable
 
 /**
  * calculates distance between two points
@@ -90,6 +91,8 @@ pixelSize = cal.getX(1.0);
 
 gui = MMStudio.getInstance();
 
+gui.message("PixelSize: " + cal.getX(1));
+
 // maintain some form of persistence using prefs
 prefs = Preferences.userNodeForPackage(this.getClass());
 
@@ -110,10 +113,13 @@ IJ.run(nucleiImp, "Analyze Particles...", "size=" + nMinSize + "-" + nMaxSize +
 rm = RoiManager.getInstance2();
 for (roi : rm.getRoisAsArray()) {
 	rc = roi.getBounds();
-	xc = rc.x + 0.5 * rc.width;
-	yc = rc.y + 0.5 * rc.height;
-	pt = new Point2D.Double( cal.getX(xc),cal.getX(yc) );
-	nuclei.add(pt);
+	double xc = rc.x + 0.5 * rc.width;
+	double yc = rc.y + 0.5 * rc.height;
+	xc *= pixelSize;
+	yc *= pixelSize;
+	gui.message("pt: " + xc + ", " + yc);
+	// pt = new Point2D.Double( cal.getX(xc),cal.getX(yc) );
+	pt = new java.awt.geom.Point2D.Double ( xc, yc );
 	nucleiRois.put(pt, roi);
 }
 
@@ -144,7 +150,7 @@ if (pol != null) {
 			}
 		}
 		if (!inROI) {
-			pt = new Point2D.Double( cal.getX(x),cal.getX(y) );
+			pt = new java.awt.geom.Point2D.Double( cal.getX(x),cal.getX(y) );
 			if ( pt.x > minEdgeDistance && pt.y > minEdgeDistance &&
 						pt.x < (widthUm - minEdgeDistance)  && 
 						pt.y < (heightUm - minEdgeDistance) ) 
@@ -187,7 +193,7 @@ prefs.putInt("zappedNuclei", prefs.getInt("zappedNuclei", 0) + zapNuclei.size())
 zapRois = new ArrayList();
 for (p : zapNuclei) {
 	roi = nucleiRois.get(p);
-	gui.message("Zap the roi: " + roi.getBounds());
+	// gui.message("Zap the roi: " + roi.getBounds());
 	zapRois.add(roi);
 }
 
