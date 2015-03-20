@@ -176,10 +176,10 @@ if (microNuclei.size() < 20 && nuclei.size() > 5) {
 	nMn += microNuclei.size();
 	for (mn : microNuclei) {
 		cn = closest(mn, nuclei);
-		if (!zapNuclei.contains(cn)) {
-			zapNuclei.add(cn);
-		}
 		if (cn != null && 30 > distance(mn, cn) ) {
+			if (!zapNuclei.contains(cn)) {
+				zapNuclei.add(cn);
+			}
 			res.incrementCounter();
 			res.addValue("X", mn.x);
 			res.addValue("Y", mn.y);
@@ -198,12 +198,15 @@ prefs.putInt("zappedNuclei", prefs.getInt("zappedNuclei", 0) + zapNuclei.size())
 // get a list with rois that we want to zap
 zapRois = new ArrayList();
 for (p : zapNuclei) {
+//for (p : nuclei) {  // use this to zap all nuclei
 	roi = nucleiRois.get(p);
-	// gui.message("Zap the roi: " + roi.getBounds());
+	//gui.message("Zap the roi: " + roi.getBounds());
 	zapRois.add(roi);
 }
 
 gui.message("mn: " + microNuclei.size() + ", n: " + nuclei.size() + ", zap: " + zapRois.size()); 
+
+//gui.message("ZapRoi x: " + zapRois.get(0).x + ", y: " + zapRois.get(0).y);
 
 // convert zapRois in a Roi[] of Polygon Rois
 pcf = ProjectorControlForm.showSingleton(gui.getMMCore(), gui);
@@ -215,10 +218,17 @@ for (i=0; i < zapRois.size(); i++) {
 }
 
 // send to the galvo device and zap them for real
-transformedROIs = pcf.transformROIs(imp, rois);
-pcf.getDevice().loadRois(transformedROIs);
-pcf.runRois();
+pcf.setNrRepetitions(5);
+for (i=0; i < rois.length; i++) {
+	gui.message("Zapping " + (i + 1) + " of " + rois.length);
+	Roi[] theRois = {rois[i]};
+	pcf.setROIs(theRois);
+	pcf.updateROISettings();
+	pcf.getDevice().waitForDevice();
+	pcf.runRois();
+	pcf.getDevice().waitForDevice();
+}
 
 // display result and return focus to our window
-gui.snapSingleImage();
+gui.runAcquisition();
 imp.getWindow().toFront();
