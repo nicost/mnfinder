@@ -30,6 +30,8 @@ import edu.valelab.gaussianfit.FitAllThread;
 import edu.valelab.gaussianfit.algorithm.FindLocalMaxima;
 import edu.valelab.gaussianfit.data.GaussianInfo;
 
+// whether or not to photoactivate
+zap = false;
 
 // microNuclei allowed sizes
 mnMinSize = 1.0;
@@ -91,7 +93,7 @@ pixelSize = cal.getX(1.0);
 
 gui = MMStudio.getInstance();
 
-gui.message("PixelSize: " + cal.getX(1));
+//gui.message("PixelSize: " + cal.getX(1));
 
 // maintain some form of persistence using prefs
 prefs = Preferences.userNodeForPackage(this.getClass());
@@ -195,6 +197,8 @@ prefs.putInt("nuclei", prefs.getInt("nuclei", 0) + nuclei.size());
 prefs.putInt("microNuclei", prefs.getInt("microNuclei", 0) + nMn);
 prefs.putInt("zappedNuclei", prefs.getInt("zappedNuclei", 0) + zapNuclei.size());
 
+if (zap) {
+
 // get a list with rois that we want to zap
 zapRois = new ArrayList();
 for (p : zapNuclei) {
@@ -232,3 +236,4 @@ for (i=0; i < rois.length; i++) {
 // display result and return focus to our window
 gui.runAcquisition();
 imp.getWindow().toFront();
+}
