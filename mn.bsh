@@ -31,7 +31,7 @@ import edu.valelab.gaussianfit.algorithm.FindLocalMaxima;
 import edu.valelab.gaussianfit.data.GaussianInfo;
 
 // whether or not to photoactivate
-zap = false;
+zap = true;
 
 // microNuclei allowed sizes
 mnMinSize = 1.0;
@@ -174,7 +174,7 @@ res.reset();
 nMn = 0;
 // sanity checks:
 // gui.message("mn: " + microNuclei.size() + ", n: " + nuclei.size()); 
-if (microNuclei.size() < 20 && nuclei.size() > 5) {
+if (microNuclei.size() < 75 && nuclei.size() > 5) {
 	nMn += microNuclei.size();
 	for (mn : microNuclei) {
 		cn = closest(mn, nuclei);
@@ -199,41 +199,41 @@ prefs.putInt("zappedNuclei", prefs.getInt("zappedNuclei", 0) + zapNuclei.size())
 
 if (zap) {
 
-// get a list with rois that we want to zap
-zapRois = new ArrayList();
-for (p : zapNuclei) {
-//for (p : nuclei) {  // use this to zap all nuclei
-	roi = nucleiRois.get(p);
-	//gui.message("Zap the roi: " + roi.getBounds());
-	zapRois.add(roi);
-}
+	// get a list with rois that we want to zap
+	zapRois = new ArrayList();
+	for (p : zapNuclei) {
+		//for (p : nuclei) {  // use this to zap all nuclei
+		roi = nucleiRois.get(p);
+		//gui.message("Zap the roi: " + roi.getBounds());
+		zapRois.add(roi);
+	}
 
-gui.message("mn: " + microNuclei.size() + ", n: " + nuclei.size() + ", zap: " + zapRois.size()); 
+	gui.message("mn: " + microNuclei.size() + ", n: " + nuclei.size() + ", zap: " + zapRois.size()); 
 
-//gui.message("ZapRoi x: " + zapRois.get(0).x + ", y: " + zapRois.get(0).y);
+	//gui.message("ZapRoi x: " + zapRois.get(0).x + ", y: " + zapRois.get(0).y);
 
-// convert zapRois in a Roi[] of Polygon Rois
-pcf = ProjectorControlForm.showSingleton(gui.getMMCore(), gui);
-Roi[] rois = new Roi[zapRois.size()];
-for (i=0; i < zapRois.size(); i++) {
-	rois[i] = (Roi) zapRois.get(i);
-	poly = rois[i].getConvexHull();
-	rois[i] = new PolygonRoi(poly, Roi.POLYGON);
-}
+	// convert zapRois in a Roi[] of Polygon Rois
+	pcf = ProjectorControlForm.showSingleton(gui.getMMCore(), gui);
+	Roi[] rois = new Roi[zapRois.size()];
+	for (i=0; i < zapRois.size(); i++) {
+		rois[i] = (Roi) zapRois.get(i);
+		poly = rois[i].getConvexHull();
+		rois[i] = new PolygonRoi(poly, Roi.POLYGON);
+	}
 
-// send to the galvo device and zap them for real
-pcf.setNrRepetitions(5);
-for (i=0; i < rois.length; i++) {
-	gui.message("Zapping " + (i + 1) + " of " + rois.length);
-	Roi[] theRois = {rois[i]};
-	pcf.setROIs(theRois);
-	pcf.updateROISettings();
-	pcf.getDevice().waitForDevice();
-	pcf.runRois();
-	pcf.getDevice().waitForDevice();
-}
+	// send to the galvo device and zap them for real
+	pcf.setNrRepetitions(5);
+	for (i=0; i < rois.length; i++) {
+		gui.message("Zapping " + (i + 1) + " of " + rois.length);
+		Roi[] theRois = {rois[i]};
+		pcf.setROIs(theRois);
+		pcf.updateROISettings();
+		pcf.getDevice().waitForDevice();
+		pcf.runRois();
+		pcf.getDevice().waitForDevice();
+	}
 
-// display result and return focus to our window
-gui.runAcquisition();
-imp.getWindow().toFront();
+	// display result and return focus to our window
+	gui.runAcquisition();
+	imp.getWindow().toFront();
 }
