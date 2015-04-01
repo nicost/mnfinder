@@ -31,14 +31,14 @@ import edu.valelab.gaussianfit.algorithm.FindLocalMaxima;
 import edu.valelab.gaussianfit.data.GaussianInfo;
 
 // whether or not to photoactivate
-zap = true;
+zap = false;
 
 // microNuclei allowed sizes
 mnMinSize = 1.0;
 mnMaxSize = 40.0;
 // nuclei allowed sized
-nMinSize = 125;
-nMaxSize = 600;
+nMinSize = 200;
+nMaxSize = 800;
 // max distance a micronucleus can be separated from a nucleus
 maxDistance = 30; 
 // min distance a micronucleus should be from the edge of the image
@@ -98,18 +98,17 @@ gui = MMStudio.getInstance();
 // maintain some form of persistence using prefs
 prefs = Preferences.userNodeForPackage(this.getClass());
 
-// find just the nuclei, exclude objects at edges (?needed?)
+// find nuclei by smoothing and gaussian filtering, followed by huang segmentation
 nucleiImp = imp.duplicate();
-IJ.setAutoThreshold(nucleiImp, "Otsu dark");
+//IJ.run(nucleiImp, "Smooth");
+IJ.run(nucleiImp, "Gaussian Blur...", "sigma=5.0");
+IJ.setAutoThreshold(nucleiImp, "Huang dark");
 Prefs.blackBackground = true;
 IJ.run(nucleiImp, "Convert to Mask", "");
-IJ.run(nucleiImp, "Erode", "");
-IJ.run(nucleiImp, "Erode", "");
-IJ.run(nucleiImp, "Dilate", "");
-IJ.run(nucleiImp, "Dilate", "");
 IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
-IJ.run(nucleiImp, "Analyze Particles...", "size=" + nMinSize + "-" + nMaxSize + 
-							"  exclude clear add");
+IJ.run(nucleiImp, "Analyze Particles...", "size=" + nMinSize + "-" + nMaxSize +
+							"  clear add");
+//nucleiImp.show();
 
 // add nuclei to our list of nuclei:
 rm = RoiManager.getInstance2();
@@ -127,18 +126,11 @@ for (roi : rm.getRoisAsArray()) {
 	nuclei.add(pt);
 }
 
-
-// run particle analyzer one more time, to include particles at the edge
-// so that we will not confuse them with micronuclei
-IJ.run(nucleiImp, "Analyze Particles...", "size=" + nMinSize + "-" + nMaxSize + 
-							"  clear add");
-
 // close the ImagePlus as we no longer need it (we could leave this to the GC)
 nucleiImp.changes = false;
 nucleiImp.close();
 
-// Use local maxima finder to find spots in the original image:
-pol = FindLocalMaxima.FindMax(imp, 4, 1100, FindLocalMaxima.FilterType.GAUSSIAN1_5);
+// find micronuclei by sharpening, segmentation using Otsu, and Watershed
 
 // check for each spot if it was in a nucleus, add it to our micronucleus list if 
 // it was not
