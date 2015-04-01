@@ -1,0 +1,239 @@
+/**
+ * Beanshell script to find micronuclei in a field of cells stained with a DNA dye
+ * This script prefilters the image, automatically segments it, and find objects
+ * of a certain size (size limits are set just under here)
+ * 
+ * Nico Stuurman, 2015, Copyright regents of the University of California
+ * 
+ * 
+ */
+
+import java.util.ArrayList;
+import java.util.prefs.Preferences;
+import java.util.HashMap;
+
+import java.awt.geom.Point2D;
+import java.awt.geom.Point2D.Double;
+import java.awt.Polygon;
+
+import ij.IJ;
+import ij.plugin.filter.GaussianBlur;
+import ij.plugin.frame.RoiManager;
+import ij.gui.Roi;
+import ij.gui.PolygonRoi;
+
+import org.micromanager.MMStudio;
+
+import org.micromanager.projector.ProjectorControlForm;
+
+import edu.valelab.gaussianfit.FitAllThread;
+import edu.valelab.gaussianfit.algorithm.FindLocalMaxima;
+import edu.valelab.gaussianfit.data.GaussianInfo;
+
+// whether or not to photoactivate
+zap = true;
+
+// microNuclei allowed sizes
+mnMinSize = 1.0;
+mnMaxSize = 40.0;
+// nuclei allowed sized
+nMinSize = 125;
+nMaxSize = 600;
+// max distance a micronucleus can be separated from a nucleus
+maxDistance = 30; 
+// min distance a micronucleus should be from the edge of the image
+minEdgeDistance = 10.0; // in microns
+
+pixelSize = 0.644; // not sure why, but imp.getCalibration is unreliable
+
+/**
+ * calculates distance between two points
+ */
+distance(Point2D.Double p1, Point2D.Double p2) {
+	x = p1.x - p2.x;
+	y = p1.y - p2.y;
+	total = x * x + y * y;
+	return Math.sqrt(total);	
+}
+
+/**
+ * Find the closest point in the Arraylist
+ * for now, uses brute force search
+ */
+closest(Point2D.Double p, ArrayList l) {
+	if (l.size() == 0) {
+		return null;
+	}
+	closestNucleus = l.get(0);
+	d = distance(p, closestNucleus);
+	for (p2 : l) {
+		dNew = distance(p, p2);
+		if (dNew < d) {
+			d = dNew;
+			closestNucleus = p2; 
+		}
+	}
+	return closestNucleus;
+}
+
+
+// start of the main code
+microNuclei = new ArrayList();
+nuclei = new ArrayList();
+nucleiRois = new HashMap();
+zapNuclei = new ArrayList();
+
+imp = IJ.getImage();
+cal = imp.getCalibration();
+width = imp.getProcessor().getWidth();
+height = imp.getProcessor().getHeight();
+widthUm = cal.getX(width);
+heightUm = cal.getY(height);
+pixelSize = cal.getX(1.0);
+
+gui = MMStudio.getInstance();
+
+//gui.message("PixelSize: " + cal.getX(1));
+
+// maintain some form of persistence using prefs
+prefs = Preferences.userNodeForPackage(this.getClass());
+
+// find just the nuclei, exclude objects at edges (?needed?)
+nucleiImp = imp.duplicate();
+IJ.setAutoThreshold(nucleiImp, "Otsu dark");
+Prefs.blackBackground = true;
+IJ.run(nucleiImp, "Convert to Mask", "");
+IJ.run(nucleiImp, "Erode", "");
+IJ.run(nucleiImp, "Erode", "");
+IJ.run(nucleiImp, "Dilate", "");
+IJ.run(nucleiImp, "Dilate", "");
+IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
+IJ.run(nucleiImp, "Analyze Particles...", "size=" + nMinSize + "-" + nMaxSize + 
+							"  exclude clear add");
+
+// add nuclei to our list of nuclei:
+rm = RoiManager.getInstance2();
+for (roi : rm.getRoisAsArray()) {
+	// approximate nuclear positions as the center of the bounding box
+	rc = roi.getBounds();
+	double xc = rc.x + 0.5 * rc.width;
+	double yc = rc.y + 0.5 * rc.height;
+	xc *= pixelSize;
+	yc *= pixelSize;
+	// gui.message("pt: " + xc + ", " + yc);
+	// pt = new Point2D.Double( cal.getX(xc),cal.getX(yc) );
+	pt = new java.awt.geom.Point2D.Double ( xc, yc );
+	nucleiRois.put(pt, roi);
+	nuclei.add(pt);
+}
+
+
+// run particle analyzer one more time, to include particles at the edge
+// so that we will not confuse them with micronuclei
+IJ.run(nucleiImp, "Analyze Particles...", "size=" + nMinSize + "-" + nMaxSize + 
+							"  clear add");
+
+// close the ImagePlus as we no longer need it (we could leave this to the GC)
+nucleiImp.changes = false;
+nucleiImp.close();
+
+// Use local maxima finder to find spots in the original image:
+pol = FindLocalMaxima.FindMax(imp, 4, 1100, FindLocalMaxima.FilterType.GAUSSIAN1_5);
+
+// check for each spot if it was in a nucleus, add it to our micronucleus list if 
+// it was not
+rm = RoiManager.getInstance2();
+if (pol != null) {
+	// gui.message("npoints: " + pol.npoints);
+	for (i = 0; i < pol.npoints; i++) {
+		x = pol.xpoints[i];
+		y = pol.ypoints[i];
+		// gui.message("spot " + x + ", " + y);
+		inROI = false;
+		for (roi : rm.getRoisAsArray()) {
+			if (roi.contains(x, y)) {
+				inROI = true;
+			}
+		}
+		if (!inROI) {
+			pt = new java.awt.geom.Point2D.Double( x * pixelSize, y * pixelSize );
+			if ( pt.x > minEdgeDistance && pt.y > minEdgeDistance &&
+						pt.x < (widthUm - minEdgeDistance)  && 
+						pt.y < (heightUm - minEdgeDistance) ) 
+			{
+  				microNuclei.add(pt);
+			}
+			// gui.message("spot " + x + ", " + y + " was not in an ROI");
+		}
+	}
+}
+
+// report what we found
+res = ij.measure.ResultsTable.getResultsTable();
+res.reset();
+nMn = 0;
+// sanity checks:
+// gui.message("mn: " + microNuclei.size() + ", n: " + nuclei.size()); 
+if (microNuclei.size() < 75 && nuclei.size() > 5) {
+	nMn += microNuclei.size();
+	for (mn : microNuclei) {
+		cn = closest(mn, nuclei);
+		if (cn != null && 30 > distance(mn, cn) ) {
+			if (!zapNuclei.contains(cn)) {
+				zapNuclei.add(cn);
+			}
+			res.incrementCounter();
+			res.addValue("X", mn.x);
+			res.addValue("Y", mn.y);
+			res.addValue("nX", cn.x);
+			res.addValue("nY", cn.y);
+			res.addValue("distance", distance(mn, cn));
+		} 
+	}
+}
+res.show("Results");
+
+prefs.putInt("nuclei", prefs.getInt("nuclei", 0) + nuclei.size());
+prefs.putInt("microNuclei", prefs.getInt("microNuclei", 0) + nMn);
+prefs.putInt("zappedNuclei", prefs.getInt("zappedNuclei", 0) + zapNuclei.size());
+
+if (zap) {
+
+	// get a list with rois that we want to zap
+	zapRois = new ArrayList();
+	for (p : zapNuclei) {
+		//for (p : nuclei) {  // use this to zap all nuclei
+		roi = nucleiRois.get(p);
+		//gui.message("Zap the roi: " + roi.getBounds());
+		zapRois.add(roi);
+	}
+
+	gui.message("mn: " + microNuclei.size() + ", n: " + nuclei.size() + ", zap: " + zapRois.size()); 
+
+	//gui.message("ZapRoi x: " + zapRois.get(0).x + ", y: " + zapRois.get(0).y);
+
+	// convert zapRois in a Roi[] of Polygon Rois
+	pcf = ProjectorControlForm.showSingleton(gui.getMMCore(), gui);
+	Roi[] rois = new Roi[zapRois.size()];
+	for (i=0; i < zapRois.size(); i++) {
+		rois[i] = (Roi) zapRois.get(i);
+		poly = rois[i].getConvexHull();
+		rois[i] = new PolygonRoi(poly, Roi.POLYGON);
+	}
+
+	// send to the galvo device and zap them for real
+	pcf.setNrRepetitions(5);
+	for (i=0; i < rois.length; i++) {
+		gui.message("Zapping " + (i + 1) + " of " + rois.length);
+		Roi[] theRois = {rois[i]};
+		pcf.setROIs(theRois);
+		pcf.updateROISettings();
+		pcf.getDevice().waitForDevice();
+		pcf.runRois();
+		pcf.getDevice().waitForDevice();
+	}
+
+	// display result and return focus to our window
+	gui.runAcquisition();
+	imp.getWindow().toFront();
+}
