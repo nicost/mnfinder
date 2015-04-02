@@ -1,0 +1,4 @@
+ gui.message("Nuclei: " + prefs.getInt("nuclei", 0));
+ prefs.putInt("nuclei", 0);
+ gui.message("With MicroNuclei: " + prefs.getInt("zappedNuclei", 0));
+ prefs.putInt("zappedNuclei", 0);

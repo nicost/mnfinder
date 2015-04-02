@@ -143,12 +143,6 @@ for (roi : rm.getRoisAsArray()) {
 	// gui.message("spot " + x + ", " + y + " was not in an ROI");
 }
 
-// no longer need the microNuclei imp
-microNucleiImp.changes = false;
-if (showMasks)
-	microNucleiImp.show();
-else
-	microNucleiImp.close();
 
 
 // find nuclei by smoothing and gaussian filtering, followed by Otsu segmentation and watershed
@@ -186,6 +180,14 @@ if (showMasks)
 else
 	nucleiImp.close();
 
+// no longer need the microNuclei imp
+microNucleiImp.changes = false;
+if (showMasks)
+	microNucleiImp.show();
+else
+	microNucleiImp.close();
+
+
 // cycle through the list of micronuclei
 // assign each to the nearest by nucleus (not more than maxdistance away)
 for (mn : microNuclei) {
@@ -200,8 +202,8 @@ for (mn : microNuclei) {
 res = ij.measure.ResultsTable.getResultsTable();
 res.reset();
 
-
-double roiMinSize = pixelSize * pixelSize * nMinSize;
+// this is a bit funky, but seems to work
+double roiMinSize = pixelSize * pixelSize * nMinSize * 10;
 for (p : nuclei.keySet() ) {
 	res.incrementCounter();
 	res.addValue("X", p.x);
@@ -213,7 +215,6 @@ for (p : nuclei.keySet() ) {
 		// add to our target nuclei, except if these happen to be two nuclei that were 
 		// lying close together. 
 		if ( mnList.size() == 2) {
-			gui.message("" + mnList.get(0) + ", " + mnList.get(1));
 			Roi r0 = microNucleiROIs.get(mnList.get(0));
 			Roi r1 = microNucleiROIs.get(mnList.get(1));
 			if ( (r0 != null && roiSize (r0 ) < roiMinSize) || 
