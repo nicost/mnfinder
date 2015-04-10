@@ -45,6 +45,12 @@ nMaxSize = 900;
 maxDistance = 20; 
 // min distance a micronucleus should be from the edge of the image
 minEdgeDistance = 10.0; // in microns
+// minimum number of "micronuclei" we want per nucleus to score as a hit
+minNumMNperNucleus = 4;
+// do not analyze images whose mean is above this value
+// Use this to remove images showing well edges
+maxMean = 16000;
+
 
 pixelSize = 0.644; // not sure why, but imp.getCalibration is unreliable
 
@@ -100,6 +106,12 @@ zapNuclei = new ArrayList();
 
 imp = IJ.getImage();
 cal = imp.getCalibration();
+// remove images that have the well edge in them
+mean = imp.getStatistics().mean;
+if (mean > maxMean) 
+	return;
+
+
 width = imp.getProcessor().getWidth();
 height = imp.getProcessor().getHeight();
 widthUm = cal.getX(width);
@@ -211,7 +223,7 @@ for (p : nuclei.keySet() ) {
 	mnList = nuclei.get(p);
 	res.addValue("# mN", mnList.size());
 	zapit = 0;
-	if (nuclei.get(p).size() > 1) {
+	if (nuclei.get(p).size() >= minNumMNperNucleus) {
 		// add to our target nuclei, except if these happen to be two nuclei that were 
 		// lying close together. 
 		if ( mnList.size() == 2) {
