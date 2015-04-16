@@ -1,0 +1,83 @@
+/**
+ * Script used to run another script once for every position during 
+ * a Micro-Manager acquisition
+ */
+import org.micromanager.api.MultiStagePosition;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.util.prefs.Preferences;
+
+
+script = "/Users/nico/git/mnfinder/mn2.bsh";
+
+channelGroup = "Channel";
+imagingChannel = "DAPI";
+afterZapChannel = "Rhodamine";
+nrImagesPerWell = 6;
+saveLocation = "/Users/nico/tmp/screen";
+saveZappedLocation = "/Users/nico/tmp/screen/Zapped";
+
+
+
+//////////DO NOT EDIT BELOW THIS LINE////////////////
+
+// maintain some form of persistence using prefs
+// if (prefs == null) 
+//	prefs = Preferences.userNodeForPackage(this.getClass());
+	
+gui.closeAllAcquisitions();
+new File(saveLocation).mkdirs();
+new File(saveZappedLocation).mkdirs();
+resultsFile = new File(saveLocation + "/" + "results.txt");
+resultsFile.createNewFile();
+resultsWriter = new BufferedWriter(new FileWriter(resultsFile));
+
+posList = gui.getPositionList();
+positions = posList.getPositions();
+currentWell = "";
+count = 0;
+for (i=0; i < positions.length; i++) {
+	msp = positions[i];
+	label = msp.getLabel();
+	well = label.split("-")[0];
+	if (!currentWell.equals(well)) {
+		if (!currentWell.equals("")) {
+			nuclei = prefs.getInt("nuclei", 0);
+			zappedNuclei = prefs.getInt("zappedNuclei", 0);
+			resultsWriter.write(well + "\t" + nuclei + "\t" + zappedNuclei);
+			resultsWriter.newLine();
+			
+		   gui.message("Nuclei: " + nuclei);
+ 		   prefs.putInt("nuclei", 0);
+ 			gui.message("With MicroNuclei: " + zappedNuclei);
+ 			prefs.putInt("zappedNuclei", 0);
+		}
+		currentWell = well;
+		gui.openAcquisition(well, saveLocation + "/" + well, 1, 1, 1, nrImagesPerWell, true, true);
+		wellCount = 0;
+	}
+	MultiStagePosition.goToPosition(msp, mmc);
+	mmc.setConfig(channelGroup, imagingChannel);
+	mmc.snapImage();
+	tImg = mmc.getTaggedImage();
+	gui.addImageToAcquisition(well, 0, 0, 0, wellCount, tImg);
+	gui.message(well + "-" + wellCount);
+	prefs.putInt("zappedNow", 0);
+	source(script);
+	zappedNow = prefs.getInt("zappedNow", 0);
+	if (zappedNow > 0) {
+		// take the red image and save it
+		gui.openAcquisition(msp.getLabel, saveZappedLocation, 1, 2, 1, 1, false, true);
+		gui.addImageToAcquistion(msp.getLabel, 0, 0, 0, 0, tImg);
+		mmc.setConfig(channelGroup, afterZapChannel);
+		mmc.snapImage();
+		tImg2 = mmc.getTaggedImage();
+		gui.addImageToAcquisition(msp.getLabel, 0, 1, 0, 0, tImg2);
+		gui.closeAcquisition(msp.getLabel());
+	}
+	wellCount++;
+	count++;
+}
+
+resultsWriter.close();
+gui.message("Analyzed " + count + " images");

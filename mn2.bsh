@@ -19,6 +19,7 @@ import java.awt.Polygon;
 import ij.IJ;
 import ij.plugin.filter.GaussianBlur;
 import ij.plugin.frame.RoiManager;
+import ij.plugin.ImageCalculator;
 import ij.gui.Roi;
 import ij.gui.PolygonRoi;
 
@@ -50,7 +51,8 @@ minNumMNperNucleus = 4;
 // do not analyze images whose mean is above this value
 // Use this to remove images showing well edges
 maxMean = 16000;
-
+// name of the faltfield image in ImageJ.  Open this image first
+flatfieldName = "flatfield.tif";
 
 pixelSize = 0.644; // not sure why, but imp.getCalibration is unreliable
 
@@ -104,6 +106,11 @@ nucleiContents = new ArrayList();
 nucleiRois = new HashMap();
 zapNuclei = new ArrayList();
 
+// check if there is a flatfield image
+flatField = ij.WindowManager.getImage(flatfieldName);
+if (flatField == null)
+	gui.message("No flatfield found");
+
 imp = IJ.getImage();
 cal = imp.getCalibration();
 // remove images that have the well edge in them
@@ -123,12 +130,16 @@ gui = MMStudio.getInstance();
 //gui.message("PixelSize: " + cal.getX(1));
 
 // maintain some form of persistence using prefs
-prefs = Preferences.userNodeForPackage(this.getClass());
+//if (prefs == null) 
+	prefs = Preferences.userNodeForPackage(this.getClass());
 
-
+imp2 = imp.duplicate();
+ic = new ImageCalculator();
+if (flatfield != null)
+	ic.run("Divide", imp2, flatField);
 
 // find micronuclei by sharpening, segmentation using Otsu, and Watershed
-microNucleiImp = imp.duplicate();
+microNucleiImp = imp2.duplicate();
 IJ.run(microNucleiImp, "Sharpen", "");
 IJ.setAutoThreshold(microNucleiImp, "Otsu dark");
 Prefs.blackBackground = true;
@@ -141,6 +152,8 @@ IJ.run(microNucleiImp, "Analyze Particles...", "size=" + mnMinSize + "-" + mnMax
 
 // Build up a list of potential micronuclei
 rm = RoiManager.getInstance2();
+if (rm == null) 
+	rm = new RoiManager();
 for (roi : rm.getRoisAsArray()) {
 	// approximate microNuclear positions as the center of the bounding box
 	rc = roi.getBounds();
@@ -158,13 +171,13 @@ for (roi : rm.getRoisAsArray()) {
 
 
 // find nuclei by smoothing and gaussian filtering, followed by Otsu segmentation and watershed
-nucleiImp = imp.duplicate();
+nucleiImp = imp2.duplicate();
 IJ.run(nucleiImp, "Smooth", "");
 IJ.run(nucleiImp, "Gaussian Blur...", "sigma=5.0");
 IJ.setAutoThreshold(nucleiImp, "Otsu dark");
 Prefs.blackBackground = true;
 IJ.run(nucleiImp, "Convert to Mask", "");
-IJ.run(microNucleiImp, "Watershed", "");
+IJ.run(nucleiImp, "Watershed", "");
 IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
 IJ.run(nucleiImp, "Analyze Particles...", "size=" + nMinSize + "-" + nMaxSize +
 							"  clear add");
@@ -199,6 +212,8 @@ if (showMasks)
 else
 	microNucleiImp.close();
 
+imp2.changes = false;
+imp2.close();
 
 // cycle through the list of micronuclei
 // assign each to the nearest by nucleus (not more than maxdistance away)
@@ -244,7 +259,7 @@ for (p : nuclei.keySet() ) {
 
 
 res.show("Results");
-
+prefs.getInt("nuclei", 0);
 
 prefs.putInt("nuclei", prefs.getInt("nuclei", 0) + nuclei.size());
 // prefs.putInt("microNuclei", prefs.getInt("microNuclei", 0) + nMn);
@@ -273,6 +288,8 @@ if (zap) {
 		rois[i] = new PolygonRoi(poly, Roi.POLYGON);
 	}
 
+	prefs.putInt("zappedNow", roi.length);
+
 	// send to the galvo device and zap them for real
 	pcf.setNrRepetitions(5);
 	for (i=0; i < rois.length; i++) {
@@ -286,6 +303,8 @@ if (zap) {
 	}
 
 	// display result and return focus to our window
-	gui.runAcquisition();
-	imp.getWindow().toFront();
+	//gui.runAcquisition();
+	//imp.getWindow().toFront();
+   
+	
 }
