@@ -31,7 +31,7 @@ import edu.valelab.gaussianfit.algorithm.FindLocalMaxima;
 import edu.valelab.gaussianfit.data.GaussianInfo;
 
 // whether or not to photoactivate
-zap = true;
+zap = false;
 
 // microNuclei allowed sizes
 mnMinSize = 1.0;
@@ -197,7 +197,7 @@ prefs.putInt("nuclei", prefs.getInt("nuclei", 0) + nuclei.size());
 prefs.putInt("microNuclei", prefs.getInt("microNuclei", 0) + nMn);
 prefs.putInt("zappedNuclei", prefs.getInt("zappedNuclei", 0) + zapNuclei.size());
 
-if (zap) {
+
 
 	// get a list with rois that we want to zap
 	zapRois = new ArrayList();
@@ -209,7 +209,7 @@ if (zap) {
 	}
 
 	gui.message("mn: " + microNuclei.size() + ", n: " + nuclei.size() + ", zap: " + zapRois.size()); 
-
+if (zap) {
 	//gui.message("ZapRoi x: " + zapRois.get(0).x + ", y: " + zapRois.get(0).y);
 
 	// convert zapRois in a Roi[] of Polygon Rois
