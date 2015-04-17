@@ -32,7 +32,7 @@ import edu.valelab.gaussianfit.algorithm.FindLocalMaxima;
 import edu.valelab.gaussianfit.data.GaussianInfo;
 
 // whether or not to photoactivate
-zap = false;
+zap = true;
 // whether or not to show binary masks, set to false when using the IA plugin!
 showMasks = false;
 
@@ -177,7 +177,7 @@ IJ.run(nucleiImp, "Gaussian Blur...", "sigma=5.0");
 IJ.setAutoThreshold(nucleiImp, "Otsu dark");
 Prefs.blackBackground = true;
 IJ.run(nucleiImp, "Convert to Mask", "");
-IJ.run(nucleiImp, "Watershed", "");
+//IJ.run(nucleiImp, "Watershed", "");
 IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
 IJ.run(nucleiImp, "Analyze Particles...", "size=" + nMinSize + "-" + nMaxSize +
 							"  clear add");
@@ -288,7 +288,7 @@ if (zap) {
 		rois[i] = new PolygonRoi(poly, Roi.POLYGON);
 	}
 
-	prefs.putInt("zappedNow", roi.length);
+	prefs.putInt("zappedNow", rois.length);
 
 	// send to the galvo device and zap them for real
 	pcf.setNrRepetitions(5);
