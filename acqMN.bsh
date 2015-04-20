@@ -9,28 +9,35 @@ import java.io.FileWriter;
 import java.util.prefs.Preferences;
 import java.awt.Color;
 
-
+/*
 script = "D:\\projects\\mnfinder\\mn2.bsh";
-
 channelGroup = "Channels";
 imagingChannel = "Epi-Cy5-PhotoTarget";
 afterZapChannel = "Epi-Cherry";
 nrImagesPerWell = 2;
 saveLocation = "D:\\Users\\Susana\\20150416\\screen";
 saveZappedLocation = saveLocation + "\\Zapped";
+*/
 
+
+script = "/Users/nico/git/mnfinder/mn2.bsh";
+channelGroup = "Channel";
+imagingChannel = "DAPI";
+afterZapChannel = "FITC";
+nrImagesPerWell = 2;
+saveLocation = "/Users/nico/tmp/testSreen";
+saveZappedLocation = saveLocation + "/Zapped";
 
 
 //////////DO NOT EDIT BELOW THIS LINE////////////////
 
 // maintain some form of persistence using prefs
-// if (prefs == null) 
-//	prefs = Preferences.userNodeForPackage(this.getClass());
+prefs = Preferences.userNodeForPackage(this.getClass());
 	
 gui.closeAllAcquisitions();
 new File(saveLocation).mkdirs();
-new File(saveZappedLocation).mkdirs();
-resultsFile = new File(saveLocation + "\\" + "results.txt");
+//new File(saveZappedLocation).mkdirs();
+resultsFile = new File(saveLocation + File.separator + "results.txt");
 resultsFile.createNewFile();
 resultsWriter = new BufferedWriter(new FileWriter(resultsFile));
 
@@ -54,7 +61,7 @@ for (int p = 0; p < positions.length; p++) {
 		   gui.message(currentWell + " " + nuclei + "   " + zappedNuclei);
 		}
 		currentWell = well;
-		gui.openAcquisition(well, saveLocation + "/" + well, 1, 1, 1, nrImagesPerWell, true, true);
+		gui.openAcquisition(well, saveLocation, 1, 2, 1, nrImagesPerWell, true, true);
 		wellCount = 0;
 	}
 	MultiStagePosition.goToPosition(msp, mmc);
@@ -71,15 +78,12 @@ for (int p = 0; p < positions.length; p++) {
 		acq2 = msp.getLabel();
 		gui.message("Imaging zapped cells at site: " + acq2);
 		// take the red image and save it
-		gui.openAcquisition(acq2, saveZappedLocation, 1, 2, 1, 1, false, true);
-		acq2Object = gui.getAcquisition(acq2);
-		acq2Object.setChannelColor(1, new Color(255, 0, 0).getRGB());
-		gui.addImageToAcquisition(acq2, 0, 0, 0, 0, tImg);
 		mmc.setConfig(channelGroup, afterZapChannel);
 		mmc.snapImage();
 		tImg2 = mmc.getTaggedImage();
-		gui.addImageToAcquisition(acq2, 0, 1, 0, 0, tImg2);
-		gui.closeAcquisition(acq2);
+		gui.addImageToAcquisition(well, 0, 1, 0, wellCount, tImg2);
+		acqObject = gui.getAcquisition(well);
+		acqObject.setChannelColor(1, new Color(255, 0, 0).getRGB());
 		mmc.setConfig(channelGroup, imagingChannel);
 	}
 	wellCount++;
