@@ -17,6 +17,7 @@ import java.awt.geom.Point2D.Double;
 import java.awt.Polygon;
 
 import ij.IJ;
+import ij.plugin.Duplicator;
 import ij.plugin.filter.GaussianBlur;
 import ij.plugin.frame.RoiManager;
 import ij.plugin.ImageCalculator;
@@ -133,7 +134,7 @@ gui = MMStudio.getInstance();
 //if (prefs == null) 
 	prefs = Preferences.userNodeForPackage(this.getClass());
 
-imp2 = imp.duplicate();
+imp2 = (new Duplicator()).run(imp, 1, 1);
 ic = new ImageCalculator();
 if (flatfield != null)
 	ic.run("Divide", imp2, flatField);
