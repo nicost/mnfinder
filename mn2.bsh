@@ -33,7 +33,7 @@ import edu.valelab.gaussianfit.algorithm.FindLocalMaxima;
 import edu.valelab.gaussianfit.data.GaussianInfo;
 
 // whether or not to photoactivate
-zap = true;
+zap = false;
 // whether or not to show binary masks, set to false when using the IA plugin!
 showMasks = false;
 
@@ -48,10 +48,10 @@ maxDistance = 20;
 // min distance a micronucleus should be from the edge of the image
 minEdgeDistance = 10.0; // in microns
 // minimum number of "micronuclei" we want per nucleus to score as a hit
-minNumMNperNucleus = 4;
-// do not analyze images whose mean is above this value
+minNumMNperNucleus = 3;
+// do not analyze images whose stdev is above this value
 // Use this to remove images showing well edges
-maxMean = 16000;
+maxStdDev = 7000;
 // name of the faltfield image in ImageJ.  Open this image first
 flatfieldName = "flatfield.tif";
 
@@ -112,13 +112,16 @@ flatField = ij.WindowManager.getImage(flatfieldName);
 if (flatField == null)
 	gui.message("No flatfield found");
 
+// clean results table	
+res = ij.measure.ResultsTable.getResultsTable();
+res.reset();
+
 imp = IJ.getImage();
 cal = imp.getCalibration();
 // remove images that have the well edge in them
-mean = imp.getStatistics().mean;
-if (mean > maxMean) 
+stdDev = imp.getStatistics().stdDev;
+if (stdDev > maxStdDev) 
 	return;
-
 
 width = imp.getProcessor().getWidth();
 height = imp.getProcessor().getHeight();
@@ -131,13 +134,12 @@ gui = MMStudio.getInstance();
 //gui.message("PixelSize: " + cal.getX(1));
 
 // maintain some form of persistence using prefs
-//if (prefs == null) 
-	prefs = Preferences.userNodeForPackage(this.getClass());
+prefs = Preferences.userNodeForPackage(this.getClass());
 
 imp2 = (new Duplicator()).run(imp, 1, 1);
 ic = new ImageCalculator();
 if (flatfield != null)
-	ic.run("Divide", imp2, flatField);
+	imp2 = ic.run("Divide, float, 32", imp2, flatField);
 
 // find micronuclei by sharpening, segmentation using Otsu, and Watershed
 microNucleiImp = imp2.duplicate();
@@ -145,10 +147,13 @@ IJ.run(microNucleiImp, "Sharpen", "");
 IJ.setAutoThreshold(microNucleiImp, "Otsu dark");
 Prefs.blackBackground = true;
 IJ.run(microNucleiImp, "Convert to Mask", "");
+IJ.run(microNucleiImp, "Close-", "");
+//IJ.run(microNucleiImp, "Erode", "");
 IJ.run(microNucleiImp, "Watershed", "");
-IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
+//IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
+IJ.run("Set Measurements...", "area center decimal=2");
 IJ.run(microNucleiImp, "Analyze Particles...", "size=" + mnMinSize + "-" + mnMaxSize +
-							"  clear add");
+							"  show clear add");
 
 
 // Build up a list of potential micronuclei
@@ -170,7 +175,6 @@ for (roi : rm.getRoisAsArray()) {
 }
 
 
-
 // find nuclei by smoothing and gaussian filtering, followed by Otsu segmentation and watershed
 nucleiImp = imp2.duplicate();
 IJ.run(nucleiImp, "Smooth", "");
@@ -178,8 +182,11 @@ IJ.run(nucleiImp, "Gaussian Blur...", "sigma=5.0");
 IJ.setAutoThreshold(nucleiImp, "Otsu dark");
 Prefs.blackBackground = true;
 IJ.run(nucleiImp, "Convert to Mask", "");
-//IJ.run(nucleiImp, "Watershed", "");
-IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
+IJ.run(nucleiImp, "Dilate", "");
+IJ.run(nucleiImp, "Erode", "");
+IJ.run(nucleiImp, "Watershed", "");
+//IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
+IJ.run("Set Measurements...", "area center decimal=2");
 IJ.run(nucleiImp, "Analyze Particles...", "size=" + nMinSize + "-" + nMaxSize +
 							"  clear add");
 
@@ -214,7 +221,10 @@ else
 	microNucleiImp.close();
 
 imp2.changes = false;
-imp2.close();
+if (showMasks)
+	imp2.show();
+else
+   imp2.close();
 
 // cycle through the list of micronuclei
 // assign each to the nearest by nucleus (not more than maxdistance away)
@@ -227,7 +237,6 @@ for (mn : microNuclei) {
 
 
 // report what we found
-res = ij.measure.ResultsTable.getResultsTable();
 res.reset();
 
 // this is a bit funky, but seems to work
