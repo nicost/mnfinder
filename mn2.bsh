@@ -38,7 +38,7 @@ zap = false;
 showMasks = false;
 
 // microNuclei allowed sizes
-mnMinSize = 0.5;
+mnMinSize = 3.0;
 mnMaxSize = 800.0;
 // nuclei allowed sized
 nMinSize = 80;
@@ -143,7 +143,11 @@ if (flatfield != null)
 
 // find micronuclei by sharpening, segmentation using Otsu, and Watershed
 microNucleiImp = imp2.duplicate();
+IJ.run(microNucleiImp, "16-bit", "");
 IJ.run(microNucleiImp, "Sharpen", "");
+//IJ.run(microNucleiImp, "Thresholded Blur", "radius=5 threshold=800 softness=0.50 strength=3");
+//IJ.run(microNucleiImp, "Unsharp Mask...", "radius=3 mask=0.60");
+//IJ.run(microNucleiImp, "Kuwahara Filter", "sampling=3");
 IJ.setAutoThreshold(microNucleiImp, "Otsu dark");
 Prefs.blackBackground = true;
 IJ.run(microNucleiImp, "Convert to Mask", "");
