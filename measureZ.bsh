@@ -1,0 +1,80 @@
+/**
+ * Micro-Manager script that measures the z position at all positions in the position list
+ */
+
+outputFile =  "/Users/nico/tmp/measureZ.txt";
+nrColumns = 2;
+nrRows = 3;
+
+
+////////// Do NOT edit below this line
+import org.micromanager.api.MultiStagePosition;
+
+resultsFile = new File(outputFile);
+resultsFile.createNewFile();
+resultsWriter = new BufferedWriter(new FileWriter(resultsFile));
+
+posList = gui.getPositionList();
+positions = posList.getPositions();
+currentWell = "";
+count = 0;
+sitesPerWell = 0;
+wellCount = 0;
+
+// first get out how many positions per well we have
+for (int p = 0; p < positions.length; p++) {
+	msp = positions[p];
+	label = msp.getLabel();
+	well = label.split("-")[0];
+	if (!currentWell.equals(well)) {
+		currentWell = well;
+		wellCount++;
+		sitesPerWell = 1;
+	} else
+	   sitesPerWell++;
+}
+gui.message("" + sitesPerWell + " sites per well, " + wellCount + " wells");
+
+// this will only work with square sites per well
+nPerRow = Math.sqrt(wellCount);
+nPerRow = (int) nPerRow;
+double[][][] zValues = new double[wellCount][nPerRow][nPerRow];
+
+// now visit them all and record z positions after locking the PFS
+wi = 0;
+ri = 0;
+ci = 0;
+for (int p = 0; p < positions.length; p++) {
+	msp = positions[p];
+	label = msp.getLabel();
+	well = label.split("-")[0];
+	MultiStagePosition.goToPosition(msp, mmc);
+	// mmc.fullFocus();
+	gui.message("well " + wi + ", " + ri + ", " + ci);
+	zValues[wi][ri][ci] = mmc.getPosition();
+	ci++;
+	if (ci == nPerRow) {
+		ci = 0;
+		ri++;
+	}
+	if (ri == nPerRow) {
+		ri = 0;
+		wi++;
+	}
+}
+
+for (int r = 0; r < nrRows; r++) {
+	for (int rr = 0; rr < nPerRow; rr++) {
+		for (int sr = 0; sr < nPerRow * nrColumns; sr++) {
+			wellIndex = r * nrColumns + sr / nPerRow;
+			cci = sr % nPerRow;
+			gui.message("" + wellIndex + ", " + rr + ", " + cci);
+			resultsWriter.write("" + zValues[wellIndex][rr][cci]  + "\t" );
+		}
+	resultsWriter.newLine();	
+	}
+}
+resultsWriter.close();
+	
+	
+	
