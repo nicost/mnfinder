@@ -9,17 +9,17 @@ import java.io.FileWriter;
 import java.util.prefs.Preferences;
 import java.awt.Color;
 
-/*
+
 script = "D:\\projects\\mnfinder\\mn2.bsh";
 channelGroup = "Channels";
 imagingChannel = "Epi-Cy5-PhotoTarget";
 afterZapChannel = "Epi-Cherry";
-nrImagesPerWell = 2;
-saveLocation = "D:\\Users\\Susana\\20150416\\screen";
+nrImagesPerWell = 100;
+saveLocation = "D:\\Users\\Susana\\20150427\\screen2";
 saveZappedLocation = saveLocation + "\\Zapped";
-*/
 
 
+/*
 script = "/Users/nico/git/mnfinder/mn2.bsh";
 channelGroup = "Channel";
 imagingChannel = "DAPI";
@@ -27,7 +27,7 @@ afterZapChannel = "FITC";
 nrImagesPerWell = 2;
 saveLocation = "/Users/nico/tmp/testSreen";
 saveZappedLocation = saveLocation + "/Zapped";
-
+*/
 
 //////////DO NOT EDIT BELOW THIS LINE////////////////
 
@@ -57,7 +57,8 @@ for (int p = 0; p < positions.length; p++) {
 			zappedNuclei = prefs.getInt("zappedNuclei", 0);
 			prefs.putInt("zappedNuclei", 0);
 			resultsWriter.write(currentWell + "\t" + nuclei + "\t" + zappedNuclei);
-			resultsWriter.newLine();			
+			resultsWriter.newLine();
+			resultsWriter.flush();			
 		   gui.message(currentWell + " " + nuclei + "   " + zappedNuclei);
 		}
 		currentWell = well;
