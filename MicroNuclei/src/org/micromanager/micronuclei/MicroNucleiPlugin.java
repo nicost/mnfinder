@@ -16,10 +16,8 @@
 
 package org.micromanager.micronuclei;
 
-import javax.swing.JOptionPane;
 
-import mmcorej.CMMCore;
-
+import java.awt.event.WindowEvent;
 import org.micromanager.api.MMPlugin;
 import org.micromanager.api.ScriptInterface;
 
@@ -38,9 +36,12 @@ public class MicroNucleiPlugin implements MMPlugin {
    @Override
    public void setApp(ScriptInterface app) {
       app_ = app;
-      if (theForm_ != null) {
-         theForm_ = new MicroNucleiForm(app_);
+      if (theForm_ != null && theForm_.isDisplayable()) {
+         WindowEvent wev = new WindowEvent(theForm_, WindowEvent.WINDOW_CLOSING);
+         theForm_.dispatchEvent(wev);
       }
+      // create brand new instance of plugin frame every time
+      theForm_ = new MicroNucleiForm(app_);
       theForm_.setVisible(true);
    }
 
@@ -52,7 +53,7 @@ public class MicroNucleiPlugin implements MMPlugin {
 
    @Override
    public void show() {
-      if (theForm_ != null) {
+      if (theForm_ == null) {
          theForm_ = new MicroNucleiForm(app_);
       }
       theForm_.setVisible(true);

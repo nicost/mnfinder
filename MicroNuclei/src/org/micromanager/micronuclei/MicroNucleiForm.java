@@ -29,8 +29,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.prefs.Preferences;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JTextField;
+import mmcorej.StrVector;
 import mmcorej.TaggedImage;
 import net.miginfocom.swing.MigLayout;
 import org.micromanager.acquisition.MMAcquisition;
@@ -57,9 +59,15 @@ public class MicroNucleiForm extends MMFrame {
    private int zappedNucleiPerWell_ = 0;
    private String saveLocation_;
    private final JTextField saveTextField_;
+   private String imagingChannel_;
+   private final JComboBox channelComboBox_;
+   private String zapChannel_;
+   private final JComboBox zapChannelComboBox_;
    private final Preferences prefs_;
    
    private final String SAVELOCATION = "SaveLocation";
+   private final String IMAGINGCHANNEL = "ImagingChannel";
+   private final String ZAPCHANNEL = "ZapChannel";
    
    public MicroNucleiForm(ScriptInterface gui) {
       gui_ = gui;
@@ -82,13 +90,13 @@ public class MicroNucleiForm extends MMFrame {
       this.setLayout(new MigLayout("flowx, fill, insets 8"));
       this.setTitle("MicroNuclei Analyze");
       
-      add(runButton, "wrap");
       
-      add(new JLabel("Save here:"));
+      add(myLabel(arialSmallFont_,"Save here:"));
       
       saveTextField_ = new JTextField();
       saveLocation_ = prefs_.get(SAVELOCATION, saveLocation_);
       saveTextField_.setText(saveLocation_);
+      saveTextField_.setMinimumSize(new Dimension(200, 12));
       add(saveTextField_);
       
       final JButton dirButton = myButton(buttonSize_, arialSmallFont_, "...");
@@ -98,10 +106,37 @@ public class MicroNucleiForm extends MMFrame {
             dirActionPerformed(e);
          }
       });
+      add(dirButton, "wrap");
       
+      add(myLabel(arialSmallFont_, "Imaging Channel: "));
+      channelComboBox_ = new JComboBox();
+      channelComboBox_.addActionListener(new ActionListener() {
+         @Override
+         public void actionPerformed(ActionEvent ae) {
+            channelActionPerformed(ae);
+         }
+      } );
+      imagingChannel_ = prefs_.get(IMAGINGCHANNEL, imagingChannel_);
+      updateChannels(channelComboBox_, imagingChannel_);
+      add(channelComboBox_, "span 2, left, wrap");
       
+      add(myLabel(arialSmallFont_, "Zap Channel: "));
+      zapChannelComboBox_ = new JComboBox();
+      zapChannelComboBox_.addActionListener(new ActionListener() {
+         @Override
+         public void actionPerformed(ActionEvent ae) {
+            zapChannelActionPerformed(ae);
+         }
+      } );
+      zapChannel_ = prefs_.get(ZAPCHANNEL, zapChannel_);
+      updateChannels(zapChannelComboBox_, zapChannel_);
+      add(zapChannelComboBox_, "span 2, left, wrap");
+      
+      add(runButton, "span 3, center, wrap");
 
       loadAndRestorePosition(100, 100, 350, 250);
+      
+      pack();
 
    }
    
@@ -116,11 +151,32 @@ public class MicroNucleiForm extends MMFrame {
       button.setMinimumSize(buttonSize);
       button.setFont(font);
       button.setMargin(new Insets(0, 0, 0, 0));
+      button.setText(text);
       
       return button;
    }
    
-    public void dirActionPerformed(java.awt.event.ActionEvent evt) {                                                  
+   private JLabel myLabel(Font font, String text) {
+      JLabel label = new JLabel(text);
+      label.setFont(font);
+      return label;
+   }
+
+   private void updateChannels(JComboBox box, String selectedChannel) {
+      box.removeAllItems();
+      try {
+         String channelGroup = gui_.getMMCore().getChannelGroup();
+         String[] channels = gui_.getMMCore().getAvailableConfigs(channelGroup).toArray();
+         for (String channel : channels) {
+            box.addItem(channel);
+         }
+      } catch (Exception ex) {
+         ReportingUtils.logError(ex);
+      }
+      box.setSelectedItem(selectedChannel);
+   }
+
+   private void dirActionPerformed(java.awt.event.ActionEvent evt) {                                                  
       File f = FileDialogs.openDir(this, "Save location",
               new FileDialogs.FileType("Dir", "Save Location",
               saveLocation_, true, "") );
@@ -130,6 +186,16 @@ public class MicroNucleiForm extends MMFrame {
          prefs_.put(SAVELOCATION, saveLocation_);    
       }
    }   
+   
+   private void channelActionPerformed(ActionEvent evt) {
+      imagingChannel_ = (String) channelComboBox_.getSelectedItem();
+      prefs_.put(IMAGINGCHANNEL, imagingChannel_);
+   }
+   
+   private void zapChannelActionPerformed(ActionEvent evt) {
+      zapChannel_ = (String) zapChannelComboBox_.getSelectedItem();
+      prefs_.put(ZAPCHANNEL, zapChannel_);
+   }
          
    
    private class RunAll implements Runnable {
@@ -140,7 +206,7 @@ public class MicroNucleiForm extends MMFrame {
       public void run() {
          try {
             running_ = true;
-            runAnalysisAndZapping();
+            runAnalysisAndZapping(saveLocation_);
          } catch (MMScriptException ex) {
             ReportingUtils.showError(ex, "Error during acquisition");
          } catch (Exception ex) {
@@ -160,14 +226,11 @@ public class MicroNucleiForm extends MMFrame {
    }
    
    
-   public void runAnalysisAndZapping() throws IOException, MMScriptException, Exception {
-      String  script = "D:\\projects\\mnfinder\\mn2.bsh";
-      String channelGroup = "Channels";
-      String imagingChannel = "Epi-Cy5-PhotoTarget";
-      String afterZapChannel = "Epi-Cherry";
-      int nrImagesPerWell = 100;
-      String saveLocation = "D:\\Users\\Susana\\20150427\\screen2";
-      String saveZappedLocation = saveLocation + "\\Zapped";
+   public void runAnalysisAndZapping(String saveLocation) throws IOException, MMScriptException, Exception {
+      String channelGroup = gui_.getMMCore().getChannelGroup();
+      String imagingChannel = imagingChannel_;
+      String afterZapChannel = zapChannel_;
+      
    
       //prefs = Preferences.userNodeForPackage(this.getClass());
       gui_.closeAllAcquisitions();
@@ -180,8 +243,22 @@ public class MicroNucleiForm extends MMFrame {
       PositionList posList = gui_.getPositionList();
       MultiStagePosition[] positions = posList.getPositions();
       String currentWell = "";
-      int count = 0;
+      int nrImagesPerWell = 0;
       int wellCount = 0;
+      // figure out how many sites per there are, we actually get that number 
+      // from the last well
+      for (MultiStagePosition msp : positions) {
+         String label = msp.getLabel();
+         String well = label.split("-")[0];
+         if (!currentWell.equals(well)) {
+            currentWell = well;
+            wellCount++;
+            nrImagesPerWell = 1;
+         } else
+            nrImagesPerWell++;
+      }
+      gui_.message("Images per well: " + nrImagesPerWell);
+      int count = 0;
       for (MultiStagePosition msp : positions) {
          String label = msp.getLabel();
          String well = label.split("-")[0];
@@ -224,7 +301,9 @@ public class MicroNucleiForm extends MMFrame {
       recordResults(resultsWriter, currentWell);
 
       resultsWriter.close();
-      gui_.message("Analyzed " + count + " images");
+      String msg = "Analyzed " + count + " images";
+      gui_.message(msg);
+      ReportingUtils.showMessage(msg);
    }
    
    private void recordResults(BufferedWriter resultsWriter, String currentWell) throws IOException, MMScriptException {
@@ -268,7 +347,7 @@ public class MicroNucleiForm extends MMFrame {
       // name of the faltfield image in ImageJ.  Open this image first
       final String flatfieldName = "flatfield.tif";
 
-      double pixelSize = 0.644; // not sure why, but imp.getCalibration is unreliable
+      double pixelSize; // not sure why, but imp.getCalibration is unreliable
 
       
      
