@@ -27,12 +27,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.prefs.Preferences;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JTextField;
-import mmcorej.StrVector;
 import mmcorej.TaggedImage;
 import net.miginfocom.swing.MigLayout;
 import org.micromanager.acquisition.MMAcquisition;
@@ -61,13 +62,23 @@ public class MicroNucleiForm extends MMFrame {
    private final JTextField saveTextField_;
    private String imagingChannel_;
    private final JComboBox channelComboBox_;
+   private String secondImagingChannel_;
+   private final JComboBox secondChannelComboBox_;
    private String zapChannel_;
    private final JComboBox zapChannelComboBox_;
+   private String afterZapChannel_;
+   private final JComboBox AfterZapChannelComboBox_;
+   private final JCheckBox doZap_;
+   private final JCheckBox showMasks_;
    private final Preferences prefs_;
    
    private final String SAVELOCATION = "SaveLocation";
    private final String IMAGINGCHANNEL = "ImagingChannel";
+   private final String SECONDIMAGINGCHANNEL = "SecondImagingChannel";
    private final String ZAPCHANNEL = "ZapChannel";
+   private final String AFTERZAPCHANNEL = "AfterZapChannel";
+   private final String DOZAP = "DoZap";
+   private final String SHOWMASKS = "ShowMasks";
    
    public MicroNucleiForm(ScriptInterface gui) {
       gui_ = gui;
@@ -110,6 +121,7 @@ public class MicroNucleiForm extends MMFrame {
       
       add(myLabel(arialSmallFont_, "Imaging Channel: "));
       channelComboBox_ = new JComboBox();
+      updateChannels(channelComboBox_, imagingChannel_, false);
       channelComboBox_.addActionListener(new ActionListener() {
          @Override
          public void actionPerformed(ActionEvent ae) {
@@ -117,8 +129,19 @@ public class MicroNucleiForm extends MMFrame {
          }
       } );
       imagingChannel_ = prefs_.get(IMAGINGCHANNEL, imagingChannel_);
-      updateChannels(channelComboBox_, imagingChannel_);
       add(channelComboBox_, "span 2, left, wrap");
+      
+      add(myLabel(arialSmallFont_, "2nd Imaging Channel: "));
+      secondChannelComboBox_ = new JComboBox();
+      updateChannels(secondChannelComboBox_, secondImagingChannel_, true);
+      secondChannelComboBox_.addActionListener(new ActionListener() {
+         @Override
+         public void actionPerformed(ActionEvent ae) {
+            secondChannelActionPerformed(ae);
+         }
+      } );
+      secondImagingChannel_ = prefs_.get(IMAGINGCHANNEL, secondImagingChannel_);
+      add(secondChannelComboBox_, "span 2, left, wrap");
       
       add(myLabel(arialSmallFont_, "Zap Channel: "));
       zapChannelComboBox_ = new JComboBox();
@@ -129,8 +152,42 @@ public class MicroNucleiForm extends MMFrame {
          }
       } );
       zapChannel_ = prefs_.get(ZAPCHANNEL, zapChannel_);
-      updateChannels(zapChannelComboBox_, zapChannel_);
+      updateChannels(zapChannelComboBox_, zapChannel_, false);
       add(zapChannelComboBox_, "span 2, left, wrap");
+      
+      add(myLabel(arialSmallFont_, "After Zap Channel: "));
+      AfterZapChannelComboBox_ = new JComboBox();
+      AfterZapChannelComboBox_.addActionListener(new ActionListener() {
+         @Override
+         public void actionPerformed(ActionEvent ae) {
+            afterZapChannelActionPerformed(ae);
+         }
+      } );
+      afterZapChannel_ = prefs_.get(AFTERZAPCHANNEL, afterZapChannel_);
+      updateChannels(AfterZapChannelComboBox_, afterZapChannel_, false);
+      add(AfterZapChannelComboBox_, "span 2, left, wrap");
+      
+      doZap_ = new JCheckBox("Zap");
+      doZap_.setSelected(prefs_.getBoolean(DOZAP, false));
+      doZap_.setFont(arialSmallFont_);
+      doZap_.addActionListener(new ActionListener() {
+         @Override
+         public void actionPerformed(ActionEvent ae) {
+              prefs_.putBoolean(DOZAP, doZap_.isSelected());
+         }
+      });
+      add (doZap_);
+      
+      showMasks_  = new JCheckBox("Show Masks");
+      showMasks_.setSelected (prefs_.getBoolean(SHOWMASKS, false));
+      showMasks_.setFont(arialSmallFont_);
+      showMasks_.addActionListener(new ActionListener() {
+         @Override
+         public void actionPerformed(ActionEvent ae) {
+              prefs_.putBoolean(SHOWMASKS, showMasks_.isSelected());
+         }
+      });
+      add (showMasks_, "wrap");
       
       add(runButton, "span 3, center, wrap");
 
@@ -162,8 +219,12 @@ public class MicroNucleiForm extends MMFrame {
       return label;
    }
 
-   private void updateChannels(JComboBox box, String selectedChannel) {
+   private void updateChannels(JComboBox box, String selectedChannel, 
+           boolean addEmpty) {
       box.removeAllItems();
+      if (addEmpty) {
+         box.addItem("");
+      }
       try {
          String channelGroup = gui_.getMMCore().getChannelGroup();
          String[] channels = gui_.getMMCore().getAvailableConfigs(channelGroup).toArray();
@@ -192,9 +253,19 @@ public class MicroNucleiForm extends MMFrame {
       prefs_.put(IMAGINGCHANNEL, imagingChannel_);
    }
    
+   private void secondChannelActionPerformed(ActionEvent evt) {
+      secondImagingChannel_ = (String) secondChannelComboBox_.getSelectedItem();
+      prefs_.put(SECONDIMAGINGCHANNEL, secondImagingChannel_);
+   }
+   
    private void zapChannelActionPerformed(ActionEvent evt) {
       zapChannel_ = (String) zapChannelComboBox_.getSelectedItem();
       prefs_.put(ZAPCHANNEL, zapChannel_);
+   }
+   
+   private void afterZapChannelActionPerformed(ActionEvent evt) {
+      afterZapChannel_ = (String) AfterZapChannelComboBox_.getSelectedItem();
+      prefs_.put(AFTERZAPCHANNEL, afterZapChannel_);
    }
          
    
@@ -229,7 +300,7 @@ public class MicroNucleiForm extends MMFrame {
    public void runAnalysisAndZapping(String saveLocation) throws IOException, MMScriptException, Exception {
       String channelGroup = gui_.getMMCore().getChannelGroup();
       String imagingChannel = imagingChannel_;
-      String afterZapChannel = zapChannel_;
+      String afterZapChannel = afterZapChannel_;
       
    
       //prefs = Preferences.userNodeForPackage(this.getClass());
@@ -243,6 +314,9 @@ public class MicroNucleiForm extends MMFrame {
       PositionList posList = gui_.getPositionList();
       MultiStagePosition[] positions = posList.getPositions();
       String currentWell = "";
+      int nrChannels = 1;
+      if (secondImagingChannel_.length() > 1) 
+         nrChannels = 2;
       int nrImagesPerWell = 0;
       int wellCount = 0;
       // figure out how many sites per there are, we actually get that number 
@@ -259,6 +333,7 @@ public class MicroNucleiForm extends MMFrame {
       }
       gui_.message("Images per well: " + nrImagesPerWell);
       int count = 0;
+      int siteCount = 0;
       for (MultiStagePosition msp : positions) {
          String label = msp.getLabel();
          String well = label.split("-")[0];
@@ -269,17 +344,27 @@ public class MicroNucleiForm extends MMFrame {
                recordResults(resultsWriter, currentWell);
             }
             currentWell = well;
-            gui_.openAcquisition(well, saveLocation, 1, 2, 1, nrImagesPerWell, true, true);
+            siteCount = 0;
+            gui_.openAcquisition(well, saveLocation, 1, nrChannels + 1, 1, nrImagesPerWell, true, true);
          }
          MultiStagePosition.goToPosition(msp, gui_.getMMCore());
+         gui_.getMMCore().waitForSystem();
          gui_.message("Site: " + msp.getLabel());
          gui_.getMMCore().setConfig(channelGroup, imagingChannel);
          gui_.getMMCore().snapImage();
          TaggedImage tImg = gui_.getMMCore().getTaggedImage();
-         gui_.addImageToAcquisition(well, 0, 0, 0, wellCount, tImg);
+         gui_.addImageToAcquisition(well, 0, 0, 0, siteCount, tImg);
+         if (nrChannels == 2) {
+            gui_.getMMCore().setConfig(channelGroup, secondImagingChannel_);
+            gui_.getMMCore().snapImage();
+            tImg = gui_.getMMCore().getTaggedImage();
+            gui_.addImageToAcquisition(well, 0, 1, 0, siteCount, tImg);
+         }
          // prefs.putInt("zappedNow", 0);
          // run the script recognizing the micronuclei and zapping them
-         int zappedNow = analyze(false, false);
+         
+         gui_.getMMCore().setConfig(channelGroup, afterZapChannel_);
+         int zappedNow = analyze(doZap_.isSelected(), showMasks_.isSelected());
          // zappedNow = prefs.getInt("zappedNow", 0);
          if (zappedNow > 0) {
             String acq2 = msp.getLabel();
@@ -288,12 +373,15 @@ public class MicroNucleiForm extends MMFrame {
             gui_.getMMCore().setConfig(channelGroup, afterZapChannel);
             gui_.getMMCore().snapImage();
             TaggedImage tImg2 = gui_.getMMCore().getTaggedImage();
-            gui_.addImageToAcquisition(well, 0, 1, 0, wellCount, tImg2);
+            gui_.addImageToAcquisition(well, 0, nrChannels, 0, siteCount, tImg2);
             MMAcquisition acqObject = gui_.getAcquisition(well);
-            acqObject.setChannelColor(1, new Color(255, 0, 0).getRGB());
-            gui_.getMMCore().setConfig(channelGroup, imagingChannel);
+            try {
+               acqObject.setChannelColor(1, new Color(255, 0, 0).getRGB());
+            } catch (MMScriptException ex) {
+                // ignore since we do not want to crash our acquisition  
+            }
          }
-         wellCount++;
+         siteCount++;
          count++;
       }
 
@@ -301,7 +389,7 @@ public class MicroNucleiForm extends MMFrame {
       recordResults(resultsWriter, currentWell);
 
       resultsWriter.close();
-      String msg = "Analyzed " + count + " images";
+      String msg = "Analyzed " + count + " images, in " + wellCount + " wells.";
       gui_.message(msg);
       ReportingUtils.showMessage(msg);
    }
@@ -328,9 +416,10 @@ public class MicroNucleiForm extends MMFrame {
     */
    private int analyze(boolean zap, boolean showMasks) throws MMScriptException {
 
-
+      long startTime = System.currentTimeMillis();
+      
       // microNuclei allowed sizes
-      final double mnMinSize = 3.0;
+      final double mnMinSize = 0.5;
       final double mnMaxSize = 800.0;
       // nuclei allowed sized
       final double nMinSize = 80;
@@ -340,7 +429,7 @@ public class MicroNucleiForm extends MMFrame {
       // min distance a micronucleus should be from the edge of the image
       final double minEdgeDistance = 10.0; // in microns
       // minimum number of "micronuclei" we want per nucleus to score as a hit
-      final double minNumMNperNucleus = 3;
+      final double minNumMNperNucleus = 4;
       // do not analyze images whose stdev is above this value
       // Use this to remove images showing well edges
       final double maxStdDev = 7000;
@@ -525,12 +614,13 @@ public class MicroNucleiForm extends MMFrame {
       }
 
       res.show("Results");
-      prefs.getInt("nuclei", 0);
 
-      prefs.putInt("nuclei", prefs.getInt("nuclei", 0) + nuclei.size());
-      // prefs.putInt("microNuclei", prefs.getInt("microNuclei", 0) + nMn);
-      prefs.putInt("zappedNuclei", prefs.getInt("zappedNuclei", 0) + zapNuclei.size());
-
+      nucleiPerWell_ += nuclei.size();
+      zappedNucleiPerWell_ += zapNuclei.size();
+      
+      long endTime = System.currentTimeMillis();
+      gui_.message("Analysis took: " + (endTime - startTime) + " millisec");
+      
       if (zap) {
          // get a list with rois that we want to zap
          ArrayList<Roi> zapRois = new ArrayList<Roi>();
@@ -570,6 +660,8 @@ public class MicroNucleiForm extends MMFrame {
             pcf.getDevice().waitForDevice();
          }
          
+
+         
          return rois.length;
 
       }
@@ -597,7 +689,13 @@ public class MicroNucleiForm extends MMFrame {
       if (l.isEmpty()) {
          return null;
       }
-      Point2D.Double[] pointList = (Point2D.Double[]) l.keySet().toArray();
+      Set<Point2D.Double> keySet =  l.keySet();
+      Point2D.Double[] pointList = new Point2D.Double[l.size()];
+      int counter = 0;
+      for (Object key : keySet) {
+         pointList[counter] = (Point2D.Double) key;
+         counter++;
+      }
       Point2D.Double closestNucleus = pointList[0];
       double d = distance(p, closestNucleus);
       for (Point2D.Double p2   : pointList) {
