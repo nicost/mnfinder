@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.prefs.Preferences;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -42,6 +43,7 @@ import org.micromanager.api.PositionList;
 import org.micromanager.api.ScriptInterface;
 import org.micromanager.projector.ProjectorControlForm;
 import org.micromanager.utils.FileDialogs;
+import org.micromanager.utils.ImageUtils;
 import org.micromanager.utils.MMFrame;
 import org.micromanager.utils.MMScriptException;
 import org.micromanager.utils.ReportingUtils;
@@ -80,6 +82,8 @@ public class MicroNucleiForm extends MMFrame {
    private final String DOZAP = "DoZap";
    private final String SHOWMASKS = "ShowMasks";
    
+   private final AtomicBoolean stopFlag_ = new AtomicBoolean(false);
+   
    public MicroNucleiForm(ScriptInterface gui) {
       gui_ = gui;
       loadAndRestorePosition(100, 100, 200, 200);
@@ -87,16 +91,6 @@ public class MicroNucleiForm extends MMFrame {
       
       arialSmallFont_ = new Font("Arial", Font.PLAIN, 12);
       buttonSize_ = new Dimension(70, 21);
-      
-      final JButton runButton = myButton(buttonSize_, arialSmallFont_, "Run");
-      runButton.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent e) {
-            RunAll myThread = new RunAll();
-            myThread.init();
-
-         }
-      });
 
       this.setLayout(new MigLayout("flowx, fill, insets 8"));
       this.setTitle("MicroNuclei Analyze");
@@ -121,6 +115,7 @@ public class MicroNucleiForm extends MMFrame {
       
       add(myLabel(arialSmallFont_, "Imaging Channel: "));
       channelComboBox_ = new JComboBox();
+      imagingChannel_ = prefs_.get(IMAGINGCHANNEL, imagingChannel_);
       updateChannels(channelComboBox_, imagingChannel_, false);
       channelComboBox_.addActionListener(new ActionListener() {
          @Override
@@ -128,11 +123,11 @@ public class MicroNucleiForm extends MMFrame {
             channelActionPerformed(ae);
          }
       } );
-      imagingChannel_ = prefs_.get(IMAGINGCHANNEL, imagingChannel_);
       add(channelComboBox_, "span 2, left, wrap");
       
       add(myLabel(arialSmallFont_, "2nd Imaging Channel: "));
       secondChannelComboBox_ = new JComboBox();
+      secondImagingChannel_ = prefs_.get(SECONDIMAGINGCHANNEL, secondImagingChannel_);
       updateChannels(secondChannelComboBox_, secondImagingChannel_, true);
       secondChannelComboBox_.addActionListener(new ActionListener() {
          @Override
@@ -140,31 +135,30 @@ public class MicroNucleiForm extends MMFrame {
             secondChannelActionPerformed(ae);
          }
       } );
-      secondImagingChannel_ = prefs_.get(IMAGINGCHANNEL, secondImagingChannel_);
       add(secondChannelComboBox_, "span 2, left, wrap");
       
       add(myLabel(arialSmallFont_, "Zap Channel: "));
       zapChannelComboBox_ = new JComboBox();
+      zapChannel_ = prefs_.get(ZAPCHANNEL, zapChannel_);
+      updateChannels(zapChannelComboBox_, zapChannel_, false);
       zapChannelComboBox_.addActionListener(new ActionListener() {
          @Override
          public void actionPerformed(ActionEvent ae) {
             zapChannelActionPerformed(ae);
          }
       } );
-      zapChannel_ = prefs_.get(ZAPCHANNEL, zapChannel_);
-      updateChannels(zapChannelComboBox_, zapChannel_, false);
       add(zapChannelComboBox_, "span 2, left, wrap");
       
       add(myLabel(arialSmallFont_, "After Zap Channel: "));
       AfterZapChannelComboBox_ = new JComboBox();
+      afterZapChannel_ = prefs_.get(AFTERZAPCHANNEL, afterZapChannel_);
+      updateChannels(AfterZapChannelComboBox_, afterZapChannel_, false);
       AfterZapChannelComboBox_.addActionListener(new ActionListener() {
          @Override
          public void actionPerformed(ActionEvent ae) {
             afterZapChannelActionPerformed(ae);
          }
       } );
-      afterZapChannel_ = prefs_.get(AFTERZAPCHANNEL, afterZapChannel_);
-      updateChannels(AfterZapChannelComboBox_, afterZapChannel_, false);
       add(AfterZapChannelComboBox_, "span 2, left, wrap");
       
       doZap_ = new JCheckBox("Zap");
@@ -189,11 +183,33 @@ public class MicroNucleiForm extends MMFrame {
       });
       add (showMasks_, "wrap");
       
-      add(runButton, "span 3, center, wrap");
+            
+      final JButton runButton = myButton(buttonSize_, arialSmallFont_, "Run");
+      runButton.addActionListener(new ActionListener() {
+         @Override
+         public void actionPerformed(ActionEvent e) {
+            RunAll myThread = new RunAll();
+            myThread.init();
+
+         }
+      });
+      add(runButton, "center");
+
+      final JButton stopButton = myButton(buttonSize_, arialSmallFont_, "Stop");
+      stopButton.addActionListener(new ActionListener() {
+         @Override
+         public void actionPerformed(ActionEvent e) {
+            stopFlag_.set(true);
+         }
+      } );
+      add(stopButton, "center, wrap");
+            
 
       loadAndRestorePosition(100, 100, 350, 250);
       
       pack();
+      
+      this.setResizable(false);
 
    }
    
@@ -244,28 +260,33 @@ public class MicroNucleiForm extends MMFrame {
       if (f != null) {
          saveLocation_ = f.getAbsolutePath();
          saveTextField_.setText(saveLocation_);
-         prefs_.put(SAVELOCATION, saveLocation_);    
+         if (prefs_ != null)
+               prefs_.put(SAVELOCATION, saveLocation_);    
       }
    }   
    
    private void channelActionPerformed(ActionEvent evt) {
       imagingChannel_ = (String) channelComboBox_.getSelectedItem();
-      prefs_.put(IMAGINGCHANNEL, imagingChannel_);
+      if (prefs_ != null)
+         prefs_.put(IMAGINGCHANNEL, imagingChannel_);
    }
    
    private void secondChannelActionPerformed(ActionEvent evt) {
       secondImagingChannel_ = (String) secondChannelComboBox_.getSelectedItem();
-      prefs_.put(SECONDIMAGINGCHANNEL, secondImagingChannel_);
+      if (prefs_ != null) 
+         prefs_.put(SECONDIMAGINGCHANNEL, secondImagingChannel_);
    }
    
    private void zapChannelActionPerformed(ActionEvent evt) {
       zapChannel_ = (String) zapChannelComboBox_.getSelectedItem();
-      prefs_.put(ZAPCHANNEL, zapChannel_);
+      if (prefs_ != null) 
+         prefs_.put(ZAPCHANNEL, zapChannel_);
    }
    
    private void afterZapChannelActionPerformed(ActionEvent evt) {
       afterZapChannel_ = (String) AfterZapChannelComboBox_.getSelectedItem();
-      prefs_.put(AFTERZAPCHANNEL, afterZapChannel_);
+      if (prefs_ != null) 
+        prefs_.put(AFTERZAPCHANNEL, afterZapChannel_);
    }
          
    
@@ -291,6 +312,7 @@ public class MicroNucleiForm extends MMFrame {
          if (running_) {
             return;
          }
+         stopFlag_.set(false);
          Thread t = new Thread(this);
          t.start();
       }
@@ -299,10 +321,7 @@ public class MicroNucleiForm extends MMFrame {
    
    public void runAnalysisAndZapping(String saveLocation) throws IOException, MMScriptException, Exception {
       String channelGroup = gui_.getMMCore().getChannelGroup();
-      String imagingChannel = imagingChannel_;
-      String afterZapChannel = afterZapChannel_;
       
-   
       //prefs = Preferences.userNodeForPackage(this.getClass());
       gui_.closeAllAcquisitions();
       new File(saveLocation).mkdirs();
@@ -315,8 +334,10 @@ public class MicroNucleiForm extends MMFrame {
       MultiStagePosition[] positions = posList.getPositions();
       String currentWell = "";
       int nrChannels = 1;
-      if (secondImagingChannel_.length() > 1) 
+      if (secondImagingChannel_.length() > 1) {
          nrChannels = 2;
+      }
+      
       int nrImagesPerWell = 0;
       int wellCount = 0;
       // figure out how many sites per there are, we actually get that number 
@@ -335,6 +356,10 @@ public class MicroNucleiForm extends MMFrame {
       int count = 0;
       int siteCount = 0;
       for (MultiStagePosition msp : positions) {
+         if (stopFlag_.get()) {
+            resultsWriter.close();
+            return;
+         }
          String label = msp.getLabel();
          String well = label.split("-")[0];
          if (!currentWell.equals(well)) {
@@ -350,7 +375,7 @@ public class MicroNucleiForm extends MMFrame {
          MultiStagePosition.goToPosition(msp, gui_.getMMCore());
          gui_.getMMCore().waitForSystem();
          gui_.message("Site: " + msp.getLabel());
-         gui_.getMMCore().setConfig(channelGroup, imagingChannel);
+         gui_.getMMCore().setConfig(channelGroup, imagingChannel_);
          gui_.getMMCore().snapImage();
          TaggedImage tImg = gui_.getMMCore().getTaggedImage();
          gui_.addImageToAcquisition(well, 0, 0, 0, siteCount, tImg);
@@ -359,24 +384,28 @@ public class MicroNucleiForm extends MMFrame {
             gui_.getMMCore().snapImage();
             tImg = gui_.getMMCore().getTaggedImage();
             gui_.addImageToAcquisition(well, 0, 1, 0, siteCount, tImg);
+            MMAcquisition acqObject = gui_.getAcquisition(well);
+            try {
+               acqObject.setChannelColor(1, new Color(0, 0, 255).getRGB());
+            } catch (MMScriptException ex) {
+               // ignore since we do not want to crash our acquisition  
+            }
          }
-         // prefs.putInt("zappedNow", 0);
-         // run the script recognizing the micronuclei and zapping them
-         
-         gui_.getMMCore().setConfig(channelGroup, afterZapChannel_);
-         int zappedNow = analyze(doZap_.isSelected(), showMasks_.isSelected());
+         gui_.getMMCore().setConfig(channelGroup, zapChannel_);
+         // analyzer the second channel if that is the one we took
+         int zappedNow = analyze(tImg, doZap_.isSelected(), showMasks_.isSelected());
          // zappedNow = prefs.getInt("zappedNow", 0);
          if (zappedNow > 0) {
             String acq2 = msp.getLabel();
             gui_.message("Imaging zapped cells at site: " + acq2);
             // take the red image and save it
-            gui_.getMMCore().setConfig(channelGroup, afterZapChannel);
+            gui_.getMMCore().setConfig(channelGroup, afterZapChannel_);
             gui_.getMMCore().snapImage();
             TaggedImage tImg2 = gui_.getMMCore().getTaggedImage();
             gui_.addImageToAcquisition(well, 0, nrChannels, 0, siteCount, tImg2);
             MMAcquisition acqObject = gui_.getAcquisition(well);
             try {
-               acqObject.setChannelColor(1, new Color(255, 0, 0).getRGB());
+               acqObject.setChannelColor(nrChannels, new Color(255, 0, 0).getRGB());
             } catch (MMScriptException ex) {
                 // ignore since we do not want to crash our acquisition  
             }
@@ -414,7 +443,7 @@ public class MicroNucleiForm extends MMFrame {
     * 
     * @return number of zapped cells
     */
-   private int analyze(boolean zap, boolean showMasks) throws MMScriptException {
+   private int analyze(TaggedImage tImg, boolean zap, boolean showMasks) throws MMScriptException {
 
       long startTime = System.currentTimeMillis();
       
@@ -460,7 +489,7 @@ public class MicroNucleiForm extends MMFrame {
       ResultsTable res = ij.measure.ResultsTable.getResultsTable();
       res.reset();
 
-      ImagePlus imp = IJ.getImage();
+      ImagePlus imp = new ImagePlus ("tmp", ImageUtils.makeProcessor(tImg));
       Calibration cal = imp.getCalibration();
       // remove images that have the well edge in them
       double stdDev = imp.getStatistics().stdDev;
