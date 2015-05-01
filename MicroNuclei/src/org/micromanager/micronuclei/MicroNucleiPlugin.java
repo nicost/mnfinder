@@ -1,5 +1,4 @@
 /*
- * This example plugin pops up a dialog box that says "Hello, world!".
  * 
  * Copyright University of California
  * 
@@ -26,21 +25,23 @@ import org.micromanager.api.ScriptInterface;
 
 
 public class MicroNucleiPlugin implements MMPlugin {
-   public static final String menuName = "Hello World";
+   public static final String menuName = "MicroNuclei";
    public static final String tooltipDescription =
-      "Displays a simple dialog";
+      "Cool screening technology";
 
    // Provides access to the Micro-Manager Java API (for GUI control and high-
    // level functions).
    private ScriptInterface app_;
-   // Provides access to the Micro-Manager Core API (for direct hardware
-   // control)
-   private CMMCore core_;
+   
+   private MicroNucleiForm theForm_ = null;
 
    @Override
    public void setApp(ScriptInterface app) {
       app_ = app;
-      core_ = app.getMMCore();
+      if (theForm_ != null) {
+         theForm_ = new MicroNucleiForm(app_);
+      }
+      theForm_.setVisible(true);
    }
 
    @Override
@@ -51,8 +52,10 @@ public class MicroNucleiPlugin implements MMPlugin {
 
    @Override
    public void show() {
-      JOptionPane.showMessageDialog(null, "Hello, world!", "Hello world!",
-            JOptionPane.PLAIN_MESSAGE);
+      if (theForm_ != null) {
+         theForm_ = new MicroNucleiForm(app_);
+      }
+      theForm_.setVisible(true);
    }
    
    @Override
