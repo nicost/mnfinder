@@ -20,7 +20,6 @@ import net.miginfocom.swing.MigLayout;
 import org.micromanager.api.MultiStagePosition;
 import org.micromanager.api.PositionList;
 import org.micromanager.api.ScriptInterface;
-import org.micromanager.multichannelshading.MultiChannelShading;
 import org.micromanager.utils.MMFrame;
 import org.micromanager.utils.MMScriptException;
 
@@ -56,7 +55,7 @@ public class MicroNucleiForm extends MMFrame {
       } );
       
       this.setLayout(new MigLayout("flowx, fill, insets 8"));
-      this.setTitle(MultiChannelShading.menuName);
+      this.setTitle("MicroNuclei Analyze");
       
       this.add(runButton);
 
@@ -107,6 +106,7 @@ public class MicroNucleiForm extends MMFrame {
          if (!currentWell.equals(well)) {
             gui_.message("Starting well: " + well);
             if (!currentWell.equals("")) {
+               /*
                nuclei = prefs.getInt("nuclei", 0);
                prefs.putInt("nuclei", 0);
                zappedNuclei = prefs.getInt("zappedNuclei", 0);
@@ -115,9 +115,10 @@ public class MicroNucleiForm extends MMFrame {
                resultsWriter.newLine();
                resultsWriter.flush();
                gui.message(currentWell + " " + nuclei + "   " + zappedNuclei);
+                       */
             }
             currentWell = well;
-            gui.openAcquisition(well, saveLocation, 1, 2, 1, nrImagesPerWell, true, true);
+            gui_.openAcquisition(well, saveLocation, 1, 2, 1, nrImagesPerWell, true, true);
             wellCount = 0;
          }
          MultiStagePosition.goToPosition(msp, gui_.getMMCore());
