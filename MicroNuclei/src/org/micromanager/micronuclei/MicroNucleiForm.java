@@ -1,3 +1,21 @@
+///////////////////////////////////////////////////////////////////////////////
+//PROJECT:       MicroNuclei detection project
+//-----------------------------------------------------------------------------
+//
+// AUTHOR:       Nico Stuurman
+//
+// COPYRIGHT:    Regents of the University of California 2015
+//
+// LICENSE:      This file is distributed under the BSD license.
+//               License text is included with the source distribution.
+//
+//               This file is distributed in the hope that it will be useful,
+//               but WITHOUT ANY WARRANTY; without even the implied warranty
+//               of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+//
+//               IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+//               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+//               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 
 package org.micromanager.micronuclei;
 
@@ -189,11 +207,11 @@ public class MicroNucleiForm extends MMFrame {
          @Override
          public void actionPerformed(ActionEvent e) {
             RunAll myThread = new RunAll();
-            myThread.init();
+            myThread.init(false);
 
          }
       });
-      add(runButton, "center");
+      add(runButton, "span 3, split 3, center");
 
       final JButton stopButton = myButton(buttonSize_, arialSmallFont_, "Stop");
       stopButton.addActionListener(new ActionListener() {
@@ -202,7 +220,17 @@ public class MicroNucleiForm extends MMFrame {
             stopFlag_.set(true);
          }
       } );
-      add(stopButton, "center, wrap");
+      add(stopButton, "center");
+      
+      final JButton testButton = myButton(buttonSize_, arialSmallFont_, "Test");
+      testButton.addActionListener(new ActionListener() {
+         @Override
+         public void actionPerformed(ActionEvent e) {
+            RunAll myThread = new RunAll();
+            myThread.init(true);
+         }
+      } );
+      add(testButton, "center, wrap");
             
 
       loadAndRestorePosition(100, 100, 350, 250);
@@ -292,13 +320,19 @@ public class MicroNucleiForm extends MMFrame {
    
    private class RunAll implements Runnable {
       private boolean running_ = false;
+      private boolean testing_ = false;
       public RunAll() {
       }
       @Override
       public void run() {
          try {
             running_ = true;
-            runAnalysisAndZapping(saveLocation_);
+            if (!testing_) {
+               runAnalysisAndZapping(saveLocation_);
+            } else {
+               runTest();
+            }
+               
          } catch (MMScriptException ex) {
             ReportingUtils.showError(ex, "Error during acquisition");
          } catch (Exception ex) {
@@ -308,16 +342,27 @@ public class MicroNucleiForm extends MMFrame {
          }
       }
      
-      public void init() {
+      public void init(boolean testing) {
          if (running_) {
             return;
          }
+         testing_ = testing;
          stopFlag_.set(false);
          Thread t = new Thread(this);
          t.start();
       }
    }
    
+   public void runTest() throws MMScriptException {
+      ImagePlus ip = IJ.getImage();
+      if (ip == null) {
+         ReportingUtils.showError("No image selected");
+      } else {
+         TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
+         analyze(tImg, doZap_.isSelected(), showMasks_.isSelected());
+      }
+      
+   }
    
    public void runAnalysisAndZapping(String saveLocation) throws IOException, MMScriptException, Exception {
       String channelGroup = gui_.getMMCore().getChannelGroup();
