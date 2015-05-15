@@ -2,9 +2,10 @@
  * Micro-Manager script that measures the z position at all positions in the position list
  */
 
-outputFile =  "/Users/nico/tmp/measureZ.txt";
-nrColumns = 2;
-nrRows = 3;
+outputFile =  "D:\\Users\\Susana\\20150512\\posWholePlate3.txt";
+nrColumns = 12;
+nrRows = 8;
+zDrive = "TIZDrive";
 
 
 ////////// Do NOT edit below this line
@@ -33,11 +34,12 @@ for (int p = 0; p < positions.length; p++) {
 	} else
 	   sitesPerWell++;
 }
-gui.message("" + sitesPerWell + " sites per well, " + wellCount + " wells");
+nPerRow = Math.sqrt(sitesPerWell);
+nPerRow = (int) nPerRow;
+gui.message("" + sitesPerWell + " sites per well, " + wellCount + " wells, " + nPerRow + "rows/columns");
 
 // this will only work with square sites per well
-nPerRow = Math.sqrt(wellCount);
-nPerRow = (int) nPerRow;
+
 double[][][] zValues = new double[wellCount][nPerRow][nPerRow];
 
 // now visit them all and record z positions after locking the PFS
@@ -49,9 +51,10 @@ for (int p = 0; p < positions.length; p++) {
 	label = msp.getLabel();
 	well = label.split("-")[0];
 	MultiStagePosition.goToPosition(msp, mmc);
-	// mmc.fullFocus();
+	//gui.sleep(200);
+	mmc.fullFocus();
 	gui.message("well " + wi + ", " + ri + ", " + ci);
-	zValues[wi][ri][ci] = mmc.getPosition();
+	zValues[wi][ri][ci] = mmc.getPosition(zDrive);
 	ci++;
 	if (ci == nPerRow) {
 		ci = 0;
