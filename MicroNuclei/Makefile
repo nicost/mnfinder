@@ -24,3 +24,4 @@ default: ../MicroNuclei.jar
 
 clean:
 	$(RM) -r build/*
+	$(RM) ../MicroNuclei.jar 
