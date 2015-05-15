@@ -78,7 +78,6 @@ public class MicroNucleiForm extends MMFrame {
    private final Dimension buttonSize_;
    private int nucleiPerWell_ = 0;
    private int zappedNucleiPerWell_ = 0;
-   private String saveLocation_;
    private final JTextField saveTextField_;
    private String imagingChannel_;
    private final JComboBox channelComboBox_;
@@ -117,8 +116,7 @@ public class MicroNucleiForm extends MMFrame {
       add(myLabel(arialSmallFont_,"Save here:"));
       
       saveTextField_ = new JTextField();
-      saveLocation_ = prefs_.get(SAVELOCATION, saveLocation_);
-      saveTextField_.setText(saveLocation_);
+      saveTextField_.setText(prefs_.get(SAVELOCATION, ""));
       saveTextField_.setMinimumSize(new Dimension(200, 12));
       add(saveTextField_);
       
@@ -284,12 +282,11 @@ public class MicroNucleiForm extends MMFrame {
    private void dirActionPerformed(java.awt.event.ActionEvent evt) {                                                  
       File f = FileDialogs.openDir(this, "Save location",
               new FileDialogs.FileType("Dir", "Save Location",
-              saveLocation_, true, "") );
+              saveTextField_.getText(), true, "") );
       if (f != null) {
-         saveLocation_ = f.getAbsolutePath();
-         saveTextField_.setText(saveLocation_);
+         saveTextField_.setText(f.getAbsolutePath());
          if (prefs_ != null)
-               prefs_.put(SAVELOCATION, saveLocation_);    
+               prefs_.put(SAVELOCATION, f.getAbsolutePath());    
       }
    }   
    
@@ -328,7 +325,7 @@ public class MicroNucleiForm extends MMFrame {
          try {
             running_ = true;
             if (!testing_) {
-               runAnalysisAndZapping(saveLocation_);
+               runAnalysisAndZapping(saveTextField_.getText());
             } else {
                runTest();
             }
@@ -367,10 +364,9 @@ public class MicroNucleiForm extends MMFrame {
    public void runAnalysisAndZapping(String saveLocation) throws IOException, MMScriptException, Exception {
       String channelGroup = gui_.getMMCore().getChannelGroup();
       
-      //prefs = Preferences.userNodeForPackage(this.getClass());
+      //TODO: error checking for file IO!
       gui_.closeAllAcquisitions();
       new File(saveLocation).mkdirs();
-      //new File(saveZappedLocation).mkdirs();
       File resultsFile = new File(saveLocation + File.separator + "results.txt");
       resultsFile.createNewFile();
       BufferedWriter resultsWriter = new BufferedWriter(new FileWriter(resultsFile));
