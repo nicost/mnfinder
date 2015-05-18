@@ -21,31 +21,28 @@ package org.micromanager.micronuclei;
 
 import ij.IJ;
 import ij.ImagePlus;
+import ij.WindowManager;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
-import ij.measure.Calibration;
 import ij.measure.ResultsTable;
-import ij.plugin.Duplicator;
-import ij.plugin.ImageCalculator;
-import ij.plugin.frame.RoiManager;
+import ij.text.TextPanel;
+import ij.text.TextWindow;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Frame;
 import java.awt.Insets;
 import java.awt.Polygon;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyListener;
+import java.awt.event.MouseListener;
 import java.awt.geom.Point2D;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.prefs.Preferences;
 import javax.swing.JButton;
@@ -55,10 +52,14 @@ import javax.swing.JLabel;
 import javax.swing.JTextField;
 import mmcorej.TaggedImage;
 import net.miginfocom.swing.MigLayout;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.micromanager.acquisition.MMAcquisition;
+import org.micromanager.api.MMWindow;
 import org.micromanager.api.MultiStagePosition;
 import org.micromanager.api.PositionList;
 import org.micromanager.api.ScriptInterface;
+import org.micromanager.micronuclei.analysis.MicroNucleiAnalysisModule;
 import org.micromanager.projector.ProjectorControlForm;
 import org.micromanager.utils.FileDialogs;
 import org.micromanager.utils.ImageUtils;
@@ -76,8 +77,6 @@ public class MicroNucleiForm extends MMFrame {
    private final ScriptInterface gui_;
    private final Font arialSmallFont_;
    private final Dimension buttonSize_;
-   private int nucleiPerWell_ = 0;
-   private int zappedNucleiPerWell_ = 0;
    private final JTextField saveTextField_;
    private String imagingChannel_;
    private final JComboBox channelComboBox_;
@@ -99,7 +98,7 @@ public class MicroNucleiForm extends MMFrame {
    private final String DOZAP = "DoZap";
    private final String SHOWMASKS = "ShowMasks";
    
-   private final AtomicBoolean stopFlag_ = new AtomicBoolean(false);
+   private final AtomicBoolean stop_ = new AtomicBoolean(false);
    
    public MicroNucleiForm(ScriptInterface gui) {
       gui_ = gui;
@@ -215,7 +214,7 @@ public class MicroNucleiForm extends MMFrame {
       stopButton.addActionListener(new ActionListener() {
          @Override
          public void actionPerformed(ActionEvent e) {
-            stopFlag_.set(true);
+            stop_.set(true);
          }
       } );
       add(stopButton, "center");
@@ -344,24 +343,105 @@ public class MicroNucleiForm extends MMFrame {
             return;
          }
          testing_ = testing;
-         stopFlag_.set(false);
+         stop_.set(false);
          Thread t = new Thread(this);
          t.start();
       }
    }
    
-   public void runTest() throws MMScriptException {
-      ImagePlus ip = IJ.getImage();
-      if (ip == null) {
-         ReportingUtils.showError("No image selected");
-      } else {
-         TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
-         analyze(tImg, doZap_.isSelected(), showMasks_.isSelected());
+   /**
+    * Runs the selected analysis test on the currently selected image
+    * If this is a Micro-Manager window, the code will be run on all positions
+    * otherwise only on the current image
+    * Results will be shown in an ImageJ ResultsTable which has graphical feedback
+    * to the original image
+    * 
+    * @throws MMScriptException
+    * @throws JSONException 
+    */
+   public void runTest() throws MMScriptException, JSONException {
+      ImagePlus ip;
+      try {
+         ip = IJ.getImage();
+      } catch (Exception ex) {
+         return;
       }
       
+      ResultsTable outTable = new ResultsTable();
+      String outTableName = Terms.RESULTTABLENAME;
+      AnalysisModule am = new MicroNucleiAnalysisModule();
+      JSONObject parms = analysisSettings(showMasks_.isSelected());
+
+      MMWindow mw = new MMWindow(ip);
+      if (!mw.isMMWindow()) {
+         TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
+         Roi[] zapRois = am.analyze(tImg, parms);
+         for (Roi roi : zapRois) {
+            outTable.incrementCounter();
+            Rectangle bounds = roi.getBounds();
+            int x = bounds.x + (int) (0.5 * bounds.width);
+            int y = bounds.y + (int) (0.5 * bounds.height);
+            outTable.addValue(Terms.X, x);
+            outTable.addValue(Terms.Y, y);
+            outTable.show(outTableName);
+         }
+
+      } else { // MMImageWindow
+         int nrPositions = mw.getNumberOfPositions();
+         for (int p = 1; p <= nrPositions && !stop_.get(); p++) {
+            try {
+               mw.setPosition(p);
+            } catch (MMScriptException ms) {
+               ReportingUtils.showError(ms, "Error setting position in MMWindow");
+            }
+            if (mw.getImageMetadata(0, 0, 0, p) != null) {
+               TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
+               Roi[] zapRois = am.analyze(tImg, parms);
+               for (Roi roi : zapRois) {
+                  outTable.incrementCounter();
+                  Rectangle bounds = roi.getBounds();
+                  int x = bounds.x + (int) (0.5 * bounds.width);
+                  int y = bounds.y + (int) (0.5 * bounds.height);
+                  outTable.addValue(Terms.X, x);
+                  outTable.addValue(Terms.Y, y);
+                  outTable.addValue(Terms.POSITION, p);
+               }
+               outTable.show(outTableName);
+            }
+
+         }
+      }
+
+      // we have the ROIs, the rest is just reporting
+      // add listeners to our ResultsTable that let user click on row and go to cell that was found
+      TextPanel tp;
+      TextWindow win;
+      Frame frame = WindowManager.getFrame(outTableName);
+      if (frame != null && frame instanceof TextWindow) {
+         win = (TextWindow) frame;
+         tp = win.getTextPanel();
+
+         // TODO: the following does not work, there is some voodoo going on here
+         for (MouseListener ms : tp.getMouseListeners()) {
+            tp.removeMouseListener(ms);
+         }
+         for (KeyListener ks : tp.getKeyListeners()) {
+            tp.removeKeyListener(ks);
+         }
+
+         ResultsListener myk = new ResultsListener(ip, outTable, win);
+         tp.addKeyListener(myk);
+         tp.addMouseListener(myk);
+         frame.toFront();
+      }
    }
    
+   
    public void runAnalysisAndZapping(String saveLocation) throws IOException, MMScriptException, Exception {
+      
+      // Analysis class, in the future we could have a choice of these
+      AnalysisModule am = new MicroNucleiAnalysisModule();
+      
       String channelGroup = gui_.getMMCore().getChannelGroup();
       
       //TODO: error checking for file IO!
@@ -381,6 +461,7 @@ public class MicroNucleiForm extends MMFrame {
       
       int nrImagesPerWell = 0;
       int wellCount = 0;
+      
       // figure out how many sites per there are, we actually get that number 
       // from the last well
       for (MultiStagePosition msp : positions) {
@@ -394,10 +475,13 @@ public class MicroNucleiForm extends MMFrame {
             nrImagesPerWell++;
       }
       gui_.message("Images per well: " + nrImagesPerWell);
+      
+      // start cycling through the sites and group everything by well
       int count = 0;
       int siteCount = 0;
+      JSONObject parms = analysisSettings(showMasks_.isSelected());
       for (MultiStagePosition msp : positions) {
-         if (stopFlag_.get()) {
+         if (stop_.get()) {
             resultsWriter.close();
             return;
          }
@@ -407,11 +491,15 @@ public class MicroNucleiForm extends MMFrame {
             // new well
             gui_.message("Starting well: " + well);
             if (!currentWell.equals("")) {
-               recordResults(resultsWriter, currentWell);
+               recordResults(resultsWriter, currentWell, parms);
             }
             currentWell = well;
             siteCount = 0;
             gui_.openAcquisition(well, saveLocation, 1, nrChannels + 1, 1, nrImagesPerWell, true, true);
+            am = new MicroNucleiAnalysisModule();
+            // reset cell and object counters
+            parms.put(AnalysisModule.CELLCOUNT, 0);
+            parms.put(AnalysisModule.OBJECTCOUNT, 0);
          }
          MultiStagePosition.goToPosition(msp, gui_.getMMCore());
          gui_.getMMCore().waitForSystem();
@@ -433,10 +521,14 @@ public class MicroNucleiForm extends MMFrame {
             }
          }
          gui_.getMMCore().setConfig(channelGroup, zapChannel_);
-         // analyzer the second channel if that is the one we took
-         int zappedNow = analyze(tImg, doZap_.isSelected(), showMasks_.isSelected());
-         // zappedNow = prefs.getInt("zappedNow", 0);
-         if (zappedNow > 0) {
+         // analyze the second channel if that is the one we took
+         
+         
+         // Analyze and zap
+         Roi[] zapRois = am.analyze(tImg, parms);
+         zap(zapRois);
+         
+         if (zapRois.length > 0) {
             String acq2 = msp.getLabel();
             gui_.message("Imaging zapped cells at site: " + acq2);
             // take the red image and save it
@@ -456,7 +548,7 @@ public class MicroNucleiForm extends MMFrame {
       }
 
       // record the results from the last well:
-      recordResults(resultsWriter, currentWell);
+      recordResults(resultsWriter, currentWell, parms);
 
       resultsWriter.close();
       String msg = "Analyzed " + count + " images, in " + wellCount + " wells.";
@@ -464,283 +556,61 @@ public class MicroNucleiForm extends MMFrame {
       ReportingUtils.showMessage(msg);
    }
    
-   private void recordResults(BufferedWriter resultsWriter, String currentWell) throws IOException, MMScriptException {
-      resultsWriter.write(currentWell + "\t" + nucleiPerWell_ + "\t"
-              + zappedNucleiPerWell_);
+   private void recordResults(BufferedWriter resultsWriter, String currentWell,
+           final JSONObject parms) throws IOException, MMScriptException {
+      resultsWriter.write(currentWell + "\t" + 
+              parms.optInt(AnalysisModule.CELLCOUNT) + "\t" +
+              parms.optInt(AnalysisModule.OBJECTCOUNT) );
       resultsWriter.newLine();
       resultsWriter.flush();
-      gui_.message(currentWell + " " + nucleiPerWell_ + "   "
-              + zappedNucleiPerWell_);
-      nucleiPerWell_ = 0;
-      zappedNucleiPerWell_ = 0;
+      gui_.message(currentWell + " " + parms.optInt(AnalysisModule.CELLCOUNT) + 
+              "    " + parms.optInt(AnalysisModule.OBJECTCOUNT) );
    }
-   
    
    /**
-    * 
-    * @param zap whether or not to photoactivate
-    * @param showMasks whether or not to show binary masks, set to false 
-    * when using the IA plugin!
-    * 
-    * @return number of zapped cells
+    * Generates an initialized JSONObject to be used to communicate analysis settings
+    * @param showMask - whether or not to show the masks during analysis
+    * @return initialized JSONObject with default analysis settings
+    * @throws JSONException 
     */
-   private int analyze(TaggedImage tImg, boolean zap, boolean showMasks) throws MMScriptException {
+   private JSONObject analysisSettings(boolean showMask) throws JSONException {
+      JSONObject parms = new JSONObject();
+      parms.put(AnalysisModule.SHOWMASKS, showMask);
+      parms.put(AnalysisModule.CELLCOUNT, 0);
+      parms.put(AnalysisModule.OBJECTCOUNT, 0);
+      return parms;
+   }
 
-      long startTime = System.currentTimeMillis();
-      
-      // microNuclei allowed sizes
-      final double mnMinSize = 0.5;
-      final double mnMaxSize = 800.0;
-      // nuclei allowed sized
-      final double nMinSize = 80;
-      final double nMaxSize = 900;
-      // max distance a micronucleus can be separated from a nucleus
-      final double maxDistance = 20;
-      // min distance a micronucleus should be from the edge of the image
-      final double minEdgeDistance = 10.0; // in microns
-      // minimum number of "micronuclei" we want per nucleus to score as a hit
-      final double minNumMNperNucleus = 4;
-      // do not analyze images whose stdev is above this value
-      // Use this to remove images showing well edges
-      final double maxStdDev = 7000;
-      // name of the faltfield image in ImageJ.  Open this image first
-      final String flatfieldName = "flatfield.tif";
-
-      double pixelSize; // not sure why, but imp.getCalibration is unreliable
-
-      
-     
-
-      // start of the main code
-      List<Point2D.Double> microNuclei = new ArrayList<Point2D.Double>();
-      Map<Point2D.Double, Roi> microNucleiROIs = new HashMap<Point2D.Double, Roi>();
-      Map<Point2D.Double, ArrayList<Point2D.Double> > nuclei = 
-              new HashMap<Point2D.Double, ArrayList<Point2D.Double> >();
-      //nucleiContents = new ArrayList();
-      Map<Point2D.Double, Roi> nucleiRois = new HashMap<Point2D.Double, Roi>();
-      List<Point2D.Double> zapNuclei = new ArrayList<Point2D.Double>();
-
-      // check if there is a flatfield image
-      ImagePlus flatField = ij.WindowManager.getImage(flatfieldName);
-      if (flatField == null) {
-         gui_.message("No flatfield found");
+   /**
+    * Photoconverts the provided ROIs
+    * @param rois
+    * @throws MMScriptException 
+    */
+   private void zap(Roi[] rois) throws MMScriptException {
+      // convert zapRois in a Roi[] of Polygon Rois
+      ProjectorControlForm pcf
+              = ProjectorControlForm.showSingleton(gui_.getMMCore(), gui_);
+      int i;
+      for (i = 0; i < rois.length; i++) {
+         Polygon poly = rois[i].getConvexHull();
+         rois[i] = new PolygonRoi(poly, Roi.POLYGON);
       }
 
-      // clean results table	
-      ResultsTable res = ij.measure.ResultsTable.getResultsTable();
-      res.reset();
-
-      ImagePlus imp = new ImagePlus ("tmp", ImageUtils.makeProcessor(tImg));
-      Calibration cal = imp.getCalibration();
-      // remove images that have the well edge in them
-      double stdDev = imp.getStatistics().stdDev;
-      if (stdDev > maxStdDev) {
-         return 0;
+         //prefs.putInt("zappedNow", rois.length);
+      // send to the galvo device and zap them for real
+      pcf.setNrRepetitions(5);
+      for (i = 0; i < rois.length; i++) {
+         gui_.message("Zapping " + (i + 1) + " of " + rois.length);
+         Roi[] theRois = {rois[i]};
+         pcf.setROIs(theRois);
+         pcf.updateROISettings();
+         pcf.getDevice().waitForDevice();
+         pcf.runRois();
+         pcf.getDevice().waitForDevice();
       }
-
-      int width = imp.getProcessor().getWidth();
-      int height = imp.getProcessor().getHeight();
-      double widthUm = cal.getX(width);
-      double heightUm = cal.getY(height);
-      pixelSize = cal.getX(1.0);
-
-      //gui.message("PixelSize: " + cal.getX(1));
-      // maintain some form of persistence using prefs
-      Preferences prefs = Preferences.userNodeForPackage(this.getClass());
-
-      ImagePlus imp2 = (new Duplicator()).run(imp, 1, 1);
-      ImageCalculator ic = new ImageCalculator();
-      if (flatField != null) {
-         imp2 = ic.run("Divide, float, 32", imp2, flatField);
-      }
-
-      // find micronuclei by sharpening, segmentation using Otsu, and Watershed
-      ImagePlus microNucleiImp = imp2.duplicate();
-      IJ.run(microNucleiImp, "16-bit", "");
-      IJ.run(microNucleiImp, "Sharpen", "");
-//IJ.run(microNucleiImp, "Thresholded Blur", "radius=5 threshold=800 softness=0.50 strength=3");
-//IJ.run(microNucleiImp, "Unsharp Mask...", "radius=3 mask=0.60");
-//IJ.run(microNucleiImp, "Kuwahara Filter", "sampling=3");
-      IJ.setAutoThreshold(microNucleiImp, "Otsu dark");
-      ij.Prefs.blackBackground = true;
-      IJ.run(microNucleiImp, "Convert to Mask", "");
-      IJ.run(microNucleiImp, "Close-", "");
-//IJ.run(microNucleiImp, "Erode", "");
-      IJ.run(microNucleiImp, "Watershed", "");
-//IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
-      IJ.run("Set Measurements...", "area center decimal=2");
-      IJ.run(microNucleiImp, "Analyze Particles...", "size=" + mnMinSize + "-" + mnMaxSize
-              + "  show clear add");
-
-// Build up a list of potential micronuclei
-      RoiManager rm = RoiManager.getInstance2();
-      if (rm == null) {
-         rm = new RoiManager();
-      }
-      for (Roi roi  : rm.getRoisAsArray()) {
-         // approximate microNuclear positions as the center of the bounding box
-         Rectangle rc = roi.getBounds();
-         double xc = rc.x + 0.5 * rc.width;
-         double yc = rc.y + 0.5 * rc.height;
-         xc *= pixelSize;
-         yc *= pixelSize;
-         Point2D.Double pt = new java.awt.geom.Point2D.Double(xc, yc);
-         microNuclei.add(pt);
-         microNucleiROIs.put(pt, roi);
-      }
-
-      // find nuclei by smoothing and gaussian filtering, followed by Otsu segmentation and watershed
-      ImagePlus nucleiImp = imp2.duplicate();
-      IJ.run(nucleiImp, "Smooth", "");
-      IJ.run(nucleiImp, "Gaussian Blur...", "sigma=5.0");
-      IJ.setAutoThreshold(nucleiImp, "Otsu dark");
-      ij.Prefs.blackBackground = true;
-      IJ.run(nucleiImp, "Convert to Mask", "");
-      IJ.run(nucleiImp, "Dilate", "");
-      IJ.run(nucleiImp, "Erode", "");
-      IJ.run(nucleiImp, "Watershed", "");
-//IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
-      IJ.run("Set Measurements...", "area center decimal=2");
-      IJ.run(nucleiImp, "Analyze Particles...", "size=" + nMinSize + "-" + nMaxSize
-              + "  clear add");
-
-// add nuclei to our list of nuclei:
-      rm = RoiManager.getInstance2();
-      for (Roi roi  : rm.getRoisAsArray()) {
-         // approximate nuclear positions as the center of the bounding box
-         Rectangle rc = roi.getBounds();
-         double xc = rc.x + 0.5 * rc.width;
-         double yc = rc.y + 0.5 * rc.height;
-         xc *= pixelSize;
-         yc *= pixelSize;
-         // gui.message("pt: " + xc + ", " + yc);
-         Point2D.Double pt = new java.awt.geom.Point2D.Double(xc, yc);
-         nucleiRois.put(pt, roi);
-         ArrayList<Point2D.Double> containedMNs = new ArrayList<Point2D.Double>();
-         nuclei.put(pt, containedMNs);
-      }
-
-// close the ImagePlus as we no longer need it (we could leave this to the GC)
-      nucleiImp.changes = false;
-      if (showMasks) {
-         nucleiImp.show();
-      } else {
-         nucleiImp.close();
-      }
-
-// no longer need the microNuclei imp
-      microNucleiImp.changes = false;
-      if (showMasks) {
-         microNucleiImp.show();
-      } else {
-         microNucleiImp.close();
-      }
-
-      imp2.changes = false;
-      if (showMasks) {
-         imp2.show();
-      } else {
-         imp2.close();
-      }
-
-      // cycle through the list of micronuclei
-      // assign each to the nearest by nucleus (not more than maxdistance away)
-      for (Point2D.Double mn  : microNuclei) {
-         Point2D.Double cn = closest(mn, nuclei);
-         if (cn != null && maxDistance > distance(mn, cn)) {
-            nuclei.get(cn).add(mn);
-         }
-      }
-
-      // report what we found
-      res.reset();
-
-      // this is a bit funky, but seems to work
-      double roiMinSize = pixelSize * pixelSize * nMinSize * 10;
-      for (Point2D.Double p  : nuclei.keySet()) {
-         res.incrementCounter();
-         res.addValue("X", p.x);
-         res.addValue("Y", p.y);
-         ArrayList<Point2D.Double> mnList = nuclei.get(p);
-         res.addValue("# mN", mnList.size());
-         int zapit = 0;
-         if (nuclei.get(p).size() >= minNumMNperNucleus) {
-            // add to our target nuclei, except if these happen to be two nuclei that were 
-            // lying close together. 
-            if (mnList.size() == 2) {
-               Roi r0 = microNucleiROIs.get(mnList.get(0));
-               Roi r1 = microNucleiROIs.get(mnList.get(1));
-               if ((r0 != null && roiSize(r0) < roiMinSize)
-                       || (r1 != null && roiSize(r1) < roiMinSize)) {
-                  zapNuclei.add(p);
-                  zapit = 1;
-               }
-            } else {
-               zapNuclei.add(p);
-               zapit = 1;
-            }
-         }
-         res.addValue("Zap", zapit);
-      }
-
-      res.show("Results");
-
-      nucleiPerWell_ += nuclei.size();
-      zappedNucleiPerWell_ += zapNuclei.size();
-      
-      long endTime = System.currentTimeMillis();
-      gui_.message("Analysis took: " + (endTime - startTime) + " millisec");
-      
-      if (zap) {
-         // get a list with rois that we want to zap
-         ArrayList<Roi> zapRois = new ArrayList<Roi>();
-         for (Point2D.Double p  : zapNuclei) {
-            //for (p : nuclei) {  // use this to zap all nuclei
-            Roi roi = nucleiRois.get(p);
-            //gui.message("Zap the roi: " + roi.getBounds());
-            zapRois.add(roi);
-         }
-
-         gui_.message("mn: " + microNuclei.size() + ", n: " + nuclei.size() + 
-                 ", zap: " + zapRois.size());
-
-         //gui.message("ZapRoi x: " + zapRois.get(0).x + ", y: " + zapRois.get(0).y);
-         // convert zapRois in a Roi[] of Polygon Rois
-         ProjectorControlForm pcf = 
-                 ProjectorControlForm.showSingleton(gui_.getMMCore(), gui_);
-         Roi[] rois = new Roi[zapRois.size()];
-         int i;
-         for (i = 0; i < zapRois.size(); i++) {
-            rois[i] = (Roi) zapRois.get(i);
-            Polygon poly = rois[i].getConvexHull();
-            rois[i] = new PolygonRoi(poly, Roi.POLYGON);
-         }
-
-         prefs.putInt("zappedNow", rois.length);
-
-         // send to the galvo device and zap them for real
-         pcf.setNrRepetitions(5);
-         for (i = 0; i < rois.length; i++) {
-            gui_.message("Zapping " + (i + 1) + " of " + rois.length);
-            Roi[] theRois = {rois[i]};
-            pcf.setROIs(theRois);
-            pcf.updateROISettings();
-            pcf.getDevice().waitForDevice();
-            pcf.runRois();
-            pcf.getDevice().waitForDevice();
-         }
-         
-
-         
-         return rois.length;
-
-      }
-      
-      return 0;
 
    }
 
-   
    /**
     * calculates distance between two points
     */
@@ -751,41 +621,4 @@ public class MicroNucleiForm extends MMFrame {
       return Math.sqrt(total);
    }
    
-   /**
-    * Find the closest point in the HashMap for now, uses brute force search
-    */
-   private Point2D.Double closest(Point2D.Double p, 
-           Map<Point2D.Double, ArrayList<Point2D.Double> > l) {
-      if (l.isEmpty()) {
-         return null;
-      }
-      Set<Point2D.Double> keySet =  l.keySet();
-      Point2D.Double[] pointList = new Point2D.Double[l.size()];
-      int counter = 0;
-      for (Object key : keySet) {
-         pointList[counter] = (Point2D.Double) key;
-         counter++;
-      }
-      Point2D.Double closestNucleus = pointList[0];
-      double d = distance(p, closestNucleus);
-      for (Point2D.Double p2   : pointList) {
-         double dNew = distance(p, p2);
-         if (dNew < d) {
-            d = dNew;
-            closestNucleus = p2;
-         }
-      }
-      return closestNucleus;
-   }
-   
-        
-   /**
-    * Calculate the size of an ImageJ ROI
-    */
-   private long roiSize(Roi r) {
-      return r.getBounds().width * r.getBounds().height;
-   }
-
-
-
 }
