@@ -201,7 +201,7 @@ public class MicroNucleiForm extends MMFrame {
       analysisPanel.add(new JLabel("Background: "));
       backgroundTextField_ = new JTextField();
       backgroundTextField_.setText(prefs_.get(BACKGROUNDLOCATION, ""));
-      backgroundTextField_.setMinimumSize(new Dimension(200, 12));
+      backgroundTextField_.setMinimumSize(new Dimension(300, 12));
       analysisPanel.add(backgroundTextField_);
       DropTarget dropTarget = new DropTarget(backgroundTextField_, 
               new DragDropUtil(backgroundTextField_));
@@ -218,7 +218,7 @@ public class MicroNucleiForm extends MMFrame {
       analysisPanel.add(new JLabel("Flatfield: "));
       flatfieldTextField_ = new JTextField();
       flatfieldTextField_.setText(prefs_.get(FLATFIELDLOCATION, ""));
-      flatfieldTextField_.setMinimumSize(new Dimension(200, 12));
+      flatfieldTextField_.setMinimumSize(new Dimension(300, 12));
       analysisPanel.add(flatfieldTextField_);
       dropTarget = new DropTarget(flatfieldTextField_, 
               new DragDropUtil(flatfieldTextField_));
