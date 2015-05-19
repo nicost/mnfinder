@@ -50,7 +50,7 @@ public class MicroNucleiAnalysisModule implements AnalysisModule {
       final double nMinSize = 80;
       final double nMaxSize = 900;
       // max distance a micronucleus can be separated from a nucleus
-      final double maxDistance = 80;
+      final double maxDistance = 30;
       // min distance a micronucleus should be from the edge of the image
       final double minEdgeDistance = 10.0; // in microns
       // minimum number of "micronuclei" we want per nucleus to score as a hit
@@ -77,7 +77,7 @@ public class MicroNucleiAnalysisModule implements AnalysisModule {
       ImagePlus imp = new ImagePlus ("tmp", ImageUtils.makeProcessor(tImg));
       Calibration cal = imp.getCalibration();
       try {
-         cal.pixelWidth = tImg.tags.getDouble("PixelSize_um"); 
+         cal.pixelWidth = tImg.tags.getDouble("PixelSizeUm"); 
          cal.pixelHeight = cal.pixelWidth;
       } catch(JSONException je) {
          throw new MMScriptException ("Failed to find pixelsize in the metadata");
