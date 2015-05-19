@@ -6,7 +6,6 @@ import ij.gui.Roi;
 import ij.measure.Calibration;
 import ij.measure.ResultsTable;
 import ij.plugin.Duplicator;
-import ij.plugin.ImageCalculator;
 import ij.plugin.frame.RoiManager;
 import java.awt.Rectangle;
 import java.awt.geom.Point2D;
@@ -14,7 +13,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.prefs.Preferences;
 import mmcorej.TaggedImage;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -52,7 +50,7 @@ public class MicroNucleiAnalysisModule implements AnalysisModule {
       final double nMinSize = 80;
       final double nMaxSize = 900;
       // max distance a micronucleus can be separated from a nucleus
-      final double maxDistance = 20;
+      final double maxDistance = 80;
       // min distance a micronucleus should be from the edge of the image
       final double minEdgeDistance = 10.0; // in microns
       // minimum number of "micronuclei" we want per nucleus to score as a hit
@@ -60,13 +58,8 @@ public class MicroNucleiAnalysisModule implements AnalysisModule {
       // do not analyze images whose stdev is above this value
       // Use this to remove images showing well edges
       final double maxStdDev = 7000;
-      // name of the faltfield image in ImageJ.  Open this image first
-      final String flatfieldName = "flatfield.tif";
 
       double pixelSize; // not sure why, but imp.getCalibration is unreliable
-
-      
-     
 
       // start of the main code
       List<Point2D.Double> microNuclei = new ArrayList<Point2D.Double>();
@@ -77,18 +70,18 @@ public class MicroNucleiAnalysisModule implements AnalysisModule {
       Map<Point2D.Double, Roi> nucleiRois = new HashMap<Point2D.Double, Roi>();
       List<Point2D.Double> zapNuclei = new ArrayList<Point2D.Double>();
 
-      // check if there is a flatfield image
-      ImagePlus flatField = ij.WindowManager.getImage(flatfieldName);
-      if (flatField == null) {
-         gui_.message("No flatfield found");
-      }
-
       // clean results table	
       ResultsTable res = ij.measure.ResultsTable.getResultsTable();
       res.reset();
 
       ImagePlus imp = new ImagePlus ("tmp", ImageUtils.makeProcessor(tImg));
       Calibration cal = imp.getCalibration();
+      try {
+         cal.pixelWidth = tImg.tags.getDouble("PixelSize_um"); 
+         cal.pixelHeight = cal.pixelWidth;
+      } catch(JSONException je) {
+         throw new MMScriptException ("Failed to find pixelsize in the metadata");
+      }
       // remove images that have the well edge in them
       double stdDev = imp.getStatistics().stdDev;
       if (stdDev > maxStdDev) {
@@ -101,15 +94,7 @@ public class MicroNucleiAnalysisModule implements AnalysisModule {
       double heightUm = cal.getY(height);
       pixelSize = cal.getX(1.0);
 
-      //gui.message("PixelSize: " + cal.getX(1));
-      // maintain some form of persistence using prefs
-      Preferences prefs = Preferences.userNodeForPackage(this.getClass());
-
       ImagePlus imp2 = (new Duplicator()).run(imp, 1, 1);
-      ImageCalculator ic = new ImageCalculator();
-      if (flatField != null) {
-         imp2 = ic.run("Divide, float, 32", imp2, flatField);
-      }
 
       // find micronuclei by sharpening, segmentation using Otsu, and Watershed
       ImagePlus microNucleiImp = imp2.duplicate();
@@ -122,9 +107,7 @@ public class MicroNucleiAnalysisModule implements AnalysisModule {
       ij.Prefs.blackBackground = true;
       IJ.run(microNucleiImp, "Convert to Mask", "");
       IJ.run(microNucleiImp, "Close-", "");
-//IJ.run(microNucleiImp, "Erode", "");
       IJ.run(microNucleiImp, "Watershed", "");
-//IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
       IJ.run("Set Measurements...", "area center decimal=2");
       IJ.run(microNucleiImp, "Analyze Particles...", "size=" + mnMinSize + "-" + mnMaxSize
               + "  show clear add");

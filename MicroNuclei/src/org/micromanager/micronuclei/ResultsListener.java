@@ -134,8 +134,10 @@ public class ResultsListener implements KeyListener, MouseListener{
     */
 	void drawCross(ImagePlus imp, Point2D.Double p, GeneralPath path, 
            double space) {
-      double x  = imp.getCalibration().getRawX(p.x);
-      double y = imp.getCalibration().getRawY(p.y);
+      // double x  = imp.getCalibration().getRawX(p.x);
+      // double y = imp.getCalibration().getRawY(p.y);
+      double x = p.x;
+      double y = p.y;
 		int width=imp.getWidth() / 20;
 		int height=imp.getHeight() / 20;
 		path.moveTo(x, y - height);
