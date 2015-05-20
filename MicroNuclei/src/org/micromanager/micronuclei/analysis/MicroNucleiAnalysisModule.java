@@ -48,9 +48,9 @@ public class MicroNucleiAnalysisModule implements AnalysisModule {
       final double mnMaxSize = 800.0;
       // nuclei allowed sized
       final double nMinSize = 80;
-      final double nMaxSize = 900;
+      final double nMaxSize = 1000;
       // max distance a micronucleus can be separated from a nucleus
-      final double maxDistance = 80;
+      final double maxDistance = 25;
       // min distance a micronucleus should be from the edge of the image
       final double minEdgeDistance = 10.0; // in microns
       // minimum number of "micronuclei" we want per nucleus to score as a hit
@@ -77,7 +77,7 @@ public class MicroNucleiAnalysisModule implements AnalysisModule {
       ImagePlus imp = new ImagePlus ("tmp", ImageUtils.makeProcessor(tImg));
       Calibration cal = imp.getCalibration();
       try {
-         cal.pixelWidth = tImg.tags.getDouble("PixelSize_um"); 
+         cal.pixelWidth = tImg.tags.getDouble("PixelSizeUm"); 
          cal.pixelHeight = cal.pixelWidth;
       } catch(JSONException je) {
          throw new MMScriptException ("Failed to find pixelsize in the metadata");
@@ -144,7 +144,7 @@ public class MicroNucleiAnalysisModule implements AnalysisModule {
       IJ.run(nucleiImp, "Analyze Particles...", "size=" + nMinSize + "-" + nMaxSize
               + "  clear add");
 
-      // add nuclei to our list of nuclei:
+      // get nuclei from RoiManager and add to our list of nuclei:
       rm = RoiManager.getInstance2();
       for (Roi roi  : rm.getRoisAsArray()) {
          // approximate nuclear positions as the center of the bounding box
@@ -177,11 +177,7 @@ public class MicroNucleiAnalysisModule implements AnalysisModule {
       }
 
       imp2.changes = false;
-      if (showMasks) {
-         imp2.show();
-      } else {
-         imp2.close();
-      }
+      imp2.close();
 
       // cycle through the list of micronuclei
       // assign each to the nearest by nucleus (not more than maxdistance away)

@@ -456,7 +456,7 @@ public class MicroNucleiForm extends MMFrame {
       MMWindow mw = new MMWindow(ip);
       if (!mw.isMMWindow()) {
          TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
-         tImg.tags.put("PixelSize_um", ip.getCalibration().pixelWidth);
+         tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
          normalize(tImg, background_, flatfield_);
          Roi[] zapRois = am.analyze(tImg, parms);
          for (Roi roi : zapRois) {
@@ -473,14 +473,15 @@ public class MicroNucleiForm extends MMFrame {
          int nrPositions = mw.getNumberOfPositions();
          for (int p = 1; p <= nrPositions && !stop_.get(); p++) {
             try {
-               mw.setPosition(p);
+               if (nrPositions > 1)
+                  mw.setPosition(p);
             } catch (MMScriptException ms) {
                ReportingUtils.showError(ms, "Error setting position in MMWindow");
             }
             try {
-               if (mw.getImageMetadata(0, 0, 0, p) != null) {
+               if (nrPositions == 1 || mw.getImageMetadata(0, 0, 0, p) != null) {
                   TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
-                  tImg.tags.put("PixelSize_um", ip.getCalibration().pixelWidth);
+                  tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
                   normalize(tImg, background_, flatfield_);
                   Roi[] zapRois = am.analyze(tImg, parms);
                   for (Roi roi : zapRois) {
@@ -543,6 +544,14 @@ public class MicroNucleiForm extends MMFrame {
          nrChannels = 2;
       }
       
+      ResultsTable outTable = new ResultsTable();
+      String outTableName = Terms.RESULTTABLENAME;
+      Window oldOutTable = WindowManager.getWindow(outTableName);
+      if (oldOutTable != null) {
+         WindowManager.removeWindow(oldOutTable);
+         oldOutTable.dispose();
+      }
+      
       int nrImagesPerWell = 0;
       int wellCount = 0;
       
@@ -564,6 +573,7 @@ public class MicroNucleiForm extends MMFrame {
       int count = 0;
       int siteCount = 0;
       JSONObject parms = analysisSettings(showMasks_.isSelected());
+      currentWell = "";
       for (MultiStagePosition msp : positions) {
          if (stop_.get()) {
             resultsWriter.close();
@@ -595,8 +605,8 @@ public class MicroNucleiForm extends MMFrame {
          if (nrChannels == 2) {
             gui_.getMMCore().setConfig(channelGroup, secondImagingChannel_);
             gui_.getMMCore().snapImage();
-            tImg = gui_.getMMCore().getTaggedImage();
-            gui_.addImageToAcquisition(well, 0, 1, 0, siteCount, tImg);
+            TaggedImage t2Img = gui_.getMMCore().getTaggedImage();
+            gui_.addImageToAcquisition(well, 0, 1, 0, siteCount, t2Img);
             MMAcquisition acqObject = gui_.getAcquisition(well);
             try {
                acqObject.setChannelColor(1, new Color(0, 0, 255).getRGB());
@@ -605,13 +615,23 @@ public class MicroNucleiForm extends MMFrame {
             }
          }
          gui_.getMMCore().setConfig(channelGroup, zapChannel_);
-         // analyze the second channel if that is the one we took
          
+         // analyze the second channel if that is the one we took
          
          // Analyze and zap
          normalize(tImg, background_, flatfield_);
          Roi[] zapRois = am.analyze(tImg, parms);
          zap(zapRois);
+         for (Roi roi : zapRois) {
+                     outTable.incrementCounter();
+                     Rectangle bounds = roi.getBounds();
+                     int x = bounds.x + (int) (0.5 * bounds.width);
+                     int y = bounds.y + (int) (0.5 * bounds.height);
+                     outTable.addValue(Terms.X, x);
+                     outTable.addValue(Terms.Y, y);
+                     outTable.addValue(Terms.POSITION, siteCount);
+                  }
+         outTable.show(outTableName);
          
          if (zapRois.length > 0) {
             String acq2 = msp.getLabel();
@@ -624,7 +644,7 @@ public class MicroNucleiForm extends MMFrame {
             MMAcquisition acqObject = gui_.getAcquisition(well);
             try {
                acqObject.setChannelColor(nrChannels, new Color(255, 0, 0).getRGB());
-            } catch (MMScriptException ex) {
+            } catch (Exception ex) {
                 // ignore since we do not want to crash our acquisition  
             }
          }
@@ -632,6 +652,23 @@ public class MicroNucleiForm extends MMFrame {
          count++;
       }
 
+            // add listeners to our ResultsTable that let user click on row and go 
+      // to cell that was found
+      TextPanel tp;
+      TextWindow win;
+      Window frame = WindowManager.getWindow(outTableName);
+      if (frame != null && frame instanceof TextWindow) {
+         win = (TextWindow) frame;
+         tp = win.getTextPanel();
+
+         ResultsListener myk = new ResultsListener(IJ.getImage(), outTable, win);
+         tp.addKeyListener(myk);
+         tp.addMouseListener(myk);
+         frame.toFront();
+         frame.setVisible(true);
+      }
+      
+      
       // record the results from the last well:
       recordResults(resultsWriter, currentWell, parms);
 
@@ -722,8 +759,20 @@ public class MicroNucleiForm extends MMFrame {
       // TODO: subtract background image
       if (flatField != null) {
          ImagePlus imp = new ImagePlus("tmp", ImageUtils.makeProcessor(input));
-         ic.run("Divide, float, 32", imp, flatField);
+         if (background != null) {
+            ic.run("Subtract", imp, background);
+         }
+         imp = ic.run("Divide, float, 32", imp, flatField);
+         IJ.run(imp, "16-bit", "");
+         TaggedImage tImg = new TaggedImage(imp.getProcessor().getPixels(), input.tags);
+         /*
+         ImageProcessor delme = ImageUtils.makeProcessor(tImg);
+         ImagePlus delmeToo = new ImagePlus("delme", delme);
+         delmeToo.show();
+         */
+         return tImg;
       }
+      
       return input;
    }
 
