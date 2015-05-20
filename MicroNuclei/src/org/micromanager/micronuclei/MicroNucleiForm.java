@@ -759,8 +759,20 @@ public class MicroNucleiForm extends MMFrame {
       // TODO: subtract background image
       if (flatField != null) {
          ImagePlus imp = new ImagePlus("tmp", ImageUtils.makeProcessor(input));
-         ic.run("Divide, float, 32", imp, flatField);
+         if (background != null) {
+            ic.run("Subtract", imp, background);
+         }
+         imp = ic.run("Divide, float, 32", imp, flatField);
+         IJ.run(imp, "16-bit", "");
+         TaggedImage tImg = new TaggedImage(imp.getProcessor().getPixels(), input.tags);
+         /*
+         ImageProcessor delme = ImageUtils.makeProcessor(tImg);
+         ImagePlus delmeToo = new ImagePlus("delme", delme);
+         delmeToo.show();
+         */
+         return tImg;
       }
+      
       return input;
    }
 
