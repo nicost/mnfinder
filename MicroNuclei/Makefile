@@ -3,7 +3,6 @@ JC = javac
 BUILD = ../build
 SOURCEFILES = src/org/micromanager/micronuclei/MicroNucleiPlugin.java \
 				 src/org/micromanager/micronuclei/MicroNucleiForm.java \
-				 src/org/micromanager/micronuclei/AnalysisModule.java \
 				 src/org/micromanager/micronuclei/DragDropUtil.java \
 				 src/org/micromanager/micronuclei/ResultsListener.java \
 				 src/org/micromanager/micronuclei/Terms.java \

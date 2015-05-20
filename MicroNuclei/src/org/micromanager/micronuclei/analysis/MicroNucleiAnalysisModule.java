@@ -18,7 +18,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.micromanager.MMStudio;
 import org.micromanager.api.ScriptInterface;
-import org.micromanager.micronuclei.AnalysisModule;
+import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
+import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
+import org.micromanager.micronuclei.analysisinterface.PropertyException;
 import org.micromanager.utils.ImageUtils;
 import org.micromanager.utils.MMScriptException;
 
@@ -28,10 +30,31 @@ import org.micromanager.utils.MMScriptException;
  */
 
 
-public class MicroNucleiAnalysisModule implements AnalysisModule {
+public class MicroNucleiAnalysisModule extends AnalysisModule {
    private int nucleiCount_ = 0;
    private int zappedNucleiCount_ = 0;
-
+   AnalysisProperty minSizeMN_, maxSizeMN_; 
+   private final String UINAME = "MicroNucleiAnalysis";
+   
+   
+   public MicroNucleiAnalysisModule()  {
+      try {
+         minSizeMN_ = new AnalysisProperty(this.getClass(),
+                 "Minimum size of MicroNuclei", 0.5 );
+         maxSizeMN_ = new AnalysisProperty(this.getClass(),
+                 "Maximum size of MicroNuclei", 800.0 );
+         
+         List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
+         apl.add(minSizeMN_);
+         apl.add(maxSizeMN_);
+         
+         setAnalysisProperties(apl);
+      } catch (PropertyException ex) {
+         // todo: handle error}
+      }
+   }
+   
+  
    @Override
    public Roi[] analyze(TaggedImage tImg, JSONObject parms) throws MMScriptException {
       
@@ -44,8 +67,8 @@ public class MicroNucleiAnalysisModule implements AnalysisModule {
       long startTime = System.currentTimeMillis();
       
       // microNuclei allowed sizes
-      final double mnMinSize = 0.5;
-      final double mnMaxSize = 800.0;
+      final double mnMinSize = (Double) minSizeMN_.get();
+      final double mnMaxSize = (Double) maxSizeMN_.get();
       // nuclei allowed sized
       final double nMinSize = 80;
       final double nMaxSize = 1000;
@@ -254,6 +277,19 @@ public class MicroNucleiAnalysisModule implements AnalysisModule {
    private long roiSize(Roi r) {
       return r.getBounds().width * r.getBounds().height;
    }
+
+   @Override
+   public void reset() {
+      nucleiCount_ = 0;
+      zappedNucleiCount_ = 0; 
+   }
+
+   @Override
+   public String name() {
+      return UINAME;
+   }
+
+ 
 
    
 }

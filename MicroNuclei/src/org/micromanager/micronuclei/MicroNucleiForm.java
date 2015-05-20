@@ -19,6 +19,7 @@
 
 package org.micromanager.micronuclei;
 
+import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
@@ -63,6 +64,8 @@ import org.micromanager.api.MultiStagePosition;
 import org.micromanager.api.PositionList;
 import org.micromanager.api.ScriptInterface;
 import org.micromanager.micronuclei.analysis.MicroNucleiAnalysisModule;
+import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
+import org.micromanager.micronuclei.analysisinterface.PropertyException;
 import org.micromanager.projector.ProjectorControlForm;
 import org.micromanager.utils.FileDialogs;
 import org.micromanager.utils.ImageUtils;
@@ -110,10 +113,17 @@ public class MicroNucleiForm extends MMFrame {
    
    private final AtomicBoolean stop_ = new AtomicBoolean(false);
    
+   private final AnalysisModule analysisModule_;
+   
    public MicroNucleiForm(ScriptInterface gui) {
       gui_ = gui;
       loadAndRestorePosition(100, 100, 200, 200);
       prefs_ = Preferences.userNodeForPackage(this.getClass());
+      
+
+      // TODO: make this used selectable from available modules
+      analysisModule_ = new MicroNucleiAnalysisModule();
+      
       
       arialSmallFont_ = new Font("Arial", Font.PLAIN, 12);
       buttonSize_ = new Dimension(70, 21);
@@ -233,6 +243,18 @@ public class MicroNucleiForm extends MMFrame {
       analysisPanel.add(flatfieldButton, "wrap");
       
       add(analysisPanel, "span 3, center, wrap");
+      
+      JPanel modulePanel = new JPanel(new MigLayout(
+              "flowx, fill, insets 8"));
+      modulePanel.setBorder(makeTitledBorder(analysisModule_.name()));
+      
+      for (AnalysisProperty ap : analysisModule_.getAnalysisProperties()) {
+         modulePanel.add(new JLabel(ap.getDescription()));
+         modulePanel.add(ap.getUI(), "wrap");
+      }
+      
+      add(modulePanel, "span 3, center, wrap");
+      
       
       doZap_ = new JCheckBox("Zap");
       doZap_.setSelected(prefs_.getBoolean(DOZAP, false));
@@ -433,8 +455,9 @@ public class MicroNucleiForm extends MMFrame {
     * 
     * @throws MMScriptException
     * @throws JSONException 
+    * @throws org.micromanager.micronuclei.analysisinterface.PropertyException 
     */
-   public void runTest() throws MMScriptException, JSONException {
+   public void runTest() throws MMScriptException, JSONException, PropertyException {
       ImagePlus ip;
       try {
          ip = IJ.getImage();
@@ -450,7 +473,6 @@ public class MicroNucleiForm extends MMFrame {
          oldOutTable.dispose();
       }
       
-      AnalysisModule am = new MicroNucleiAnalysisModule();
       JSONObject parms = analysisSettings(showMasks_.isSelected());
 
       MMWindow mw = new MMWindow(ip);
@@ -458,7 +480,7 @@ public class MicroNucleiForm extends MMFrame {
          TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
          tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
          normalize(tImg, background_, flatfield_);
-         Roi[] zapRois = am.analyze(tImg, parms);
+         Roi[] zapRois = analysisModule_.analyze(tImg, parms);
          for (Roi roi : zapRois) {
             outTable.incrementCounter();
             Rectangle bounds = roi.getBounds();
@@ -483,7 +505,7 @@ public class MicroNucleiForm extends MMFrame {
                   TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
                   tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
                   normalize(tImg, background_, flatfield_);
-                  Roi[] zapRois = am.analyze(tImg, parms);
+                  Roi[] zapRois = analysisModule_.analyze(tImg, parms);
                   for (Roi roi : zapRois) {
                      outTable.incrementCounter();
                      Rectangle bounds = roi.getBounds();
@@ -525,7 +547,6 @@ public class MicroNucleiForm extends MMFrame {
    public void runAnalysisAndZapping(String saveLocation) throws IOException, MMScriptException, Exception {
       
       // Analysis class, in the future we could have a choice of these
-      AnalysisModule am = new MicroNucleiAnalysisModule();
       
       String channelGroup = gui_.getMMCore().getChannelGroup();
       
@@ -590,7 +611,7 @@ public class MicroNucleiForm extends MMFrame {
             currentWell = well;
             siteCount = 0;
             gui_.openAcquisition(well, saveLocation, 1, nrChannels + 1, 1, nrImagesPerWell, true, true);
-            am = new MicroNucleiAnalysisModule();
+            analysisModule_.reset();
             // reset cell and object counters
             parms.put(AnalysisModule.CELLCOUNT, 0);
             parms.put(AnalysisModule.OBJECTCOUNT, 0);
@@ -620,7 +641,7 @@ public class MicroNucleiForm extends MMFrame {
          
          // Analyze and zap
          normalize(tImg, background_, flatfield_);
-         Roi[] zapRois = am.analyze(tImg, parms);
+         Roi[] zapRois = analysisModule_.analyze(tImg, parms);
          zap(zapRois);
          for (Roi roi : zapRois) {
                      outTable.incrementCounter();
