@@ -756,7 +756,7 @@ public class MicroNucleiForm extends MMFrame {
    public static TaggedImage normalize(TaggedImage input, ImagePlus background,
            ImagePlus flatField) {
       ImageCalculator ic = new ImageCalculator();
-      // TODO: subtract background image
+      // TODO: deal with image of incompatible size and/or type
       if (flatField != null) {
          ImagePlus imp = new ImagePlus("tmp", ImageUtils.makeProcessor(input));
          if (background != null) {
@@ -764,12 +764,9 @@ public class MicroNucleiForm extends MMFrame {
          }
          imp = ic.run("Divide, float, 32", imp, flatField);
          IJ.run(imp, "16-bit", "");
-         TaggedImage tImg = new TaggedImage(imp.getProcessor().getPixels(), input.tags);
-         /*
-         ImageProcessor delme = ImageUtils.makeProcessor(tImg);
-         ImagePlus delmeToo = new ImagePlus("delme", delme);
-         delmeToo.show();
-         */
+         TaggedImage tImg = new TaggedImage(imp.getProcessor().getPixels(), 
+                 input.tags);
+
          return tImg;
       }
       
