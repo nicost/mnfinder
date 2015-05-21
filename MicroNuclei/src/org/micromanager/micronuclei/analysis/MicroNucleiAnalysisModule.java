@@ -71,7 +71,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
          maxDistance_ = new AnalysisProperty(this.getClass(),
                   "Maximum distance", 25.0);
          minNMNPerNucleus_ = new AnalysisProperty(this.getClass(),
-                  "Minimum Number of micronuclei", 4);
+                  "Minimum number of micronuclei", 4);
          maxStdDev_ = new AnalysisProperty(this.getClass(),
                   "Maximum Std. Dev.", 7000);
          List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
@@ -80,6 +80,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
          //apl.add(minSizeN_);
          //apl.add(maxSizeN_);
          apl.add(minNMNPerNucleus_);
+         apl.add(maxDistance_);
          
          setAnalysisProperties(apl);
       } catch (PropertyException ex) {

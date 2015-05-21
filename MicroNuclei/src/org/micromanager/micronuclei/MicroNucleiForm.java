@@ -621,7 +621,7 @@ public class MicroNucleiForm extends MMFrame {
          }
          MultiStagePosition.goToPosition(msp, gui_.getMMCore());
          gui_.getMMCore().waitForSystem();
-         gui_.message("Site: " + msp.getLabel());
+         gui_.message("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y) ;
          gui_.getMMCore().setConfig(channelGroup, imagingChannel_);
          gui_.getMMCore().snapImage();
          TaggedImage tImg = gui_.getMMCore().getTaggedImage();
@@ -645,31 +645,33 @@ public class MicroNucleiForm extends MMFrame {
          // Analyze and zap
          normalize(tImg, background_, flatfield_);
          Roi[] zapRois = analysisModule_.analyze(tImg, parms);
-         zap(zapRois);
-         for (Roi roi : zapRois) {
-                     outTable.incrementCounter();
-                     Rectangle bounds = roi.getBounds();
-                     int x = bounds.x + (int) (0.5 * bounds.width);
-                     int y = bounds.y + (int) (0.5 * bounds.height);
-                     outTable.addValue(Terms.X, x);
-                     outTable.addValue(Terms.Y, y);
-                     outTable.addValue(Terms.POSITION, siteCount);
-                  }
-         outTable.show(outTableName);
-         
-         if (zapRois.length > 0) {
-            String acq2 = msp.getLabel();
-            gui_.message("Imaging zapped cells at site: " + acq2);
-            // take the red image and save it
-            gui_.getMMCore().setConfig(channelGroup, afterZapChannel_);
-            gui_.getMMCore().snapImage();
-            TaggedImage tImg2 = gui_.getMMCore().getTaggedImage();
-            gui_.addImageToAcquisition(well, 0, nrChannels, 0, siteCount, tImg2);
-            MMAcquisition acqObject = gui_.getAcquisition(well);
-            try {
-               acqObject.setChannelColor(nrChannels, new Color(255, 0, 0).getRGB());
-            } catch (Exception ex) {
-                // ignore since we do not want to crash our acquisition  
+         if (zapRois != null) {
+            zap(zapRois);
+            for (Roi roi : zapRois) {
+               outTable.incrementCounter();
+               Rectangle bounds = roi.getBounds();
+               int x = bounds.x + (int) (0.5 * bounds.width);
+               int y = bounds.y + (int) (0.5 * bounds.height);
+               outTable.addValue(Terms.X, x);
+               outTable.addValue(Terms.Y, y);
+               outTable.addValue(Terms.POSITION, siteCount);
+            }
+            outTable.show(outTableName);
+
+            if (zapRois.length > 0) {
+               String acq2 = msp.getLabel();
+               gui_.message("Imaging zapped cells at site: " + acq2);
+               // take the red image and save it
+               gui_.getMMCore().setConfig(channelGroup, afterZapChannel_);
+               gui_.getMMCore().snapImage();
+               TaggedImage tImg2 = gui_.getMMCore().getTaggedImage();
+               gui_.addImageToAcquisition(well, 0, nrChannels, 0, siteCount, tImg2);
+               MMAcquisition acqObject = gui_.getAcquisition(well);
+               try {
+                  acqObject.setChannelColor(nrChannels, new Color(255, 0, 0).getRGB());
+               } catch (Exception ex) {
+                  // ignore since we do not want to crash our acquisition  
+               }
             }
          }
          siteCount++;
@@ -733,10 +735,12 @@ public class MicroNucleiForm extends MMFrame {
     * @throws MMScriptException 
     */
    private void zap(Roi[] rois) throws MMScriptException {
-      // convert zapRois in a Roi[] of Polygon Rois
+      if (rois == null)
+         return;
       ProjectorControlForm pcf
               = ProjectorControlForm.showSingleton(gui_.getMMCore(), gui_);
       int i;
+      // convert zapRois in a Roi[] of Polygon Rois
       for (i = 0; i < rois.length; i++) {
          Polygon poly = rois[i].getConvexHull();
          rois[i] = new PolygonRoi(poly, Roi.POLYGON);
