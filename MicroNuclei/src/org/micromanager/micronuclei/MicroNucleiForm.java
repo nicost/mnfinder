@@ -626,6 +626,12 @@ public class MicroNucleiForm extends MMFrame {
          gui_.getMMCore().snapImage();
          TaggedImage tImg = gui_.getMMCore().getTaggedImage();
          gui_.addImageToAcquisition(well, 0, 0, 0, siteCount, tImg);
+         try {
+            MMAcquisition acqObject = gui_.getAcquisition(well);
+            acqObject.setChannelName(0, imagingChannel_);
+         } catch (MMScriptException ex) {
+            // ignore since we do not want to crash our acquisition  
+         }
          if (nrChannels == 2) {
             gui_.getMMCore().setConfig(channelGroup, secondImagingChannel_);
             gui_.getMMCore().snapImage();
@@ -634,6 +640,7 @@ public class MicroNucleiForm extends MMFrame {
             MMAcquisition acqObject = gui_.getAcquisition(well);
             try {
                acqObject.setChannelColor(1, new Color(0, 0, 255).getRGB());
+               acqObject.setChannelName(1, secondImagingChannel_);
             } catch (MMScriptException ex) {
                // ignore since we do not want to crash our acquisition  
             }
@@ -669,6 +676,7 @@ public class MicroNucleiForm extends MMFrame {
                MMAcquisition acqObject = gui_.getAcquisition(well);
                try {
                   acqObject.setChannelColor(nrChannels, new Color(255, 0, 0).getRGB());
+                  acqObject.setChannelName(nrChannels, "zapped");
                } catch (Exception ex) {
                   // ignore since we do not want to crash our acquisition  
                }
