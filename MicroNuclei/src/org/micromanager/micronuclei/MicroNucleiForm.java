@@ -215,6 +215,13 @@ public class MicroNucleiForm extends MMFrame {
       backgroundTextField_ = new JTextField();
       backgroundTextField_.setText(prefs_.get(BACKGROUNDLOCATION, ""));
       backgroundTextField_.setMinimumSize(new Dimension(300, 12));
+      backgroundTextField_.addActionListener(new java.awt.event.ActionListener() {
+         @Override
+         public void actionPerformed(ActionEvent e) {
+            if (prefs_ != null)
+               prefs_.put(BACKGROUNDLOCATION, backgroundTextField_.getText());
+         }
+      });
       analysisPanel.add(backgroundTextField_);
       DropTarget dropTarget = new DropTarget(backgroundTextField_, 
               new DragDropUtil(backgroundTextField_));
@@ -232,6 +239,13 @@ public class MicroNucleiForm extends MMFrame {
       flatfieldTextField_ = new JTextField();
       flatfieldTextField_.setText(prefs_.get(FLATFIELDLOCATION, ""));
       flatfieldTextField_.setMinimumSize(new Dimension(300, 12));
+      flatfieldTextField_.addActionListener(new java.awt.event.ActionListener() {
+         @Override
+         public void actionPerformed(ActionEvent e) {
+             if (prefs_ != null)
+               prefs_.put( FLATFIELDLOCATION, flatfieldTextField_.getText());
+         }
+      });
       analysisPanel.add(flatfieldTextField_);
       dropTarget = new DropTarget(flatfieldTextField_, 
               new DragDropUtil(flatfieldTextField_));

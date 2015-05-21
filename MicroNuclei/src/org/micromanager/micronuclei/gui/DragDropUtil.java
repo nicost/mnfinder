@@ -27,6 +27,7 @@ import java.awt.dnd.DropTargetDragEvent;
 import java.awt.dnd.DropTargetDropEvent;
 import java.awt.dnd.DropTargetEvent;
 import java.awt.dnd.DropTargetListener;
+import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
 import javax.swing.JTextField;
@@ -70,6 +71,7 @@ public class DragDropUtil implements DropTargetListener {
 
    /**
     * This function does the actual work
+    * @param dtde Drag/drop event
     */
    @Override
    public void drop(final DropTargetDropEvent dtde) {
@@ -85,6 +87,9 @@ public class DragDropUtil implements DropTargetListener {
                   File f = (File) list1;
                   if (f.isFile()) {
                      textField_.setText(f.getAbsolutePath());
+                     for (ActionListener a : textField_.getActionListeners() ) {
+                        a.actionPerformed(null);
+                     }
                   }
                }
                dtde.dropComplete(true);
