@@ -19,6 +19,8 @@
 
 package org.micromanager.micronuclei;
 
+import org.micromanager.micronuclei.gui.ResultsListener;
+import org.micromanager.micronuclei.gui.DragDropUtil;
 import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import ij.IJ;
 import ij.ImagePlus;
@@ -66,6 +68,7 @@ import org.micromanager.api.ScriptInterface;
 import org.micromanager.micronuclei.analysis.MicroNucleiAnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.PropertyException;
+import org.micromanager.micronuclei.gui.PropertyGUI;
 import org.micromanager.projector.ProjectorControlForm;
 import org.micromanager.utils.FileDialogs;
 import org.micromanager.utils.ImageUtils;
@@ -250,7 +253,7 @@ public class MicroNucleiForm extends MMFrame {
       
       for (AnalysisProperty ap : analysisModule_.getAnalysisProperties()) {
          modulePanel.add(new JLabel(ap.getDescription()));
-         modulePanel.add(ap.getUI(), "wrap");
+         modulePanel.add(new PropertyGUI(ap).getJComponent(), "wrap");
       }
       
       add(modulePanel, "span 3, center, wrap");

@@ -1,5 +1,5 @@
 
-package org.micromanager.micronuclei;
+package org.micromanager.micronuclei.gui;
 
 import ij.IJ;
 import ij.ImagePlus;
@@ -15,6 +15,7 @@ import java.awt.event.MouseListener;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
 import org.micromanager.api.MMWindow;
+import org.micromanager.micronuclei.Terms;
 
 
 /**

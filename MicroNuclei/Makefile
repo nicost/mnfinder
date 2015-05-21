@@ -3,11 +3,11 @@ JC = javac
 BUILD = ../build
 SOURCEFILES = src/org/micromanager/micronuclei/MicroNucleiPlugin.java \
 				 src/org/micromanager/micronuclei/MicroNucleiForm.java \
-				 src/org/micromanager/micronuclei/DragDropUtil.java \
-				 src/org/micromanager/micronuclei/ResultsListener.java \
 				 src/org/micromanager/micronuclei/Terms.java \
 				 src/org/micromanager/micronuclei/analysis/Distance.java \
-				 src/org/micromanager/micronuclei/analysis/MicroNucleiAnalysisModule.java
+				 src/org/micromanager/micronuclei/analysis/MicroNucleiAnalysisModule.java \
+				 src/org/micromanager/micronuclei/gui/ResultsListener.java \
+				 src/org/micromanager/micronuclei/gui/DragDropUtil.java 
 IJJARPATH = /Applications/Micro-Manager1.4/ij.jar
 MMJARPATH = /Applications/Micro-Manager1.4/plugins/Micro-Manager/MMJ_.jar
 MMCOREJARPATH = /Applications/Micro-Manager1.4/plugins/Micro-Manager/MMCoreJ.jar

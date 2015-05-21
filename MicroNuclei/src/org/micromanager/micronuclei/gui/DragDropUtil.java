@@ -1,5 +1,5 @@
 
-package org.micromanager.micronuclei;
+package org.micromanager.micronuclei.gui;
 
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;

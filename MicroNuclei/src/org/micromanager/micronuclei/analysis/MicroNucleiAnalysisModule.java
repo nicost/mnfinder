@@ -33,20 +33,33 @@ import org.micromanager.utils.MMScriptException;
 public class MicroNucleiAnalysisModule extends AnalysisModule {
    private int nucleiCount_ = 0;
    private int zappedNucleiCount_ = 0;
-   AnalysisProperty minSizeMN_, maxSizeMN_; 
+   AnalysisProperty minSizeMN_, maxSizeMN_, minSizeN_, maxSizeN_,
+           maxDistance_, minNMNPerNucleus_, maxStdDev_; 
    private final String UINAME = "MicroNucleiAnalysis";
    
    
    public MicroNucleiAnalysisModule()  {
       try {
          minSizeMN_ = new AnalysisProperty(this.getClass(),
-                 "Minimum size of MicroNuclei", 0.5 );
+                 "Minimum micronuclear size", 0.5 );
          maxSizeMN_ = new AnalysisProperty(this.getClass(),
-                 "Maximum size of MicroNuclei", 800.0 );
-         
+                 "Maximum micronuclear size", 800.0 );
+         minSizeN_ = new AnalysisProperty(this.getClass(),
+                  "Minimum nuclear size", 80.0);
+         maxSizeN_ = new AnalysisProperty(this.getClass(),
+                  "Maximum nuclear size", 1000.0);
+         maxDistance_ = new AnalysisProperty(this.getClass(),
+                  "Maximum distance", 25.0);
+         minNMNPerNucleus_ = new AnalysisProperty(this.getClass(),
+                  "Minimum Number of micronuclei", 4);
+         maxStdDev_ = new AnalysisProperty(this.getClass(),
+                  "Maximum Std. Dev.", 7000);
          List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
          apl.add(minSizeMN_);
-         apl.add(maxSizeMN_);
+         //apl.add(maxSizeMN_);
+         //apl.add(minSizeN_);
+         //apl.add(maxSizeN_);
+         apl.add(minNMNPerNucleus_);
          
          setAnalysisProperties(apl);
       } catch (PropertyException ex) {
@@ -70,17 +83,17 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       final double mnMinSize = (Double) minSizeMN_.get();
       final double mnMaxSize = (Double) maxSizeMN_.get();
       // nuclei allowed sized
-      final double nMinSize = 80;
-      final double nMaxSize = 1000;
+      final double nMinSize = (Double) minSizeN_.get();
+      final double nMaxSize = (Double) maxSizeN_.get();
       // max distance a micronucleus can be separated from a nucleus
-      final double maxDistance = 25;
+      final double maxDistance = (Double) maxDistance_.get();
       // min distance a micronucleus should be from the edge of the image
       final double minEdgeDistance = 10.0; // in microns
       // minimum number of "micronuclei" we want per nucleus to score as a hit
-      final double minNumMNperNucleus = 4;
+      final int minNumMNperNucleus = (Integer) minNMNPerNucleus_.get();
       // do not analyze images whose stdev is above this value
       // Use this to remove images showing well edges
-      final double maxStdDev = 7000;
+      final double maxStdDev = (Integer) maxStdDev_.get();
 
       double pixelSize; // not sure why, but imp.getCalibration is unreliable
 
