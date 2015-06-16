@@ -54,7 +54,8 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
    private int nucleiCount_ = 0;
    private int zappedNucleiCount_ = 0;
    AnalysisProperty minSizeMN_, maxSizeMN_, minSizeN_, maxSizeN_,
-           maxDistance_, minNMNPerNucleus_, maxStdDev_; 
+           maxDistance_, minNMNPerNucleus_, maxStdDev_, maxNumberOfNuclei_,
+           maxNumberOfZaps_; 
    private final String UINAME = "MicroNucleiAnalysis";
    
    
@@ -73,7 +74,11 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
          minNMNPerNucleus_ = new AnalysisProperty(this.getClass(),
                   "Minimum number of micronuclei", 4);
          maxStdDev_ = new AnalysisProperty(this.getClass(),
-                  "Maximum Std. Dev.", 7000);
+                  "Maximum Std. Dev.", 7000.0);
+         maxNumberOfNuclei_ = new AnalysisProperty(this.getClass(), 
+                 "Maximum number of nuclei per image", 250);
+         maxNumberOfZaps_ = new AnalysisProperty(this.getClass(),
+                 "Skip image if more than this number shoudl be zapped", 15);
          List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
          apl.add(minSizeMN_);
          //apl.add(maxSizeMN_);
@@ -81,6 +86,8 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
          //apl.add(maxSizeN_);
          apl.add(minNMNPerNucleus_);
          apl.add(maxDistance_);
+         apl.add(maxNumberOfNuclei_);
+         apl.add(maxNumberOfZaps_);
          
          setAnalysisProperties(apl);
       } catch (PropertyException ex) {
@@ -114,7 +121,11 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       final int minNumMNperNucleus = (Integer) minNMNPerNucleus_.get();
       // do not analyze images whose stdev is above this value
       // Use this to remove images showing well edges
-      final double maxStdDev = (Integer) maxStdDev_.get();
+      final double maxStdDev = (Double) maxStdDev_.get();
+      // if the image has more than this number of nuclei, do not zap
+      final int maxNumberOfNuclei = (Integer) maxNumberOfNuclei_.get();
+      // if more than this number of nuclei should be zapped, skip zapping altogether
+      final int maxNumberOfZaps = (Integer) maxNumberOfZaps_.get();
 
       double pixelSize; // not sure why, but imp.getCalibration is unreliable
 
@@ -300,6 +311,18 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
 
       gui_.message("mn: " + microNuclei.size() + ", n: " + nuclei.size() + 
                  ", zap: " + zapRois.size());
+      
+      // make sure that we do not zap if there are too many nuclei in the image
+      if (nuclei.size() > maxNumberOfNuclei) {
+         zapRois.clear();
+         gui_.message("Not zapping cells since ther are too many nuclei per image");
+         
+      }
+      // make sure that we do not zap if there are too many cells to be zapped
+      if (zapRois.size() > maxNumberOfZaps) {
+         zapRois.clear();
+         gui_.message("Not zapping cells since there are too many cells to be zapped");
+      }
       
       return zapRois.toArray(new Roi[zapRois.size()]);
    }

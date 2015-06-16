@@ -21,10 +21,10 @@ package org.micromanager.micronuclei.gui;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
 import javax.swing.JComponent;
 import javax.swing.JFormattedTextField;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 
 /**
@@ -52,6 +52,24 @@ public class PropertyGUI {
                parse(textField);
             }
          });
+         textField.getDocument().addDocumentListener(new DocumentListener() {
+
+            @Override
+            public void insertUpdate(DocumentEvent de) {
+               parse(textField);
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent de) {
+               parse(textField);
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent de) {
+               parse(textField);
+            }
+         });
+         /*
          textField.addKeyListener(new KeyListener() {
 
             @Override
@@ -67,6 +85,7 @@ public class PropertyGUI {
             public void keyReleased(KeyEvent e) {
             }
          });
+                 */
       }
    }
    
