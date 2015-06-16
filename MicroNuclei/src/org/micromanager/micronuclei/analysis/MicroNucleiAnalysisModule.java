@@ -78,7 +78,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
          maxNumberOfNuclei_ = new AnalysisProperty(this.getClass(), 
                  "Maximum number of nuclei per image", 250);
          maxNumberOfZaps_ = new AnalysisProperty(this.getClass(),
-                 "Skip image if more than this number shoudl be zapped", 15);
+                 "Skip image if more than this number should be zapped", 15);
          List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
          apl.add(minSizeMN_);
          //apl.add(maxSizeMN_);
