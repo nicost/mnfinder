@@ -289,15 +289,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
 
       res.show("Results");
 
-      nucleiCount_ += nuclei.size();
-      zappedNucleiCount_ += zapNuclei.size();
-      try {
-         parms.put(CELLCOUNT, nucleiCount_);
-         parms.put(OBJECTCOUNT, zappedNucleiCount_);
-      } catch (JSONException ex) {
-         gui_.message("MicroNucleiAnalysis.java: This should never happen!!!");
-      }
-      
+
       long endTime = System.currentTimeMillis();
       gui_.message("Analysis took: " + (endTime - startTime) + " millisec");
       
@@ -323,6 +315,16 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
          zapRois.clear();
          gui_.message("Not zapping cells since there are too many cells to be zapped");
       }
+      
+      nucleiCount_ += nuclei.size();
+      zappedNucleiCount_ += zapRois.size();
+      try {
+         parms.put(CELLCOUNT, nucleiCount_);
+         parms.put(OBJECTCOUNT, zappedNucleiCount_);
+      } catch (JSONException ex) {
+         gui_.message("MicroNucleiAnalysis.java: This should never happen!!!");
+      }
+      
       
       return zapRois.toArray(new Roi[zapRois.size()]);
    }

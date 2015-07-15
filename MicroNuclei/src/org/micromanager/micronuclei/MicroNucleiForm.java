@@ -700,7 +700,7 @@ public class MicroNucleiForm extends MMFrame {
          count++;
       }
 
-            // add listeners to our ResultsTable that let user click on row and go 
+      // add listeners to our ResultsTable that let user click on row and go 
       // to cell that was found
       TextPanel tp;
       TextWindow win;
