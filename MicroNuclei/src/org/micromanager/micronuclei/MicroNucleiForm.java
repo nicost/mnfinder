@@ -214,7 +214,8 @@ public class MicroNucleiForm extends MMFrame {
       analysisPanel.add(new JLabel("Background: "));
       backgroundTextField_ = new JTextField();
       backgroundTextField_.setText(prefs_.get(BACKGROUNDLOCATION, ""));
-      backgroundTextField_.setMinimumSize(new Dimension(300, 12));
+      backgroundTextField_.setMinimumSize(new Dimension(250, 12));
+      backgroundTextField_.setMaximumSize(new Dimension(250, 20));
       backgroundTextField_.addActionListener(new java.awt.event.ActionListener() {
          @Override
          public void actionPerformed(ActionEvent e) {
@@ -238,7 +239,8 @@ public class MicroNucleiForm extends MMFrame {
       analysisPanel.add(new JLabel("Flatfield: "));
       flatfieldTextField_ = new JTextField();
       flatfieldTextField_.setText(prefs_.get(FLATFIELDLOCATION, ""));
-      flatfieldTextField_.setMinimumSize(new Dimension(300, 12));
+      flatfieldTextField_.setMinimumSize(new Dimension(250, 12));
+      flatfieldTextField_.setMaximumSize(new Dimension(250, 20));
       flatfieldTextField_.addActionListener(new java.awt.event.ActionListener() {
          @Override
          public void actionPerformed(ActionEvent e) {

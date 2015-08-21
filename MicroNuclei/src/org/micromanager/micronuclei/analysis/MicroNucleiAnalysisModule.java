@@ -62,7 +62,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
    public MicroNucleiAnalysisModule()  {
       try {
          minSizeMN_ = new AnalysisProperty(this.getClass(),
-                 "Minimum micronuclear size", 0.5 );
+                 "<html>Minimum micronuclear size (&micro;m<sup>2</sup>)</html>", 20 );
          maxSizeMN_ = new AnalysisProperty(this.getClass(),
                  "Maximum micronuclear size", 800.0 );
          minSizeN_ = new AnalysisProperty(this.getClass(),
@@ -70,9 +70,9 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
          maxSizeN_ = new AnalysisProperty(this.getClass(),
                   "Maximum nuclear size", 1000.0);
          maxDistance_ = new AnalysisProperty(this.getClass(),
-                  "Maximum distance", 25.0);
+                  "<html>Maximum distance (&micro;m)</html>", 25.0);
          minNMNPerNucleus_ = new AnalysisProperty(this.getClass(),
-                  "Minimum number of micronuclei", 4);
+                  "Minimum number of micronuclei", 3);
          maxStdDev_ = new AnalysisProperty(this.getClass(),
                   "Maximum Std. Dev.", 7000.0);
          maxNumberOfNuclei_ = new AnalysisProperty(this.getClass(), 
