@@ -440,8 +440,11 @@ public class MicroNucleiForm extends MMFrame {
             if (!flatfieldTextField_.getText().equals(""))
                flatfield_ = opener.openImage(flatfieldTextField_.getText());            
             if (!testing_) {
+               warnAboutMissingCorrections(background_, flatfield_);
                runAnalysisAndZapping(saveTextField_.getText());
+               warnAboutMissingCorrections(background_, flatfield_);
             } else {
+               warnAboutMissingCorrections(background_, flatfield_);
                runTest();
             }
                
@@ -512,7 +515,7 @@ public class MicroNucleiForm extends MMFrame {
 
       } else { // MMImageWindow
          int nrPositions = mw.getNumberOfPositions();
-         for (int p = 1; p <= nrPositions && !stop_.get(); p++) {
+         for (int p = 1; p < nrPositions && !stop_.get(); p++) {
             try {
                if (nrPositions > 1)
                   mw.setPosition(p);
@@ -536,7 +539,10 @@ public class MicroNucleiForm extends MMFrame {
                   }
                   outTable.show(outTableName);
                }
-            } catch (Exception ex) {
+            } catch (JSONException ex) {
+            } catch (MMScriptException ex) {
+            } catch (NullPointerException npe) {
+               ij.IJ.log("Null pointer exception at position : " + p);
             }
          }
       }
@@ -818,12 +824,22 @@ public class MicroNucleiForm extends MMFrame {
          IJ.run(imp, "16-bit", "");
          TaggedImage tImg = new TaggedImage(imp.getProcessor().getPixels(), 
                  input.tags);
-
          return tImg;
       }
       
       return input;
    }
+   
+   private static void warnAboutMissingCorrections(ImagePlus background, 
+           ImagePlus flatfield) {
+      if (background == null) {
+         ij.IJ.log("No background correction applied because of missing background image");
+      }
+      if (flatfield == null) {
+         ij.IJ.log("No flatfield correction applied because of missing flatfield image");
+      }
+   }
+           
 
    
 }

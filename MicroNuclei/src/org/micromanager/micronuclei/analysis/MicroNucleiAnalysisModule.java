@@ -25,6 +25,7 @@ import ij.gui.Roi;
 import ij.measure.Calibration;
 import ij.measure.ResultsTable;
 import ij.plugin.Duplicator;
+import ij.plugin.filter.Analyzer;
 import ij.plugin.frame.RoiManager;
 import java.awt.Rectangle;
 import java.awt.geom.Point2D;
@@ -61,14 +62,17 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
    
    public MicroNucleiAnalysisModule()  {
       try {
+         // note: the type of the value when creating the AnalysisProperty determines
+         // the allower type, and can create problems when the user enters something
+         // different
          minSizeMN_ = new AnalysisProperty(this.getClass(),
-                 "<html>Minimum micronuclear size (&micro;m<sup>2</sup>)</html>", 20 );
+                 "<html>Minimum micronuclear size (&micro;m<sup>2</sup>)</html>", 20.0 );
          maxSizeMN_ = new AnalysisProperty(this.getClass(),
                  "Maximum micronuclear size", 800.0 );
          minSizeN_ = new AnalysisProperty(this.getClass(),
                   "Minimum nuclear size", 80.0);
          maxSizeN_ = new AnalysisProperty(this.getClass(),
-                  "Maximum nuclear size", 1000.0);
+                  "Maximum nuclear size", 800.0);
          maxDistance_ = new AnalysisProperty(this.getClass(),
                   "<html>Maximum distance (&micro;m)</html>", 25.0);
          minNMNPerNucleus_ = new AnalysisProperty(this.getClass(),
@@ -108,11 +112,11 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       long startTime = System.currentTimeMillis();
       
       // microNuclei allowed sizes
-      final double mnMinSize = (Double) minSizeMN_.get();
-      final double mnMaxSize = (Double) maxSizeMN_.get();
+      final double microNucleiMinSize = (Double) minSizeMN_.get();
+      final double microNucleiMaxSize = (Double) maxSizeMN_.get();
       // nuclei allowed sized
-      final double nMinSize = (Double) minSizeN_.get();
-      final double nMaxSize = (Double) maxSizeN_.get();
+      final double nucleiMinSize = (Double) minSizeN_.get();
+      final double nucleiMaxSize = (Double) maxSizeN_.get();
       // max distance a micronucleus can be separated from a nucleus
       final double maxDistance = (Double) maxDistance_.get();
       // min distance a micronucleus should be from the edge of the image
@@ -136,6 +140,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
               new HashMap<Point2D.Double, ArrayList<Point2D.Double> >();
       //nucleiContents = new ArrayList();
       Map<Point2D.Double, Roi> nucleiRois = new HashMap<Point2D.Double, Roi>();
+      Map<Point2D.Double, Double> nucleiSizes = new HashMap<Point2D.Double, Double>();
       List<Point2D.Double> zapNuclei = new ArrayList<Point2D.Double>();
 
       // clean results table	
@@ -177,7 +182,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       IJ.run(microNucleiImp, "Close-", "");
       IJ.run(microNucleiImp, "Watershed", "");
       IJ.run("Set Measurements...", "area center decimal=2");
-      IJ.run(microNucleiImp, "Analyze Particles...", "size=" + mnMinSize + "-" + mnMaxSize
+      IJ.run(microNucleiImp, "Analyze Particles...", "size=" + microNucleiMinSize + "-" + microNucleiMaxSize
               + "  show clear add");
 
       // Build up a list of potential micronuclei
@@ -207,13 +212,17 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       IJ.run(nucleiImp, "Dilate", "");
       IJ.run(nucleiImp, "Erode", "");
       IJ.run(nucleiImp, "Watershed", "");
-//IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
       IJ.run("Set Measurements...", "area center decimal=2");
-      IJ.run(nucleiImp, "Analyze Particles...", "size=" + nMinSize + "-" + nMaxSize
-              + "  clear add");
+      // include large nuclei here so that we will assign the corresponding microNuclei 
+      // correctly.  Weed these out later
+      IJ.run(nucleiImp, "Analyze Particles...", "size=" + nucleiMinSize + "-" +
+              4 * nucleiMaxSize + "  clear add");
 
       // get nuclei from RoiManager and add to our list of nuclei:
       rm = RoiManager.getInstance2();
+      ResultsTable rt = Analyzer.getResultsTable();
+      rt.updateResults();
+      int counter = 1;
       for (Roi roi  : rm.getRoisAsArray()) {
          // approximate nuclear positions as the center of the bounding box
          Rectangle rc = roi.getBounds();
@@ -221,14 +230,15 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
          double yc = rc.y + 0.5 * rc.height;
          xc *= pixelSize;
          yc *= pixelSize;
-         // gui.message("pt: " + xc + ", " + yc);
          Point2D.Double pt = new java.awt.geom.Point2D.Double(xc, yc);
          nucleiRois.put(pt, roi);
          ArrayList<Point2D.Double> containedMNs = new ArrayList<Point2D.Double>();
          nuclei.put(pt, containedMNs);
+         nucleiSizes.put(pt, rt.getValue("Area", counter));
+         counter++;
       }
 
-      // close the ImagePlus as we no longer need it (we could leave this to the GC)
+      // either close or show the nuclear mask as desired
       nucleiImp.changes = false;
       if (showMasks) {
          nucleiImp.show();
@@ -236,7 +246,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
          nucleiImp.close();
       }
 
-      // no longer need the microNuclei imp
+      // either close of show the "micro-nuclear" mask as desired
       microNucleiImp.changes = false;
       if (showMasks) {
          microNucleiImp.show();
@@ -260,7 +270,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       res.reset();
 
       // this is a bit funky, but seems to work
-      double roiMinSize = pixelSize * pixelSize * nMinSize * 10;
+      double roiMinSize = pixelSize * pixelSize * nucleiMinSize * 10;
       for (Point2D.Double p  : nuclei.keySet()) {
          res.incrementCounter();
          res.addValue("X", p.x);
@@ -269,19 +279,23 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
          res.addValue("# mN", mnList.size());
          int zapit = 0;
          if (nuclei.get(p).size() >= minNumMNperNucleus) {
+            double nSize = nucleiSizes.get(p);
+            // make sure that this nucleus is not too large
+            if (nSize < nucleiMaxSize) {
             // add to our target nuclei, except if these happen to be two nuclei that were 
-            // lying close together. 
-            if (mnList.size() == 2) {
-               Roi r0 = microNucleiROIs.get(mnList.get(0));
-               Roi r1 = microNucleiROIs.get(mnList.get(1));
-               if ((r0 != null && roiSize(r0) < roiMinSize)
-                       || (r1 != null && roiSize(r1) < roiMinSize)) {
+               // lying close together. 
+               if (mnList.size() == 2) {
+                  Roi r0 = microNucleiROIs.get(mnList.get(0));
+                  Roi r1 = microNucleiROIs.get(mnList.get(1));
+                  if ((r0 != null && roiSize(r0) < roiMinSize)
+                          || (r1 != null && roiSize(r1) < roiMinSize)) {
+                     zapNuclei.add(p);
+                     zapit = 1;
+                  }
+               } else {
                   zapNuclei.add(p);
                   zapit = 1;
                }
-            } else {
-               zapNuclei.add(p);
-               zapit = 1;
             }
          }
          res.addValue("Zap", zapit);
@@ -289,9 +303,8 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
 
       res.show("Results");
 
-
       long endTime = System.currentTimeMillis();
-      gui_.message("Analysis took: " + (endTime - startTime) + " millisec");
+      ij.IJ.log("Analysis took: " + (endTime - startTime) + " millisec");
       
 
       // get a list with rois that we want to zap
@@ -301,19 +314,19 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
          zapRois.add(roi);
       }
 
-      gui_.message("mn: " + microNuclei.size() + ", n: " + nuclei.size() + 
+      ij.IJ.log("mn: " + microNuclei.size() + ", n: " + nuclei.size() + 
                  ", zap: " + zapRois.size());
       
       // make sure that we do not zap if there are too many nuclei in the image
       if (nuclei.size() > maxNumberOfNuclei) {
          zapRois.clear();
-         gui_.message("Not zapping cells since ther are too many nuclei per image");
+         ij.IJ.log("Not zapping cells since there are too many nuclei per image");
          
       }
       // make sure that we do not zap if there are too many cells to be zapped
       if (zapRois.size() > maxNumberOfZaps) {
          zapRois.clear();
-         gui_.message("Not zapping cells since there are too many cells to be zapped");
+         ij.IJ.log("Not zapping cells since there are too many cells to be zapped");
       }
       
       nucleiCount_ += nuclei.size();
