@@ -27,6 +27,7 @@ import ij.measure.ResultsTable;
 import ij.plugin.Duplicator;
 import ij.plugin.filter.Analyzer;
 import ij.plugin.frame.RoiManager;
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
@@ -36,8 +37,6 @@ import java.util.Map;
 import mmcorej.TaggedImage;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.micromanager.MMStudio;
-import org.micromanager.api.ScriptInterface;
 import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.PropertyException;
@@ -45,7 +44,7 @@ import org.micromanager.utils.ImageUtils;
 import org.micromanager.utils.MMScriptException;
 
 /**
- * Actual micronuclei detection code 
+ * Actual micro-nuclei detection code 
  * 
  * @author nico
  */
@@ -56,14 +55,14 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
    private int zappedNucleiCount_ = 0;
    AnalysisProperty minSizeMN_, maxSizeMN_, minSizeN_, maxSizeN_,
            maxDistance_, minNMNPerNucleus_, maxStdDev_, maxNumberOfNuclei_,
-           maxNumberOfZaps_; 
+           maxNumberOfZaps_, checkInSmallerImage_; 
    private final String UINAME = "MicroNucleiAnalysis";
    
    
    public MicroNucleiAnalysisModule()  {
       try {
          // note: the type of the value when creating the AnalysisProperty determines
-         // the allower type, and can create problems when the user enters something
+         // the allowed type, and can create problems when the user enters something
          // different
          minSizeMN_ = new AnalysisProperty(this.getClass(),
                  "<html>Minimum micronuclear size (&micro;m<sup>2</sup>)</html>", 20.0 );
@@ -83,15 +82,18 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
                  "Maximum number of nuclei per image", 250);
          maxNumberOfZaps_ = new AnalysisProperty(this.getClass(),
                  "Skip image if more than this number should be zapped", 15);
+         checkInSmallerImage_ = new AnalysisProperty(this.getClass(), 
+                  "Check again in subregion", true);
          List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
          apl.add(minSizeMN_);
-         //apl.add(maxSizeMN_);
+         apl.add(maxSizeMN_);
          //apl.add(minSizeN_);
          //apl.add(maxSizeN_);
          apl.add(minNMNPerNucleus_);
          apl.add(maxDistance_);
          apl.add(maxNumberOfNuclei_);
          apl.add(maxNumberOfZaps_);
+         apl.add(checkInSmallerImage_);
          
          setAnalysisProperties(apl);
       } catch (PropertyException ex) {
@@ -99,17 +101,100 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       }
    }
    
+   /**
+    * Simple class just so that we can get information back out of a method
+    */
+   class MutableInt {
+      private int val_;
+      MutableInt(int val) {
+         val_ = val;
+      }
+      void set(int newVal){
+         val_ = newVal;
+      }
+      int get() { return val_; }
+   }
   
    @Override
    public Roi[] analyze(TaggedImage tImg, JSONObject parms) throws MMScriptException {
       
-      boolean showMasks = parms.optBoolean(SHOWMASKS, false);
+
       nucleiCount_ = parms.optInt(CELLCOUNT, 0);
       zappedNucleiCount_ = parms.optInt(OBJECTCOUNT, 0);
-      
-      ScriptInterface gui_ = MMStudio.getInstance();
 
       long startTime = System.currentTimeMillis();
+      
+      ImagePlus imp = new ImagePlus ("tmp", ImageUtils.makeProcessor(tImg));
+      Calibration cal = imp.getCalibration();
+      try {
+         cal.pixelWidth = tImg.tags.getDouble("PixelSizeUm"); 
+         cal.pixelHeight = cal.pixelWidth;
+      } catch(JSONException je) {
+         throw new MMScriptException ("Failed to find pixelsize in the metadata");
+      }
+      // remove images that have the well edge in them
+      double stdDev = imp.getStatistics().stdDev;
+      // do not analyze images whose stdev is above this value
+      // Use this to remove images showing well edges
+      final double maxStdDev = (Double) maxStdDev_.get();
+      if (stdDev > maxStdDev) {
+         return null;
+      }
+      
+      MutableInt nrNuclei = new MutableInt(0);
+      
+      Roi[] hits = analyzeImagePlus(imp, cal, parms, nrNuclei);
+      nucleiCount_ += nrNuclei.get();
+
+      
+      if ( (Boolean) checkInSmallerImage_.get() ) {
+         ArrayList<Roi> cleanedHits = new ArrayList<Roi>();
+         // Check all our hits by taking a subregion of the original image 
+         // and re-running the analysis
+         ij.IJ.log("Running sub-analysis");
+         for (Roi roi : hits) {
+            ImagePlus region = getRegion (imp, roi, 200);
+            Roi[] newHits = analyzeImagePlus(region, cal, parms, nrNuclei);
+            if (newHits.length > 0)
+               cleanedHits.add(roi);
+         }
+         hits = new Roi[cleanedHits.size()];
+         hits = cleanedHits.toArray(hits);
+      }
+      
+      
+      zappedNucleiCount_ += hits.length;
+      try {
+         parms.put(CELLCOUNT, nucleiCount_);
+         parms.put(OBJECTCOUNT, zappedNucleiCount_);
+      } catch (JSONException ex) {
+         ij.IJ.log("MicroNucleiAnalysis.java: This should never happen!!!");
+      }
+      
+      
+      long endTime = System.currentTimeMillis();
+      ij.IJ.log("Analysis took: " + (endTime - startTime) + " millisec");
+      
+      return hits;
+   }
+   
+   
+   /**
+    * 
+    * @param imp
+    * @param cal
+    * @param parms
+    * @param nrNuclei
+    * @return 
+    */
+   private Roi[] analyzeImagePlus(ImagePlus imp, Calibration cal, JSONObject parms,
+           MutableInt nrNuclei) {
+      
+      boolean showMasks = false;
+      try {
+         showMasks = parms.getBoolean(AnalysisModule.SHOWMASKS);
+      } catch (JSONException jex) { // do nothing
+      }
       
       // microNuclei allowed sizes
       final double microNucleiMinSize = (Double) minSizeMN_.get();
@@ -123,9 +208,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       final double minEdgeDistance = 10.0; // in microns
       // minimum number of "micronuclei" we want per nucleus to score as a hit
       final int minNumMNperNucleus = (Integer) minNMNPerNucleus_.get();
-      // do not analyze images whose stdev is above this value
-      // Use this to remove images showing well edges
-      final double maxStdDev = (Double) maxStdDev_.get();
+
       // if the image has more than this number of nuclei, do not zap
       final int maxNumberOfNuclei = (Integer) maxNumberOfNuclei_.get();
       // if more than this number of nuclei should be zapped, skip zapping altogether
@@ -133,6 +216,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
 
       double pixelSize; // not sure why, but imp.getCalibration is unreliable
 
+      
       // start of the main code
       List<Point2D.Double> microNuclei = new ArrayList<Point2D.Double>();
       Map<Point2D.Double, Roi> microNucleiROIs = new HashMap<Point2D.Double, Roi>();
@@ -147,20 +231,6 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       ResultsTable res = ij.measure.ResultsTable.getResultsTable();
       res.reset();
 
-      ImagePlus imp = new ImagePlus ("tmp", ImageUtils.makeProcessor(tImg));
-      Calibration cal = imp.getCalibration();
-      try {
-         cal.pixelWidth = tImg.tags.getDouble("PixelSizeUm"); 
-         cal.pixelHeight = cal.pixelWidth;
-      } catch(JSONException je) {
-         throw new MMScriptException ("Failed to find pixelsize in the metadata");
-      }
-      // remove images that have the well edge in them
-      double stdDev = imp.getStatistics().stdDev;
-      if (stdDev > maxStdDev) {
-         return null;
-      }
-
       int width = imp.getProcessor().getWidth();
       int height = imp.getProcessor().getHeight();
       double widthUm = cal.getX(width);
@@ -173,9 +243,6 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       ImagePlus microNucleiImp = imp2.duplicate();
       IJ.run(microNucleiImp, "16-bit", "");
       IJ.run(microNucleiImp, "Sharpen", "");
-//IJ.run(microNucleiImp, "Thresholded Blur", "radius=5 threshold=800 softness=0.50 strength=3");
-//IJ.run(microNucleiImp, "Unsharp Mask...", "radius=3 mask=0.60");
-//IJ.run(microNucleiImp, "Kuwahara Filter", "sampling=3");
       IJ.setAutoThreshold(microNucleiImp, "Otsu dark");
       ij.Prefs.blackBackground = true;
       IJ.run(microNucleiImp, "Convert to Mask", "");
@@ -204,6 +271,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
 
       // find nuclei by smoothing and gaussian filtering, followed by Otsu segmentation and watershed
       ImagePlus nucleiImp = imp2.duplicate();
+      ResultsTable rt = Analyzer.getResultsTable();
       IJ.run(nucleiImp, "Smooth", "");
       IJ.run(nucleiImp, "Gaussian Blur...", "sigma=5.0");
       IJ.setAutoThreshold(nucleiImp, "Otsu dark");
@@ -215,15 +283,16 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       IJ.run("Set Measurements...", "area center decimal=2");
       // include large nuclei here so that we will assign the corresponding microNuclei 
       // correctly.  Weed these out later
+      rt.reset();
       IJ.run(nucleiImp, "Analyze Particles...", "size=" + nucleiMinSize + "-" +
-              4 * nucleiMaxSize + "  clear add");
+              4 * nucleiMaxSize + "  clear add display");
+      rt.updateResults();
 
       // get nuclei from RoiManager and add to our list of nuclei:
       rm = RoiManager.getInstance2();
-      ResultsTable rt = Analyzer.getResultsTable();
-      rt.updateResults();
-      int counter = 1;
-      for (Roi roi  : rm.getRoisAsArray()) {
+      int counter = 0;
+      Roi[] roiManagerRois = rm.getRoisAsArray();
+      for (Roi roi  : roiManagerRois) {
          // approximate nuclear positions as the center of the bounding box
          Rectangle rc = roi.getBounds();
          double xc = rc.x + 0.5 * rc.width;
@@ -302,10 +371,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       }
 
       res.show("Results");
-
-      long endTime = System.currentTimeMillis();
-      ij.IJ.log("Analysis took: " + (endTime - startTime) + " millisec");
-      
+     
 
       // get a list with rois that we want to zap
       ArrayList<Roi> zapRois = new ArrayList<Roi>();
@@ -329,15 +395,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
          ij.IJ.log("Not zapping cells since there are too many cells to be zapped");
       }
       
-      nucleiCount_ += nuclei.size();
-      zappedNucleiCount_ += zapRois.size();
-      try {
-         parms.put(CELLCOUNT, nucleiCount_);
-         parms.put(OBJECTCOUNT, zappedNucleiCount_);
-      } catch (JSONException ex) {
-         gui_.message("MicroNucleiAnalysis.java: This should never happen!!!");
-      }
-      
+      nrNuclei.set(nuclei.size());
       
       return zapRois.toArray(new Roi[zapRois.size()]);
    }
@@ -348,6 +406,43 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
     */
    private long roiSize(Roi r) {
       return r.getBounds().width * r.getBounds().height;
+   }
+   
+   /**
+    * Returns the center of the given Roi
+    */
+   private Point getCenter(Roi roi)
+   {
+      Point center = new Point();
+      center.x = roi.getBounds().x + (int) (0.5 * roi.getBounds().width);
+      center.y = roi.getBounds().y + (int) (0.5 * roi.getBounds().height);
+      return center;
+   }
+   
+   /**
+    * Returns an ImagePlus of the region around the Roi
+    * @param imp
+    * @param roi
+    * @return 
+    */
+   private ImagePlus getRegion (ImagePlus imp, Roi roi, int size) 
+   {
+      int halfsize = (int) (0.5 * size);
+      Point center = getCenter(roi);
+      int x = center.x - halfsize;
+      if (x < 0)
+         x = 0;
+      int y = center.y - halfsize;
+      if (y < 0)
+         y = 0;
+      if (x + size > imp.getWidth())
+         x = imp.getWidth() - size;
+      if (y+ size > imp.getHeight())
+         y = imp.getHeight() - size;
+      
+      imp.setRoi(x, y, size, size);
+      
+      return imp.duplicate();
    }
 
    @Override

@@ -124,7 +124,7 @@ public class MicroNucleiForm extends MMFrame {
       prefs_ = Preferences.userNodeForPackage(this.getClass());
       
 
-      // TODO: make this used selectable from available modules
+      // TODO: make this user selectable from available modules
       analysisModule_ = new MicroNucleiAnalysisModule();
       
       
@@ -564,6 +564,10 @@ public class MicroNucleiForm extends MMFrame {
          frame.toFront();
          frame.setVisible(true);
       }
+      
+      ij.IJ.log("Analyzed " + parms.getString(AnalysisModule.CELLCOUNT) + 
+              " nuclei, found " + parms.getString(AnalysisModule.OBJECTCOUNT) +
+                      " nuclei with micronuclei" );
       
       
    }

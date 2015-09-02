@@ -39,8 +39,7 @@ import org.micromanager.micronuclei.Terms;
 /**
  *
  * @author nico
- */
-/**
+ *
  * KeyListener and MouseListenerclass for ResultsTable
  * When user selected a line in the ResulsTable and presses a key,
  * the corresponding image will move to the correct slice and draw a

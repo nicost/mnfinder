@@ -101,4 +101,16 @@ public class AnalysisProperty<T> {
       }
    }
    
+   public boolean isBoolean() {
+      return t_ instanceof Boolean;
+   }
+   
+   public boolean isString() {
+      return t_ instanceof String;
+   }
+   
+   public boolean isNumeric() {
+      return t_ instanceof Integer || t_ instanceof Double;
+   }
+   
 }

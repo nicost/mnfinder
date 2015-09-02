@@ -21,6 +21,7 @@ package org.micromanager.micronuclei.gui;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JFormattedTextField;
 import javax.swing.event.DocumentEvent;
@@ -36,56 +37,54 @@ public class PropertyGUI {
    private final JComponent jc_;
    
    public PropertyGUI(AnalysisProperty prop) {
-      super();
       prop_ = prop;
-      final JFormattedTextField textField = new JFormattedTextField();
-      jc_ = textField;
-      if ((prop.get() instanceof Double) || (prop.get() instanceof Integer) ) {
-         if (prop.get() instanceof Double)
-            textField.setValue(((Double) prop.get()).toString());
-         else if (prop.get() instanceof Integer)
-            textField.setValue( ((Integer) prop.get()).toString());
-         textField.setColumns(4);
-         textField.addActionListener(new ActionListener() {
+      if (prop_.isBoolean()) {
+         final JCheckBox checkBox = new JCheckBox();
+         jc_ = checkBox;
+         if ((Boolean) prop_.get())
+            checkBox.setSelected(true);
+         else
+            checkBox.setSelected(false);
+         checkBox.addActionListener(new ActionListener() {
             @Override
-            public void actionPerformed(ActionEvent e) {
-               parse(textField);
+            public void actionPerformed(ActionEvent ae) {
+               prop_.set((Boolean) checkBox.isSelected());
             }
          });
-         textField.getDocument().addDocumentListener(new DocumentListener() {
-
-            @Override
-            public void insertUpdate(DocumentEvent de) {
-               parse(textField);
+      } else {
+         final JFormattedTextField textField = new JFormattedTextField();
+         jc_ = textField;
+         if ((prop.get() instanceof Double) || (prop.get() instanceof Integer)) {
+            if (prop.get() instanceof Double) {
+               textField.setValue(((Double) prop.get()).toString());
+            } else if (prop.get() instanceof Integer) {
+               textField.setValue(((Integer) prop.get()).toString());
             }
+            textField.setColumns(4);
+            textField.addActionListener(new ActionListener() {
+               @Override
+               public void actionPerformed(ActionEvent e) {
+                  parse(textField);
+               }
+            });
+            textField.getDocument().addDocumentListener(new DocumentListener() {
 
-            @Override
-            public void removeUpdate(DocumentEvent de) {
-               parse(textField);
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent de) {
-               parse(textField);
-            }
-         });
-         /*
-         textField.addKeyListener(new KeyListener() {
-
-            @Override
-            public void keyTyped(KeyEvent e) {
-               parse(textField);
-            }
-
-            @Override
-            public void keyPressed(KeyEvent e) {
+               @Override
+               public void insertUpdate(DocumentEvent de) {
+                  parse(textField);
                }
 
-            @Override
-            public void keyReleased(KeyEvent e) {
-            }
-         });
-                 */
+               @Override
+               public void removeUpdate(DocumentEvent de) {
+                  parse(textField);
+               }
+
+               @Override
+               public void changedUpdate(DocumentEvent de) {
+                  parse(textField);
+               }
+            });
+         }
       }
    }
    
