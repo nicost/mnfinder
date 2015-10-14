@@ -55,7 +55,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
    private int zappedNucleiCount_ = 0;
    AnalysisProperty minSizeMN_, maxSizeMN_, minSizeN_, maxSizeN_,
            maxDistance_, minNMNPerNucleus_, maxStdDev_, maxNumberOfNuclei_,
-           maxNumberOfZaps_, checkInSmallerImage_; 
+           maxNumberOfZaps_, checkInSmallerImage_, minEdgeDistance_; 
    private final String UINAME = "MicroNucleiAnalysis";
    
    
@@ -76,6 +76,8 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
                   "<html>Maximum distance (&micro;m)</html>", 25.0);
          minNMNPerNucleus_ = new AnalysisProperty(this.getClass(),
                   "Minimum number of micronuclei", 3);
+         minEdgeDistance_ = new AnalysisProperty(this.getClass(),
+                  "Minimum distance from the edge", 10.0);
          maxStdDev_ = new AnalysisProperty(this.getClass(),
                   "Maximum Std. Dev.", 7000.0);
          maxNumberOfNuclei_ = new AnalysisProperty(this.getClass(), 
@@ -94,6 +96,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
          apl.add(maxNumberOfNuclei_);
          apl.add(maxNumberOfZaps_);
          apl.add(checkInSmallerImage_);
+         apl.add(minEdgeDistance_);
          
          setAnalysisProperties(apl);
       } catch (PropertyException ex) {
@@ -205,7 +208,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       // max distance a micronucleus can be separated from a nucleus
       final double maxDistance = (Double) maxDistance_.get();
       // min distance a micronucleus should be from the edge of the image
-      final double minEdgeDistance = 10.0; // in microns
+      final double minEdgeDistance = (Double) minEdgeDistance_.get(); // in microns
       // minimum number of "micronuclei" we want per nucleus to score as a hit
       final int minNumMNperNucleus = (Integer) minNMNPerNucleus_.get();
 
@@ -269,7 +272,8 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
          microNucleiROIs.put(pt, roi);
       }
 
-      // find nuclei by smoothing and gaussian filtering, followed by Otsu segmentation and watershed
+      // find nuclei by smoothing and gaussian filtering, 
+      // followed by Otsu segmentation and watershed
       ImagePlus nucleiImp = imp2.duplicate();
       ResultsTable rt = Analyzer.getResultsTable();
       IJ.run(nucleiImp, "Smooth", "");
