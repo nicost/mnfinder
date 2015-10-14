@@ -296,7 +296,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       rm = RoiManager.getInstance2();
       int counter = 0;
       Roi[] roiManagerRois = rm.getRoisAsArray();
-      if (roiManagerRois.length == rt.size()) {
+      if (roiManagerRois.length == rt.getCounter()) {
          for (Roi roi : roiManagerRois) {
             // approximate nuclear positions as the center of the bounding box
             Rectangle rc = roi.getBounds();
