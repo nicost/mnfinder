@@ -296,19 +296,23 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       rm = RoiManager.getInstance2();
       int counter = 0;
       Roi[] roiManagerRois = rm.getRoisAsArray();
-      for (Roi roi  : roiManagerRois) {
-         // approximate nuclear positions as the center of the bounding box
-         Rectangle rc = roi.getBounds();
-         double xc = rc.x + 0.5 * rc.width;
-         double yc = rc.y + 0.5 * rc.height;
-         xc *= pixelSize;
-         yc *= pixelSize;
-         Point2D.Double pt = new java.awt.geom.Point2D.Double(xc, yc);
-         nucleiRois.put(pt, roi);
-         ArrayList<Point2D.Double> containedMNs = new ArrayList<Point2D.Double>();
-         nuclei.put(pt, containedMNs);
-         nucleiSizes.put(pt, rt.getValue("Area", counter));
-         counter++;
+      if (roiManagerRois.length == rt.size()) {
+         for (Roi roi : roiManagerRois) {
+            // approximate nuclear positions as the center of the bounding box
+            Rectangle rc = roi.getBounds();
+            double xc = rc.x + 0.5 * rc.width;
+            double yc = rc.y + 0.5 * rc.height;
+            xc *= pixelSize;
+            yc *= pixelSize;
+            Point2D.Double pt = new java.awt.geom.Point2D.Double(xc, yc);
+            nucleiRois.put(pt, roi);
+            ArrayList<Point2D.Double> containedMNs = new ArrayList<Point2D.Double>();
+            nuclei.put(pt, containedMNs);
+            nucleiSizes.put(pt, rt.getValue("Area", counter));
+            counter++;
+         }
+      } else {
+         ij.IJ.log("Number of Rois does not equal number of Particels in results table");
       }
 
       // either close or show the nuclear mask as desired
