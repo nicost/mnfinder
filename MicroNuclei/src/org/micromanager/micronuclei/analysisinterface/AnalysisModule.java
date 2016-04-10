@@ -23,7 +23,6 @@ import ij.gui.Roi;
 import java.util.List;
 import mmcorej.TaggedImage;
 import org.json.JSONObject;
-import org.micromanager.utils.MMScriptException;
 
 /**
  *
@@ -40,7 +39,8 @@ public abstract class AnalysisModule  {
    private List<AnalysisProperty> analysisProperties_;
 
   
-   public abstract Roi[] analyze (TaggedImage img, JSONObject parms) throws MMScriptException;
+   public abstract Roi[] analyze (TaggedImage img, JSONObject parms) 
+           throws AnalysisException;
    
    /**
     * Resets the module so that it can be re-used without side effects

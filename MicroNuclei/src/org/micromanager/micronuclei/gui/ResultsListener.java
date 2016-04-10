@@ -32,7 +32,6 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
-import org.micromanager.api.MMWindow;
 import org.micromanager.micronuclei.Terms;
 
 

@@ -40,8 +40,9 @@ import org.json.JSONObject;
 import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.PropertyException;
-import org.micromanager.utils.ImageUtils;
-import org.micromanager.utils.MMScriptException;
+import org.micromanager.internal.utils.ImageUtils;
+import org.micromanager.internal.utils.MMScriptException;
+import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 
 /**
  * Actual micro-nuclei detection code 
@@ -119,7 +120,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
    }
   
    @Override
-   public Roi[] analyze(TaggedImage tImg, JSONObject parms) throws MMScriptException {
+   public Roi[] analyze(TaggedImage tImg, JSONObject parms) throws AnalysisException {
       
 
       nucleiCount_ = parms.optInt(CELLCOUNT, 0);
@@ -133,7 +134,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
          cal.pixelWidth = tImg.tags.getDouble("PixelSizeUm"); 
          cal.pixelHeight = cal.pixelWidth;
       } catch(JSONException je) {
-         throw new MMScriptException ("Failed to find pixelsize in the metadata");
+         throw new AnalysisException ("Failed to find pixelsize in the metadata");
       }
       // remove images that have the well edge in them
       double stdDev = imp.getStatistics().stdDev;

@@ -60,21 +60,22 @@ import mmcorej.TaggedImage;
 import net.miginfocom.swing.MigLayout;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.micromanager.acquisition.MMAcquisition;
-import org.micromanager.api.MMWindow;
-import org.micromanager.api.MultiStagePosition;
-import org.micromanager.api.PositionList;
-import org.micromanager.api.ScriptInterface;
+import org.micromanager.MultiStagePosition;
+import org.micromanager.PositionList;
+import org.micromanager.Studio;
+
+
+import org.micromanager.internal.utils.FileDialogs;
+import org.micromanager.internal.utils.ImageUtils;
+import org.micromanager.internal.utils.MMFrame;
+import org.micromanager.internal.utils.MMScriptException;
+
+
+import org.micromanager.projector.ProjectorControlForm;
 import org.micromanager.micronuclei.analysis.MicroNucleiAnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.PropertyException;
 import org.micromanager.micronuclei.gui.PropertyGUI;
-import org.micromanager.projector.ProjectorControlForm;
-import org.micromanager.utils.FileDialogs;
-import org.micromanager.utils.ImageUtils;
-import org.micromanager.utils.MMFrame;
-import org.micromanager.utils.MMScriptException;
-import org.micromanager.utils.ReportingUtils;
 
 
 /**
@@ -83,7 +84,7 @@ import org.micromanager.utils.ReportingUtils;
  */
 public class MicroNucleiForm extends MMFrame {
    
-   private final ScriptInterface gui_;
+   private final Studio gui_;
    private final Font arialSmallFont_;
    private final Dimension buttonSize_;
    private final JTextField saveTextField_;
@@ -118,9 +119,9 @@ public class MicroNucleiForm extends MMFrame {
    
    private final AnalysisModule analysisModule_;
    
-   public MicroNucleiForm(ScriptInterface gui) {
+   public MicroNucleiForm(Studio gui) {
       gui_ = gui;
-      loadAndRestorePosition(100, 100, 200, 200);
+      super.loadAndRestorePosition(100, 100, 200, 200);
       prefs_ = Preferences.userNodeForPackage(this.getClass());
       
 
@@ -131,8 +132,8 @@ public class MicroNucleiForm extends MMFrame {
       arialSmallFont_ = new Font("Arial", Font.PLAIN, 12);
       buttonSize_ = new Dimension(70, 21);
 
-      this.setLayout(new MigLayout("flowx, fill, insets 8"));
-      this.setTitle("MicroNuclei Analyze");
+      super.setLayout(new MigLayout("flowx, fill, insets 8"));
+      super.setTitle("MicroNuclei Analyze");
       
       
       JPanel acqPanel = new JPanel(new MigLayout(
@@ -204,7 +205,7 @@ public class MicroNucleiForm extends MMFrame {
       acqPanel.add(AfterZapChannelComboBox_, "span 2, left, wrap");
       acqPanel.setBorder(makeTitledBorder("Acquisition Settings"));
       
-      add(acqPanel, "span 3, center, wrap");
+      super.add(acqPanel, "span 3, center, wrap");
       
             
       JPanel analysisPanel = new JPanel(new MigLayout(
@@ -261,7 +262,7 @@ public class MicroNucleiForm extends MMFrame {
       });
       analysisPanel.add(flatfieldButton, "wrap");
       
-      add(analysisPanel, "span 3, center, wrap");
+      super.add(analysisPanel, "span 3, center, wrap");
       
       JPanel modulePanel = new JPanel(new MigLayout(
               "flowx, fill, insets 8"));
@@ -272,7 +273,7 @@ public class MicroNucleiForm extends MMFrame {
          modulePanel.add(new PropertyGUI(ap).getJComponent(), "wrap");
       }
       
-      add(modulePanel, "span 3, center, wrap");
+      super.add(modulePanel, "span 3, center, wrap");
       
       
       doZap_ = new JCheckBox("Zap");
@@ -284,7 +285,7 @@ public class MicroNucleiForm extends MMFrame {
               prefs_.putBoolean(DOZAP, doZap_.isSelected());
          }
       });
-      add (doZap_);
+      super.add (doZap_);
       
       showMasks_  = new JCheckBox("Show Masks");
       showMasks_.setSelected (prefs_.getBoolean(SHOWMASKS, false));
@@ -295,7 +296,7 @@ public class MicroNucleiForm extends MMFrame {
               prefs_.putBoolean(SHOWMASKS, showMasks_.isSelected());
          }
       });
-      add (showMasks_, "wrap");
+      super.add (showMasks_, "wrap");
       
             
       final JButton runButton = myButton(buttonSize_, arialSmallFont_, "Run");
@@ -307,7 +308,7 @@ public class MicroNucleiForm extends MMFrame {
 
          }
       });
-      add(runButton, "span 3, split 3, center");
+      super.add(runButton, "span 3, split 3, center");
 
       final JButton stopButton = myButton(buttonSize_, arialSmallFont_, "Stop");
       stopButton.addActionListener(new ActionListener() {
@@ -316,7 +317,7 @@ public class MicroNucleiForm extends MMFrame {
             stop_.set(true);
          }
       } );
-      add(stopButton, "center");
+      super.add(stopButton, "center");
       
       final JButton testButton = myButton(buttonSize_, arialSmallFont_, "Test");
       testButton.addActionListener(new ActionListener() {
@@ -326,14 +327,14 @@ public class MicroNucleiForm extends MMFrame {
             myThread.init(true);
          }
       } );
-      add(testButton, "center, wrap");
+      super.add(testButton, "center, wrap");
             
 
-      loadAndRestorePosition(100, 100, 350, 250);
+      super.loadAndRestorePosition(100, 100, 350, 250);
       
-      pack();
+      super.pack();
       
-      this.setResizable(false);
+      super.setResizable(false);
 
    }
    
@@ -366,13 +367,14 @@ public class MicroNucleiForm extends MMFrame {
          box.addItem("");
       }
       try {
-         String channelGroup = gui_.getMMCore().getChannelGroup();
-         String[] channels = gui_.getMMCore().getAvailableConfigs(channelGroup).toArray();
+         String channelGroup = gui_.getCMMCore().getChannelGroup();
+         String[] channels = gui_.getCMMCore().
+                 getAvailableConfigs(channelGroup).toArray();
          for (String channel : channels) {
             box.addItem(channel);
          }
       } catch (Exception ex) {
-         ReportingUtils.logError(ex);
+         gui_.getLogManager().logError(ex);
       }
       box.setSelectedItem(selectedChannel);
    }
@@ -449,9 +451,9 @@ public class MicroNucleiForm extends MMFrame {
             }
                
          } catch (MMScriptException ex) {
-            ReportingUtils.showError(ex, "Error during acquisition");
+            gui_.getLogManager().showError(ex, "Error during acquisition");
          } catch (Exception ex) {
-            ReportingUtils.showError(ex, "Error during acquisition");
+            gui_.getLogManager().showError(ex, "Error during acquisition");
          } finally {
             running_ = false;
          }
@@ -520,7 +522,7 @@ public class MicroNucleiForm extends MMFrame {
                if (nrPositions > 1)
                   mw.setPosition(p);
             } catch (MMScriptException ms) {
-               ReportingUtils.showError(ms, "Error setting position in MMWindow");
+               gui_.logs().showError("Error setting position in MMWindow");
             }
             try {
                if (nrPositions == 1 || mw.getImageMetadata(0, 0, 0, p) != null) {
@@ -577,7 +579,7 @@ public class MicroNucleiForm extends MMFrame {
       
       // Analysis class, in the future we could have a choice of these
       
-      String channelGroup = gui_.getMMCore().getChannelGroup();
+      String channelGroup = gui_.getCMMCore().getChannelGroup();
       
       //TODO: error checking for file IO!
       gui_.closeAllAcquisitions();
@@ -586,7 +588,7 @@ public class MicroNucleiForm extends MMFrame {
       resultsFile.createNewFile();
       BufferedWriter resultsWriter = new BufferedWriter(new FileWriter(resultsFile));
 
-      PositionList posList = gui_.getPositionList();
+      PositionList posList = gui_.getPositionListManager().getPositionList();
       MultiStagePosition[] positions = posList.getPositions();
       String currentWell = "";
       int nrChannels = 1;
@@ -617,7 +619,7 @@ public class MicroNucleiForm extends MMFrame {
          } else
             nrImagesPerWell++;
       }
-      gui_.message("Images per well: " + nrImagesPerWell);
+      gui_.logs().logMessage("Images per well: " + nrImagesPerWell);
       
       // start cycling through the sites and group everything by well
       int count = 0;
@@ -633,7 +635,7 @@ public class MicroNucleiForm extends MMFrame {
          String well = label.split("-")[0];
          if (!currentWell.equals(well)) {
             // new well
-            gui_.message("Starting well: " + well);
+            gui_.logs().logMessage("Starting well: " + well);
             if (!currentWell.equals("")) {
                recordResults(resultsWriter, currentWell, parms);
             }
@@ -645,12 +647,12 @@ public class MicroNucleiForm extends MMFrame {
             parms.put(AnalysisModule.CELLCOUNT, 0);
             parms.put(AnalysisModule.OBJECTCOUNT, 0);
          }
-         MultiStagePosition.goToPosition(msp, gui_.getMMCore());
-         gui_.getMMCore().waitForSystem();
-         gui_.message("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y) ;
-         gui_.getMMCore().setConfig(channelGroup, imagingChannel_);
-         gui_.getMMCore().snapImage();
-         TaggedImage tImg = gui_.getMMCore().getTaggedImage();
+         MultiStagePosition.goToPosition(msp, gui_.getCMMCore());
+         gui_.getCMMCore().waitForSystem();
+         gui_.logs().logMessage("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y) ;
+         gui_.getCMMCore().setConfig(channelGroup, imagingChannel_);
+         gui_.getCMMCore().snapImage();
+         TaggedImage tImg = gui_.getCMMCore().getTaggedImage();
          gui_.addImageToAcquisition(well, 0, 0, 0, siteCount, tImg);
          try {
             MMAcquisition acqObject = gui_.getAcquisition(well);
@@ -659,9 +661,9 @@ public class MicroNucleiForm extends MMFrame {
             // ignore since we do not want to crash our acquisition  
          }
          if (nrChannels == 2) {
-            gui_.getMMCore().setConfig(channelGroup, secondImagingChannel_);
-            gui_.getMMCore().snapImage();
-            TaggedImage t2Img = gui_.getMMCore().getTaggedImage();
+            gui_.getCMMCore().setConfig(channelGroup, secondImagingChannel_);
+            gui_.getCMMCore().snapImage();
+            TaggedImage t2Img = gui_.getCMMCore().getTaggedImage();
             gui_.addImageToAcquisition(well, 0, 1, 0, siteCount, t2Img);
             MMAcquisition acqObject = gui_.getAcquisition(well);
             try {
@@ -671,7 +673,7 @@ public class MicroNucleiForm extends MMFrame {
                // ignore since we do not want to crash our acquisition  
             }
          }
-         gui_.getMMCore().setConfig(channelGroup, zapChannel_);
+         gui_.getCMMCore().setConfig(channelGroup, zapChannel_);
          
          // analyze the second channel if that is the one we took
          
@@ -693,11 +695,11 @@ public class MicroNucleiForm extends MMFrame {
 
             if (zapRois.length > 0) {
                String acq2 = msp.getLabel();
-               gui_.message("Imaging zapped cells at site: " + acq2);
+               gui_.logs().logMessage("Imaging zapped cells at site: " + acq2);
                // take the red image and save it
-               gui_.getMMCore().setConfig(channelGroup, afterZapChannel_);
-               gui_.getMMCore().snapImage();
-               TaggedImage tImg2 = gui_.getMMCore().getTaggedImage();
+               gui_.getCMMCore().setConfig(channelGroup, afterZapChannel_);
+               gui_.getCMMCore().snapImage();
+               TaggedImage tImg2 = gui_.getCMMCore().getTaggedImage();
                gui_.addImageToAcquisition(well, 0, nrChannels, 0, siteCount, tImg2);
                MMAcquisition acqObject = gui_.getAcquisition(well);
                try {
@@ -734,8 +736,8 @@ public class MicroNucleiForm extends MMFrame {
 
       resultsWriter.close();
       String msg = "Analyzed " + count + " images, in " + wellCount + " wells.";
-      gui_.message(msg);
-      ReportingUtils.showMessage(msg);
+      gui_.logs().logMessage(msg);
+      gui_.logs().showMessage(msg);
    }
    
    private void recordResults(BufferedWriter resultsWriter, String currentWell,
@@ -745,7 +747,7 @@ public class MicroNucleiForm extends MMFrame {
               parms.optInt(AnalysisModule.OBJECTCOUNT) );
       resultsWriter.newLine();
       resultsWriter.flush();
-      gui_.message(currentWell + " " + parms.optInt(AnalysisModule.CELLCOUNT) + 
+      gui_.logs().showMessage(currentWell + " " + parms.optInt(AnalysisModule.CELLCOUNT) + 
               "    " + parms.optInt(AnalysisModule.OBJECTCOUNT) );
    }
    
@@ -772,7 +774,7 @@ public class MicroNucleiForm extends MMFrame {
       if (rois == null)
          return;
       ProjectorControlForm pcf
-              = ProjectorControlForm.showSingleton(gui_.getMMCore(), gui_);
+              = ProjectorControlForm.showSingleton(gui_.getCMMCore(), gui_);
       int i;
       // convert zapRois in a Roi[] of Polygon Rois
       for (i = 0; i < rois.length; i++) {
@@ -783,7 +785,7 @@ public class MicroNucleiForm extends MMFrame {
       // send to the galvo device and zap them for real
       pcf.setNrRepetitions(5);
       for (i = 0; i < rois.length; i++) {
-         gui_.message("Zapping " + (i + 1) + " of " + rois.length);
+         gui_.logs().logMessage("Zapping " + (i + 1) + " of " + rois.length);
          Roi[] theRois = {rois[i]};
          pcf.setROIs(theRois);
          pcf.updateROISettings();

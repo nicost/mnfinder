@@ -21,24 +21,33 @@ package org.micromanager.micronuclei;
 
 
 import java.awt.event.WindowEvent;
-import org.micromanager.api.MMPlugin;
-import org.micromanager.api.ScriptInterface;
+import org.micromanager.MMPlugin;
+import org.micromanager.Studio;
 
 
 public class MicroNucleiPlugin implements MMPlugin {
-   public static final String menuName = "MicroNuclei";
-   public static final String tooltipDescription =
+   public static final String MENUNAME = "MicroNuclei";
+   public static final String TOOLTIP_DESCRIPTION =
       "Cool screening technology";
 
    // Provides access to the Micro-Manager Java API (for GUI control and high-
    // level functions).
-   private ScriptInterface app_;
-   
+   private Studio app_;
    private MicroNucleiForm theForm_ = null;
+   
+   @Override
+   public String getVersion() {
+      return "1.0";
+   }
+   
+   @Override
+   public String getCopyright() {
+      return "University of California, 2015";
+   }
 
    @Override
-   public void setApp(ScriptInterface app) {
-      app_ = app;
+   public void setContext(Studio studio) {
+       app_ = studio;
       if (theForm_ != null && theForm_.isDisplayable()) {
          WindowEvent wev = new WindowEvent(theForm_, WindowEvent.WINDOW_CLOSING);
          theForm_.dispatchEvent(wev);
@@ -49,36 +58,12 @@ public class MicroNucleiPlugin implements MMPlugin {
    }
 
    @Override
-   public void dispose() {
-      // We do nothing here as the only object we create, our dialog, should
-      // be dismissed by the user.
+   public String getName() {
+      return MENUNAME;
    }
 
    @Override
-   public void show() {
-      if (theForm_ == null) {
-         theForm_ = new MicroNucleiForm(app_);
-      }
-      theForm_.setVisible(true);
-   }
-   
-   @Override
-   public String getInfo () {
-      return "Displays a simple greeting.";
-   }
-
-   @Override
-   public String getDescription() {
-      return tooltipDescription;
-   }
-   
-   @Override
-   public String getVersion() {
-      return "1.0";
-   }
-   
-   @Override
-   public String getCopyright() {
-      return "University of California, 2015";
+   public String getHelpText() {
+      return TOOLTIP_DESCRIPTION;
    }
 }
