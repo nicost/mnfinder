@@ -21,11 +21,14 @@ package org.micromanager.micronuclei;
 
 
 import java.awt.event.WindowEvent;
-import org.micromanager.MMPlugin;
+import org.micromanager.MenuPlugin;
 import org.micromanager.Studio;
 
+import org.scijava.plugin.Plugin;
+import org.scijava.plugin.SciJavaPlugin;
 
-public class MicroNucleiPlugin implements MMPlugin {
+@Plugin(type = MenuPlugin.class)
+public class MicroNucleiPlugin implements MenuPlugin, SciJavaPlugin {
    public static final String MENUNAME = "MicroNuclei";
    public static final String TOOLTIP_DESCRIPTION =
       "Cool screening technology";
@@ -47,14 +50,8 @@ public class MicroNucleiPlugin implements MMPlugin {
 
    @Override
    public void setContext(Studio studio) {
-       app_ = studio;
-      if (theForm_ != null && theForm_.isDisplayable()) {
-         WindowEvent wev = new WindowEvent(theForm_, WindowEvent.WINDOW_CLOSING);
-         theForm_.dispatchEvent(wev);
-      }
-      // create brand new instance of plugin frame every time
-      theForm_ = new MicroNucleiForm(app_);
-      theForm_.setVisible(true);
+      app_ = studio;
+
    }
 
    @Override
@@ -66,4 +63,19 @@ public class MicroNucleiPlugin implements MMPlugin {
    public String getHelpText() {
       return TOOLTIP_DESCRIPTION;
    }
+
+   @Override
+   public String getSubMenu() {
+      return "";
+   }
+
+   @Override
+   public void onPluginSelected() {
+      if (theForm_ != null && theForm_.isDisplayable()) {
+         WindowEvent wev = new WindowEvent(theForm_, WindowEvent.WINDOW_CLOSING);
+         theForm_.dispatchEvent(wev);
+      }
+      // create brand new instance of plugin frame every time
+      theForm_ = new MicroNucleiForm(app_);
+      theForm_.setVisible(true);}
 }

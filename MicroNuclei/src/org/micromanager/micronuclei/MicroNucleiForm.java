@@ -47,6 +47,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.prefs.Preferences;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -63,6 +65,10 @@ import org.json.JSONObject;
 import org.micromanager.MultiStagePosition;
 import org.micromanager.PositionList;
 import org.micromanager.Studio;
+import org.micromanager.data.Coords;
+import org.micromanager.data.Datastore;
+import org.micromanager.data.Image;
+import org.micromanager.display.DisplayWindow;
 
 
 import org.micromanager.internal.utils.FileDialogs;
@@ -73,6 +79,7 @@ import org.micromanager.internal.utils.MMScriptException;
 
 import org.micromanager.projector.ProjectorControlForm;
 import org.micromanager.micronuclei.analysis.MicroNucleiAnalysisModule;
+import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.PropertyException;
 import org.micromanager.micronuclei.gui.PropertyGUI;
@@ -496,57 +503,58 @@ public class MicroNucleiForm extends MMFrame {
          WindowManager.removeWindow(oldOutTable);
          oldOutTable.dispose();
       }
-      
+
       JSONObject parms = analysisSettings(showMasks_.isSelected());
 
-      MMWindow mw = new MMWindow(ip);
-      if (!mw.isMMWindow()) {
-         TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
-         tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
-         normalize(tImg, background_, flatfield_);
-         Roi[] zapRois = analysisModule_.analyze(tImg, parms);
-         for (Roi roi : zapRois) {
-            outTable.incrementCounter();
-            Rectangle bounds = roi.getBounds();
-            int x = bounds.x + (int) (0.5 * bounds.width);
-            int y = bounds.y + (int) (0.5 * bounds.height);
-            outTable.addValue(Terms.X, x);
-            outTable.addValue(Terms.Y, y);
-            outTable.show(outTableName);
-         }
+      DisplayWindow dw = gui_.displays().getCurrentWindow();
 
-      } else { // MMImageWindow
-         int nrPositions = mw.getNumberOfPositions();
-         for (int p = 1; p < nrPositions && !stop_.get(); p++) {
-            try {
-               if (nrPositions > 1)
-                  mw.setPosition(p);
-            } catch (MMScriptException ms) {
-               gui_.logs().showError("Error setting position in MMWindow");
+      try {
+         if (ip != dw.getImagePlus()) {
+            TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
+            tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
+            normalize(tImg, background_, flatfield_);
+            Roi[] zapRois = analysisModule_.analyze(tImg, parms);
+            for (Roi roi : zapRois) {
+               outTable.incrementCounter();
+               Rectangle bounds = roi.getBounds();
+               int x = bounds.x + (int) (0.5 * bounds.width);
+               int y = bounds.y + (int) (0.5 * bounds.height);
+               outTable.addValue(Terms.X, x);
+               outTable.addValue(Terms.Y, y);
+               outTable.show(outTableName);
             }
-            try {
-               if (nrPositions == 1 || mw.getImageMetadata(0, 0, 0, p) != null) {
-                  TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
-                  tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
-                  normalize(tImg, background_, flatfield_);
-                  Roi[] zapRois = analysisModule_.analyze(tImg, parms);
-                  for (Roi roi : zapRois) {
-                     outTable.incrementCounter();
-                     Rectangle bounds = roi.getBounds();
-                     int x = bounds.x + (int) (0.5 * bounds.width);
-                     int y = bounds.y + (int) (0.5 * bounds.height);
-                     outTable.addValue(Terms.X, x);
-                     outTable.addValue(Terms.Y, y);
-                     outTable.addValue(Terms.POSITION, p);
+
+         } else { // MM display
+            Datastore store = dw.getDatastore();
+            Coords.CoordsBuilder builder = gui_.data().getCoordsBuilder();
+            int nrPositions = store.getAxisLength(Coords.STAGE_POSITION); 
+            for (int p = 0; p < nrPositions && !stop_.get(); p++) {
+               try {
+                  Image image = store.getImage(builder.stagePosition(p).build());
+                  if (image != null) {
+                     TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
+                     tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
+                     normalize(tImg, background_, flatfield_);
+                     Roi[] zapRois = analysisModule_.analyze(tImg, parms);
+                     for (Roi roi : zapRois) {
+                        outTable.incrementCounter();
+                        Rectangle bounds = roi.getBounds();
+                        int x = bounds.x + (int) (0.5 * bounds.width);
+                        int y = bounds.y + (int) (0.5 * bounds.height);
+                        outTable.addValue(Terms.X, x);
+                        outTable.addValue(Terms.Y, y);
+                        outTable.addValue(Terms.POSITION, p);
+                     }
+                     outTable.show(outTableName);
                   }
-                  outTable.show(outTableName);
+               } catch (JSONException ex) {
+               } catch (NullPointerException npe) {
+                  ij.IJ.log("Null pointer exception at position : " + p);
                }
-            } catch (JSONException ex) {
-            } catch (MMScriptException ex) {
-            } catch (NullPointerException npe) {
-               ij.IJ.log("Null pointer exception at position : " + p);
             }
          }
+      } catch (AnalysisException ex) {
+         ij.IJ.log("Error during analysis");
       }
 
       // we have the ROIs, the rest is just reporting
@@ -582,7 +590,7 @@ public class MicroNucleiForm extends MMFrame {
       String channelGroup = gui_.getCMMCore().getChannelGroup();
       
       //TODO: error checking for file IO!
-      gui_.closeAllAcquisitions();
+      // gui_.closeAllAcquisitions();
       new File(saveLocation).mkdirs();
       File resultsFile = new File(saveLocation + File.separator + "results.txt");
       resultsFile.createNewFile();
