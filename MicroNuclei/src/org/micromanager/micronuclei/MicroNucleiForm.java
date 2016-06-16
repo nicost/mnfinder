@@ -47,8 +47,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.prefs.Preferences;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -634,6 +632,8 @@ public class MicroNucleiForm extends MMFrame {
       int siteCount = 0;
       JSONObject parms = analysisSettings(showMasks_.isSelected());
       currentWell = "";
+      Datastore data = null;
+      DisplayWindow dw = null;
       for (MultiStagePosition msp : positions) {
          if (stop_.get()) {
             resultsWriter.close();
@@ -649,77 +649,90 @@ public class MicroNucleiForm extends MMFrame {
             }
             currentWell = well;
             siteCount = 0;
-            gui_.openAcquisition(well, saveLocation, 1, nrChannels + 1, 1, nrImagesPerWell, true, true);
+            data = gui_.data().createMultipageTIFFDatastore(saveLocation + "/" + well, true, false);
+            dw = gui_.displays().createDisplay(data);
+            gui_.displays().manage(data);
+            //gui_.openAcquisition(well, saveLocation, 1, nrChannels + 1, 1, nrImagesPerWell, true, true);
             analysisModule_.reset();
             // reset cell and object counters
             parms.put(AnalysisModule.CELLCOUNT, 0);
             parms.put(AnalysisModule.OBJECTCOUNT, 0);
          }
-         MultiStagePosition.goToPosition(msp, gui_.getCMMCore());
-         gui_.getCMMCore().waitForSystem();
-         gui_.logs().logMessage("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y) ;
-         gui_.getCMMCore().setConfig(channelGroup, imagingChannel_);
-         gui_.getCMMCore().snapImage();
-         TaggedImage tImg = gui_.getCMMCore().getTaggedImage();
-         gui_.addImageToAcquisition(well, 0, 0, 0, siteCount, tImg);
-         try {
-            MMAcquisition acqObject = gui_.getAcquisition(well);
-            acqObject.setChannelName(0, imagingChannel_);
-         } catch (MMScriptException ex) {
-            // ignore since we do not want to crash our acquisition  
-         }
-         if (nrChannels == 2) {
-            gui_.getCMMCore().setConfig(channelGroup, secondImagingChannel_);
+         if (data != null) {
+            MultiStagePosition.goToPosition(msp, gui_.getCMMCore());
+            gui_.getCMMCore().waitForSystem();
+            gui_.logs().logMessage("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y);
+            gui_.getCMMCore().setConfig(channelGroup, imagingChannel_);
             gui_.getCMMCore().snapImage();
-            TaggedImage t2Img = gui_.getCMMCore().getTaggedImage();
-            gui_.addImageToAcquisition(well, 0, 1, 0, siteCount, t2Img);
-            MMAcquisition acqObject = gui_.getAcquisition(well);
-            try {
-               acqObject.setChannelColor(1, new Color(0, 0, 255).getRGB());
-               acqObject.setChannelName(1, secondImagingChannel_);
-            } catch (MMScriptException ex) {
-               // ignore since we do not want to crash our acquisition  
-            }
-         }
-         gui_.getCMMCore().setConfig(channelGroup, zapChannel_);
-         
-         // analyze the second channel if that is the one we took
-         
-         // Analyze and zap
-         normalize(tImg, background_, flatfield_);
-         Roi[] zapRois = analysisModule_.analyze(tImg, parms);
-         if (zapRois != null) {
-            zap(zapRois);
-            for (Roi roi : zapRois) {
-               outTable.incrementCounter();
-               Rectangle bounds = roi.getBounds();
-               int x = bounds.x + (int) (0.5 * bounds.width);
-               int y = bounds.y + (int) (0.5 * bounds.height);
-               outTable.addValue(Terms.X, x);
-               outTable.addValue(Terms.Y, y);
-               outTable.addValue(Terms.POSITION, siteCount);
-            }
-            outTable.show(outTableName);
+            TaggedImage tImg = gui_.getCMMCore().getTaggedImage();
+            Coords c = gui_.data().createCoords("t=0,p=" + siteCount + ",c=0,z=0");
+            data.putImage(gui_.data().convertTaggedImage(tImg, c, null));
 
-            if (zapRois.length > 0) {
-               String acq2 = msp.getLabel();
-               gui_.logs().logMessage("Imaging zapped cells at site: " + acq2);
-               // take the red image and save it
-               gui_.getCMMCore().setConfig(channelGroup, afterZapChannel_);
+            //gui_.addImageToAcquisition(well, 0, 0, 0, siteCount, tImg);
+            //try {
+            //   MMAcquisition acqObject = gui_.getAcquisition(well);
+            //   acqObject.setChannelName(0, imagingChannel_);
+            //} catch (MMScriptException ex) {
+            // ignore since we do not want to crash our acquisition  
+            //}
+            if (nrChannels == 2) {
+               gui_.getCMMCore().setConfig(channelGroup, secondImagingChannel_);
                gui_.getCMMCore().snapImage();
-               TaggedImage tImg2 = gui_.getCMMCore().getTaggedImage();
-               gui_.addImageToAcquisition(well, 0, nrChannels, 0, siteCount, tImg2);
-               MMAcquisition acqObject = gui_.getAcquisition(well);
-               try {
-                  acqObject.setChannelColor(nrChannels, new Color(255, 0, 0).getRGB());
-                  acqObject.setChannelName(nrChannels, "zapped");
-               } catch (Exception ex) {
-                  // ignore since we do not want to crash our acquisition  
+               TaggedImage t2Img = gui_.getCMMCore().getTaggedImage();
+               Coords c2 = gui_.data().createCoords("t=0,p=" + siteCount + ",c=1,z=0");
+               data.putImage(gui_.data().convertTaggedImage(tImg, c, null));
+               // gui_.addImageToAcquisition(well, 0, 1, 0, siteCount, t2Img);
+               //MMAcquisition acqObject = gui_.getAcquisition(well);
+               //try {
+               //   acqObject.setChannelColor(1, new Color(0, 0, 255).getRGB());
+               //   acqObject.setChannelName(1, secondImagingChannel_);
+               //} catch (MMScriptException ex) {
+               // ignore since we do not want to crash our acquisition  
+               //}
+            }
+            gui_.getCMMCore().setConfig(channelGroup, zapChannel_);
+
+            // analyze the second channel if that is the one we took
+            // Analyze and zap
+            normalize(tImg, background_, flatfield_);
+            Roi[] zapRois = analysisModule_.analyze(tImg, parms);
+            if (zapRois != null) {
+               zap(zapRois);
+               for (Roi roi : zapRois) {
+                  outTable.incrementCounter();
+                  Rectangle bounds = roi.getBounds();
+                  int x = bounds.x + (int) (0.5 * bounds.width);
+                  int y = bounds.y + (int) (0.5 * bounds.height);
+                  outTable.addValue(Terms.X, x);
+                  outTable.addValue(Terms.Y, y);
+                  outTable.addValue(Terms.POSITION, siteCount);
+               }
+               outTable.show(outTableName);
+
+               if (zapRois.length > 0) {
+                  String acq2 = msp.getLabel();
+                  gui_.logs().logMessage("Imaging zapped cells at site: " + acq2);
+                  // take the red image and save it
+                  gui_.getCMMCore().setConfig(channelGroup, afterZapChannel_);
+                  gui_.getCMMCore().snapImage();
+                  TaggedImage tImg2 = gui_.getCMMCore().getTaggedImage();
+                  
+                  Coords cZap = gui_.data().createCoords("t=0,p=" + siteCount +
+                          ",c=" + siteCount + ",z=0");
+                  data.putImage(gui_.data().convertTaggedImage(tImg, c, null));
+                  // gui_.addImageToAcquisition(well, 0, nrChannels, 0, siteCount, tImg2);
+                  // MMAcquisition acqObject = gui_.getAcquisition(well);
+                  // try {
+                  //    acqObject.setChannelColor(nrChannels, new Color(255, 0, 0).getRGB());
+                  //    acqObject.setChannelName(nrChannels, "zapped");
+                  // } catch (Exception ex) {
+                     // ignore since we do not want to crash our acquisition  
+                  // }
                }
             }
+            siteCount++;
+            count++;
          }
-         siteCount++;
-         count++;
       }
 
       // add listeners to our ResultsTable that let user click on row and go 
@@ -737,8 +750,7 @@ public class MicroNucleiForm extends MMFrame {
          frame.toFront();
          frame.setVisible(true);
       }
-      
-      
+
       // record the results from the last well:
       recordResults(resultsWriter, currentWell, parms);
 
@@ -747,23 +759,25 @@ public class MicroNucleiForm extends MMFrame {
       gui_.logs().logMessage(msg);
       gui_.logs().showMessage(msg);
    }
-   
+
    private void recordResults(BufferedWriter resultsWriter, String currentWell,
            final JSONObject parms) throws IOException, MMScriptException {
-      resultsWriter.write(currentWell + "\t" + 
-              parms.optInt(AnalysisModule.CELLCOUNT) + "\t" +
-              parms.optInt(AnalysisModule.OBJECTCOUNT) );
+      resultsWriter.write(currentWell + "\t"
+              + parms.optInt(AnalysisModule.CELLCOUNT) + "\t"
+              + parms.optInt(AnalysisModule.OBJECTCOUNT));
       resultsWriter.newLine();
       resultsWriter.flush();
-      gui_.logs().showMessage(currentWell + " " + parms.optInt(AnalysisModule.CELLCOUNT) + 
-              "    " + parms.optInt(AnalysisModule.OBJECTCOUNT) );
+      gui_.logs().showMessage(currentWell + " " + parms.optInt(AnalysisModule.CELLCOUNT)
+              + "    " + parms.optInt(AnalysisModule.OBJECTCOUNT));
    }
-   
+
    /**
-    * Generates an initialized JSONObject to be used to communicate analysis settings
+    * Generates an initialized JSONObject to be used to communicate analysis
+    * settings
+    *
     * @param showMask - whether or not to show the masks during analysis
     * @return initialized JSONObject with default analysis settings
-    * @throws JSONException 
+    * @throws JSONException
     */
    private JSONObject analysisSettings(boolean showMask) throws JSONException {
       JSONObject parms = new JSONObject();
@@ -775,12 +789,14 @@ public class MicroNucleiForm extends MMFrame {
 
    /**
     * Photoconverts the provided ROIs
+    *
     * @param rois
-    * @throws MMScriptException 
+    * @throws MMScriptException
     */
    private void zap(Roi[] rois) throws MMScriptException {
-      if (rois == null)
+      if (rois == null) {
          return;
+      }
       ProjectorControlForm pcf
               = ProjectorControlForm.showSingleton(gui_.getCMMCore(), gui_);
       int i;

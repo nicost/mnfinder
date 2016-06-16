@@ -115,14 +115,14 @@ public class ResultsListener implements KeyListener, MouseListener{
             return;
          }
 
-         MMWindow mw = new MMWindow(siPlus_);
-         if (mw.isMMWindow()) {
-            try {
-               int position = (int) res_.getValue(Terms.POSITION, row);
-               mw.setPosition(position);
-            } catch (Exception ex) {
-            }
-         }
+         //MMWindow mw = new MMWindow(siPlus_);
+         //if (mw.isMMWindow()) {
+         //   try {
+         //      int position = (int) res_.getValue(Terms.POSITION, row);
+         //      mw.setPosition(position);
+         //   } catch (Exception ex) {
+         //   }
+         //}
 
          double x = (int) res_.getValue(Terms.X, row);
          double y = (int) res_.getValue(Terms.Y, row);
