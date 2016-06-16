@@ -8,17 +8,19 @@ SOURCEFILES = src/org/micromanager/micronuclei/MicroNucleiPlugin.java \
 				 src/org/micromanager/micronuclei/analysis/MicroNucleiAnalysisModule.java \
 				 src/org/micromanager/micronuclei/gui/ResultsListener.java \
 				 src/org/micromanager/micronuclei/gui/DragDropUtil.java 
-IJJARPATH = /Applications/Micro-Manager1.4/ij.jar
-MMJARPATH = /Applications/Micro-Manager1.4/plugins/Micro-Manager/MMJ_.jar
-MMCOREJARPATH = /Applications/Micro-Manager1.4/plugins/Micro-Manager/MMCoreJ.jar
-MIGJARPATH = /Applications/Micro-Manager1.4/plugins/Micro-Manager/miglayout-4.0-swing.jar
-PROJECTORJARPATH = /Applications/Micro-Manager1.4/mmplugins/Device_Control/Projector.jar
+IJJARPATH = /Applications/Micro-Manager2.0/ij.jar
+MMJARPATH = /Applications/Micro-Manager2.0/plugins/Micro-Manager/MMJ_.jar
+SCIJAVAJARPATH = /Applications/Micro-Manager2.0/plugins/Micro-Manager/scijava-common-2.34.0.jar
+MMCOREJARPATH = /Applications/Micro-Manager2.0/plugins/Micro-Manager/MMCoreJ.jar
+MIGJARPATH = /Applications/Micro-Manager2.0/plugins/Micro-Manager/miglayout-swing-4.2.jar
+MIGCOREJARPATH = /Applications/Micro-Manager2.0/plugins/Micro-Manager/miglayout-core-4.2.jar
+PROJECTORJARPATH = /Applications/Micro-Manager2.0/mmplugins/Projector.jar
 
 .SUFFIXES: .java .class
 ../MicroNuclei.jar:  $(SOURCEFILES)
 	test -d build || mkdir build
 	rm -rf build/*
-	$(JC) -source 1.6 -target 1.6 -sourcepath src -classpath $(IJJARPATH):$(MMJARPATH):$(MMCOREJARPATH):$(MIGJARPATH):$(PROJECTORJARPATH):. src/org/micromanager/micronuclei/*.java -d build
+	$(JC) -source 1.6 -target 1.6 -sourcepath src -classpath $(IJJARPATH):$(MMJARPATH):$(SCIJAVAJARPATH):$(MMCOREJARPATH):$(MIGCOREJARPATH):$(MIGJARPATH):$(PROJECTORJARPATH):. src/org/micromanager/micronuclei/*.java -d build
 	## Work around bug in 'jar': jar cf MM_.jar -C bin/ bin/* does not work
 	cd build && jar cf ../../MicroNuclei.jar * 
 
