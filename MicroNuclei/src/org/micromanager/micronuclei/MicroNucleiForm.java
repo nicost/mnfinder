@@ -60,6 +60,7 @@ import mmcorej.TaggedImage;
 import net.miginfocom.swing.MigLayout;
 import org.json.JSONException;
 import org.json.JSONObject;
+
 import org.micromanager.MultiStagePosition;
 import org.micromanager.PositionList;
 import org.micromanager.Studio;
@@ -126,6 +127,7 @@ public class MicroNucleiForm extends MMFrame {
    
    public MicroNucleiForm(Studio gui) {
       gui_ = gui;
+      
       super.loadAndRestorePosition(100, 100, 200, 200);
       prefs_ = Preferences.userNodeForPackage(this.getClass());
       
@@ -159,7 +161,10 @@ public class MicroNucleiForm extends MMFrame {
          }
       });
       acqPanel.add(dirButton, "wrap");
-      
+
+      // TODO: the channel drop-downs are populated from the channelgroup.
+      // make this clear to the user and update the contents of the dropdowns
+      // when the channel group changes.
       
       acqPanel.add(myLabel(arialSmallFont_, "Imaging Channel: "));
       channelComboBox_ = new JComboBox();
