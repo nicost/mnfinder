@@ -535,7 +535,7 @@ public class MicroNucleiForm extends MMFrame {
 
          } else { // MM display
             Datastore store = dw.getDatastore();
-            Coords.CoordsBuilder builder = gui_.data().getCoordsBuilder();
+            Coords.CoordsBuilder builder = store.getAnyImage().getCoords().copy();
             int nrPositions = store.getAxisLength(Coords.STAGE_POSITION); 
             for (int p = 0; p < nrPositions && !stop_.get(); p++) {
                try {
