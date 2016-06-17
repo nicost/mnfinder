@@ -675,9 +675,6 @@ public class MicroNucleiForm extends MMFrame {
               microManagerVersion(gui_.compat().getVersion()).
               prefix("MicroNucleiScreen").
               startDate((new Date()).toString());
-      //if (gui_.positions().getPositionList().getPositions() != null) {
-      //   smb = smb.stagePositions(gui_.positions().getPositionList().getPositions());
-      //}
       smb = smb.intendedDimensions(gui_.data().getCoordsBuilder().
               channel(channelNames.length).
               z(0).
