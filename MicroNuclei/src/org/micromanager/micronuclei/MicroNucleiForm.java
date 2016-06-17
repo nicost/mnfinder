@@ -590,7 +590,7 @@ public class MicroNucleiForm extends MMFrame {
       MultiStagePosition[] positions = posList.getPositions();
       String currentWell = "";
       int nrChannels = 1;
-      if (secondImagingChannel_.length() > 1) {
+      if (secondImagingChannel_ != null && secondImagingChannel_.length() > 1) {
          nrChannels = 2;
       }
       
