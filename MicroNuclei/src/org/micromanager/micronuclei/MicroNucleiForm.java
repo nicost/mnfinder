@@ -46,6 +46,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Date;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.prefs.Preferences;
 import javax.swing.BorderFactory;
@@ -63,10 +64,13 @@ import org.json.JSONObject;
 
 import org.micromanager.MultiStagePosition;
 import org.micromanager.PositionList;
+import org.micromanager.PropertyMap;
 import org.micromanager.Studio;
 import org.micromanager.data.Coords;
 import org.micromanager.data.Datastore;
 import org.micromanager.data.Image;
+import org.micromanager.data.Metadata;
+import org.micromanager.data.SummaryMetadata;
 import org.micromanager.display.DisplayWindow;
 
 
@@ -462,6 +466,8 @@ public class MicroNucleiForm extends MMFrame {
                
          } catch (MMScriptException ex) {
             gui_.getLogManager().showError(ex, "Error during acquisition");
+         } catch (org.micromanager.data.DatastoreRewriteException drex) {
+            gui_.getLogManager().showError(drex, "Failed to save data.");
          } catch (Exception ex) {
             gui_.getLogManager().showError(ex, "Error during acquisition");
          } finally {
@@ -585,14 +591,24 @@ public class MicroNucleiForm extends MMFrame {
       
    }
    
-   
+   /**
+    * Analysis class, in the future we could have a choice of these
+    * @param saveLocation
+    * @throws IOException
+    * @throws MMScriptException
+    * @throws Exception 
+    */
    public void runAnalysisAndZapping(String saveLocation) throws IOException, MMScriptException, Exception {
-      
-      // Analysis class, in the future we could have a choice of these
       
       String channelGroup = gui_.getCMMCore().getChannelGroup();
       
       //TODO: error checking for file IO!
+      if (new File(saveLocation).exists()) {
+         if (! IJ.showMessageWithCancel("Save location already exists.", 
+                 saveLocation + " already exists.  Overwrite?") ) {
+            return;
+         }
+      }
       // gui_.closeAllAcquisitions();
       new File(saveLocation).mkdirs();
       File resultsFile = new File(saveLocation + File.separator + "results.txt");
@@ -637,8 +653,42 @@ public class MicroNucleiForm extends MMFrame {
       int siteCount = 0;
       JSONObject parms = analysisSettings(showMasks_.isSelected());
       currentWell = "";
+      
+      // prepare stuff needed to store data in MM
       Datastore data = null;
-      DisplayWindow dw = null;
+      int arraySize = doZap_.isSelected() ? nrChannels + 1 : nrChannels;
+      String[] channelNames = new String[arraySize];
+      channelNames[0] =  imagingChannel_;
+      if (doZap_.isSelected()) {
+         channelNames[1] = zapChannel_;
+      }
+      if (secondImagingChannel_.length() > 1) {
+         channelNames[1] = secondImagingChannel_;
+         if (doZap_.isSelected()) {
+            channelNames[2] = zapChannel_;
+         }
+      }
+
+      SummaryMetadata.SummaryMetadataBuilder smb = gui_.data().getSummaryMetadataBuilder();
+      smb = smb.channelNames(channelNames).
+              channelGroup(channelGroup).
+              microManagerVersion(gui_.compat().getVersion()).
+              prefix("MicroNucleiScreen").
+              startDate((new Date()).toString());
+      //if (gui_.positions().getPositionList().getPositions() != null) {
+      //   smb = smb.stagePositions(gui_.positions().getPositionList().getPositions());
+      //}
+      smb = smb.intendedDimensions(gui_.data().getCoordsBuilder().
+              channel(channelNames.length).
+              z(0).
+              time(0).
+              stagePosition(nrImagesPerWell).
+              build());
+
+      PropertyMap.PropertyMapBuilder pmb = gui_.data().getPropertyMapBuilder();
+      
+      SummaryMetadata summaryMetadata = smb.build();
+
       for (MultiStagePosition msp : positions) {
          if (stop_.get()) {
             resultsWriter.close();
@@ -648,14 +698,23 @@ public class MicroNucleiForm extends MMFrame {
          String well = label.split("-")[0];
          if (!currentWell.equals(well)) {
             // new well
+            // freeze the existing datastore, but only if it exists
+            // TODO: to avoid running out of memory, we may need to call 
+            // close here instead of freeze
+            if (data != null) {
+               data.close();
+            }
             gui_.logs().logMessage("Starting well: " + well);
             if (!currentWell.equals("")) {
                recordResults(resultsWriter, currentWell, parms);
             }
             currentWell = well;
             siteCount = 0;
+
+            
             data = gui_.data().createMultipageTIFFDatastore(saveLocation + "/" + well, true, false);
-            dw = gui_.displays().createDisplay(data);
+            data.setSummaryMetadata(smb.build());
+            gui_.displays().createDisplay(data);
             gui_.displays().manage(data);
             //gui_.openAcquisition(well, saveLocation, 1, nrChannels + 1, 1, nrImagesPerWell, true, true);
             analysisModule_.reset();
@@ -663,45 +722,25 @@ public class MicroNucleiForm extends MMFrame {
             parms.put(AnalysisModule.CELLCOUNT, 0);
             parms.put(AnalysisModule.OBJECTCOUNT, 0);
          }
+         
          if (data != null) {
             MultiStagePosition.goToPosition(msp, gui_.getCMMCore());
             gui_.getCMMCore().waitForSystem();
             gui_.logs().logMessage("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y);
             gui_.getCMMCore().setConfig(channelGroup, imagingChannel_);
-            gui_.getCMMCore().snapImage();
-            TaggedImage tImg = gui_.getCMMCore().getTaggedImage();
-            Coords c = gui_.data().createCoords("t=0,p=" + siteCount + ",c=0,z=0");
-            data.putImage(gui_.data().convertTaggedImage(tImg, c, null));
+            TaggedImage tImg = snapAndInsertImage(data, msp,siteCount, 0); 
 
-            //gui_.addImageToAcquisition(well, 0, 0, 0, siteCount, tImg);
-            //try {
-            //   MMAcquisition acqObject = gui_.getAcquisition(well);
-            //   acqObject.setChannelName(0, imagingChannel_);
-            //} catch (MMScriptException ex) {
-            // ignore since we do not want to crash our acquisition  
-            //}
             if (nrChannels == 2) {
                gui_.getCMMCore().setConfig(channelGroup, secondImagingChannel_);
                gui_.getCMMCore().snapImage();
-               TaggedImage t2Img = gui_.getCMMCore().getTaggedImage();
-               Coords c2 = gui_.data().createCoords("t=0,p=" + siteCount + ",c=1,z=0");
-               data.putImage(gui_.data().convertTaggedImage(tImg, c, null));
-               // gui_.addImageToAcquisition(well, 0, 1, 0, siteCount, t2Img);
-               //MMAcquisition acqObject = gui_.getAcquisition(well);
-               //try {
-               //   acqObject.setChannelColor(1, new Color(0, 0, 255).getRGB());
-               //   acqObject.setChannelName(1, secondImagingChannel_);
-               //} catch (MMScriptException ex) {
-               // ignore since we do not want to crash our acquisition  
-               //}
+               tImg = snapAndInsertImage(data, msp,siteCount, 1); 
             }
             gui_.getCMMCore().setConfig(channelGroup, zapChannel_);
 
-            // analyze the second channel if that is the one we took
-            // Analyze and zap
+            // Analyze (second channel if we had it) and zap
             normalize(tImg, background_, flatfield_);
             Roi[] zapRois = analysisModule_.analyze(tImg, parms);
-            if (zapRois != null) {
+            if (zapRois != null && doZap_.isSelected()) {
                zap(zapRois);
                for (Roi roi : zapRois) {
                   outTable.incrementCounter();
@@ -719,20 +758,7 @@ public class MicroNucleiForm extends MMFrame {
                   gui_.logs().logMessage("Imaging zapped cells at site: " + acq2);
                   // take the red image and save it
                   gui_.getCMMCore().setConfig(channelGroup, afterZapChannel_);
-                  gui_.getCMMCore().snapImage();
-                  TaggedImage tImg2 = gui_.getCMMCore().getTaggedImage();
-                  
-                  Coords cZap = gui_.data().createCoords("t=0,p=" + siteCount +
-                          ",c=" + siteCount + ",z=0");
-                  data.putImage(gui_.data().convertTaggedImage(tImg, c, null));
-                  // gui_.addImageToAcquisition(well, 0, nrChannels, 0, siteCount, tImg2);
-                  // MMAcquisition acqObject = gui_.getAcquisition(well);
-                  // try {
-                  //    acqObject.setChannelColor(nrChannels, new Color(255, 0, 0).getRGB());
-                  //    acqObject.setChannelName(nrChannels, "zapped");
-                  // } catch (Exception ex) {
-                     // ignore since we do not want to crash our acquisition  
-                  // }
+                  snapAndInsertImage(data, msp,siteCount, nrChannels);
                }
             }
             siteCount++;
@@ -776,6 +802,35 @@ public class MicroNucleiForm extends MMFrame {
               + "    " + parms.optInt(AnalysisModule.OBJECTCOUNT));
    }
 
+   /**
+    * Snaps an image and insert it into the given datastore
+    * @param data - datastore into which to insert images
+    * @param siteCount - Position Nr to be used to insert into store
+    * @param msp - Current Multistageposition
+    * @param channelNr - Channel Nr to be used to insert into store.
+    * @throws Exception 
+    */
+   private TaggedImage snapAndInsertImage(Datastore data, MultiStagePosition msp,
+            int siteCount, int channelNr) throws Exception {
+      gui_.getCMMCore().snapImage();
+      TaggedImage tImg = gui_.getCMMCore().getTaggedImage();
+      Coords coord = gui_.data().createCoords("t=0,p=" + siteCount + 
+              ",c=" + channelNr + ",z=0");
+      Image img = gui_.data().convertTaggedImage(tImg);
+      Metadata md = img.getMetadata();
+      Metadata.MetadataBuilder mdb = md.copy();
+      PropertyMap ud = md.getUserData();
+
+      mdb = mdb.xPositionUm(msp.getX()).yPositionUm(msp.getY());
+
+      md = mdb.positionName(msp.getLabel()).userData(ud).build();
+      img = img.copyWith(coord, md);
+
+      data.putImage(img);
+      
+      return tImg;
+   }
+   
    /**
     * Generates an initialized JSONObject to be used to communicate analysis
     * settings
