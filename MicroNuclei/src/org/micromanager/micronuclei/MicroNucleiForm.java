@@ -29,7 +29,6 @@ import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.io.Opener;
 import ij.measure.ResultsTable;
-import ij.plugin.ImageCalculator;
 import ij.text.TextPanel;
 import ij.text.TextWindow;
 import java.awt.Color;
@@ -86,6 +85,7 @@ import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.PropertyException;
 import org.micromanager.micronuclei.gui.PropertyGUI;
+import org.micromanager.micronuclei.utilities.Utils;
 
 
 /**
@@ -521,7 +521,10 @@ public class MicroNucleiForm extends MMFrame {
          if (ip != dw.getImagePlus()) {
             TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
             tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
-            normalize(tImg, background_, flatfield_);
+            Utils.normalize(tImg, background_, flatfield_);
+            if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
+               (new ImagePlus("Normalized", ImageUtils.makeProcessor(tImg))).show();
+            }
             Roi[] zapRois = analysisModule_.analyze(tImg, parms);
             for (Roi roi : zapRois) {
                outTable.incrementCounter();
@@ -541,9 +544,12 @@ public class MicroNucleiForm extends MMFrame {
                try {
                   Image image = store.getImage(builder.stagePosition(p).build());
                   if (image != null) {
-                     TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
+                     TaggedImage tImg = ImageUtils.makeTaggedImage(Utils.getProcessor(image));
                      tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
-                     normalize(tImg, background_, flatfield_);
+                     Utils.normalize(tImg, background_, flatfield_);
+                     if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
+                        (new ImagePlus("Normalized", ImageUtils.makeProcessor(tImg))).show();
+                     }
                      Roi[] zapRois = analysisModule_.analyze(tImg, parms);
                      for (Roi roi : zapRois) {
                         outTable.incrementCounter();
@@ -577,7 +583,7 @@ public class MicroNucleiForm extends MMFrame {
          win = (TextWindow) frame;
          tp = win.getTextPanel();
 
-         ResultsListener myk = new ResultsListener(ip, outTable, win);
+         ResultsListener myk = new ResultsListener(ip, dw, outTable, win);
          tp.addKeyListener(myk);
          tp.addMouseListener(myk);
          frame.toFront();
@@ -656,6 +662,7 @@ public class MicroNucleiForm extends MMFrame {
       
       // prepare stuff needed to store data in MM
       Datastore data = null;
+      DisplayWindow dw = null;
       int arraySize = doZap_.isSelected() ? nrChannels + 1 : nrChannels;
       String[] channelNames = new String[arraySize];
       channelNames[0] =  imagingChannel_;
@@ -711,7 +718,7 @@ public class MicroNucleiForm extends MMFrame {
             
             data = gui_.data().createMultipageTIFFDatastore(saveLocation + "/" + well, true, false);
             data.setSummaryMetadata(smb.build());
-            gui_.displays().createDisplay(data);
+            dw = gui_.displays().createDisplay(data);
             gui_.displays().manage(data);
             //gui_.openAcquisition(well, saveLocation, 1, nrChannels + 1, 1, nrImagesPerWell, true, true);
             analysisModule_.reset();
@@ -735,7 +742,7 @@ public class MicroNucleiForm extends MMFrame {
             gui_.getCMMCore().setConfig(channelGroup, zapChannel_);
 
             // Analyze (second channel if we had it) and zap
-            normalize(tImg, background_, flatfield_);
+            Utils.normalize(tImg, background_, flatfield_);
             Roi[] zapRois = analysisModule_.analyze(tImg, parms);
             if (zapRois != null && doZap_.isSelected()) {
                zap(zapRois);
@@ -772,7 +779,7 @@ public class MicroNucleiForm extends MMFrame {
          win = (TextWindow) frame;
          tp = win.getTextPanel();
 
-         ResultsListener myk = new ResultsListener(IJ.getImage(), outTable, win);
+         ResultsListener myk = new ResultsListener(IJ.getImage(), dw, outTable, win);
          tp.addKeyListener(myk);
          tp.addMouseListener(myk);
          frame.toFront();
@@ -889,34 +896,7 @@ public class MicroNucleiForm extends MMFrame {
       return myBorder;
    }
   
-   /**
-    * Normalize input image as follows:  (image - background) / flatfield
-    * Flatfield image should have been background subtracted and normalized 
-    * at 1.0 for the average pixels values to stay the same
-    * @param input Image to be normalized
-    * @param background image
-    * @param flatField image with average value of 1.0 representing flatness of field
-    * @return normalized image
-    */
-   public static TaggedImage normalize(TaggedImage input, ImagePlus background,
-           ImagePlus flatField) {
-      ImageCalculator ic = new ImageCalculator();
-      // TODO: deal with image of incompatible size and/or type
-      if (flatField != null) {
-         ImagePlus imp = new ImagePlus("tmp", ImageUtils.makeProcessor(input));
-         if (background != null) {
-            ic.run("Subtract", imp, background);
-         }
-         imp = ic.run("Divide, float, 32", imp, flatField);
-         IJ.run(imp, "16-bit", "");
-         TaggedImage tImg = new TaggedImage(imp.getProcessor().getPixels(), 
-                 input.tags);
-         return tImg;
-      }
-      
-      return input;
-   }
-   
+ 
    private static void warnAboutMissingCorrections(ImagePlus background, 
            ImagePlus flatfield) {
       if (background == null) {
