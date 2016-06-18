@@ -32,6 +32,9 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
+import org.micromanager.data.Coords;
+import org.micromanager.data.Coords.CoordsBuilder;
+import org.micromanager.display.DisplayWindow;
 import org.micromanager.micronuclei.Terms;
 
 
@@ -50,12 +53,15 @@ import org.micromanager.micronuclei.Terms;
 public class ResultsListener implements KeyListener, MouseListener{
   
    ImagePlus siPlus_;
+   DisplayWindow dw_;
    ResultsTable res_;
    TextWindow win_;
    TextPanel tp_;
    
-   public ResultsListener(ImagePlus siPlus, ResultsTable res, TextWindow win) {
+   public ResultsListener(ImagePlus siPlus, DisplayWindow dw, ResultsTable res, 
+           TextWindow win) {
       siPlus_ = siPlus;
+      dw_ = dw;
       res_ = res;
       win_ = win;
       tp_ = win.getTextPanel();
@@ -105,6 +111,11 @@ public class ResultsListener implements KeyListener, MouseListener{
       }
       int row = tp_.getSelectionStart();
       if (row >= 0 && row < tp_.getLineCount()) {
+         if (dw_ != null) {
+            CoordsBuilder cb = dw_.getDatastore().getAnyImage().getCoords().copy();
+            Coords c = cb.stagePosition((int) res_.getValue(Terms.POSITION, row)).build();
+            dw_.setDisplayedImageTo(c);
+         }
          if (siPlus_.getWindow() != null) {
             if (siPlus_ != IJ.getImage()) {
                siPlus_.getWindow().toFront();
