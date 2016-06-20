@@ -519,6 +519,8 @@ public class MicroNucleiForm extends MMFrame {
 
       try {
          if (dw == null || ip != dw.getImagePlus()) {
+            // ImageJ window.  Forget everything about MM windows:
+            dw = null;
             TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
             tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
             tImg = Utils.normalize(tImg, background_, flatfield_);
@@ -742,7 +744,7 @@ public class MicroNucleiForm extends MMFrame {
             gui_.getCMMCore().setConfig(channelGroup, zapChannel_);
 
             // Analyze (second channel if we had it) and zap
-            Utils.normalize(tImg, background_, flatfield_);
+            tImg = Utils.normalize(tImg, background_, flatfield_);
             Roi[] zapRois = analysisModule_.analyze(tImg, parms);
             if (zapRois != null && doZap_.isSelected()) {
                zap(zapRois);
