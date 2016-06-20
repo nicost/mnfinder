@@ -71,13 +71,13 @@ public class ResultsListener implements KeyListener, MouseListener{
       int key = e.getKeyCode();
       int row = tp_.getSelectionStart();
       if (key == KeyEvent.VK_J) {
-         if (row > 0) {
-            row--;
+         if  (row < tp_.getLineCount() - 1) {
+            row++;
             tp_.setSelection(row, row);
          }
       } else if (key == KeyEvent.VK_K) {
-         if  (row < tp_.getLineCount() - 1) {
-            row++;
+         if (row > 0) {
+            row--;
             tp_.setSelection(row, row);
          }
       }
