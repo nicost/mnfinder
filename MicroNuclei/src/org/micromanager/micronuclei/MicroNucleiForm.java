@@ -518,10 +518,10 @@ public class MicroNucleiForm extends MMFrame {
       DisplayWindow dw = gui_.displays().getCurrentWindow();
 
       try {
-         if (ip != dw.getImagePlus()) {
+         if (dw == null || ip != dw.getImagePlus()) {
             TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
             tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
-            Utils.normalize(tImg, background_, flatfield_);
+            tImg = Utils.normalize(tImg, background_, flatfield_);
             if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
                (new ImagePlus("Normalized", ImageUtils.makeProcessor(tImg))).show();
             }
@@ -546,7 +546,7 @@ public class MicroNucleiForm extends MMFrame {
                   if (image != null) {
                      TaggedImage tImg = ImageUtils.makeTaggedImage(Utils.getProcessor(image));
                      tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
-                     Utils.normalize(tImg, background_, flatfield_);
+                     tImg = Utils.normalize(tImg, background_, flatfield_);
                      if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
                         (new ImagePlus("Normalized", ImageUtils.makeProcessor(tImg))).show();
                      }
