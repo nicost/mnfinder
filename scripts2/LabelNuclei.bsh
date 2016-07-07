@@ -39,14 +39,12 @@ for (position : positions) {
 	mm.scripter().message("Snapping image #" + counter);
 	mm.live().snap(true);
 	dw = mm.live().getDisplay();
-	ip = dw.getImagePlus();
+	ip = dw.getImagePlus().duplicate();
 
-	IJ.setAutoThreshold(ip.getProcessor(), "Otsu dark");
+	IJ.setAutoThreshold(ip, "Otsu Dark");
 	IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
-	IJ.run(ip.getProcessor(), "Analyze Particles...", "size=" + minSize + "-" + maxSize + 
+	IJ.run(ip, "Analyze Particles...", "size=" + minSize + "-" + maxSize + 
 			" exclude clear add");
-	
-	
 
 	Roi[] rois = roiManager.getRoisAsArray();
 	Roi[] polygonRois = new PolygonRoi[rois.length];
