@@ -1,4 +1,5 @@
 import ij.IJ;
+import ij.ImagePlus;
 import ij.plugin.frame.RoiManager;
 import ij.gui.Roi;
 import ij.gui.PolygonRoi;
@@ -9,12 +10,20 @@ import org.micromanager.MultiStagePosition;
 
 channelGroup = "Channel";
 imagingChannel = "Cy5";
+imagingExposure = 500;
 conversionChannel = "DAPI";
 conversionTimeMs = 1000;
+afterConversionChannel = "Rhodamine";
+afterConversionExposure = 500;
 
 minSize = 25.0;
 maxSize = 800.0;
 
+fractionOfNucleiToBeConverted = 0.1;
+
+outputFile = "/Users/nico/tmp/nuc.delme";
+
+/** There usually is no need to edit below this line **/
 
 // we will use MMCore multiple times, so get it here
 core = mm.getCMMCore();
@@ -23,39 +32,95 @@ core = mm.getCMMCore();
 pcf = ProjectorControlForm.showSingleton(core, mm);
 
 // the ImageJ roiManager	
-roiManager = RoiManager.getInstance2();
+roiManager = RoiManager.getInstance();
+if (roiManager == null)
+	roiManager = new RoiManager();
 
 // get the current positionlist from Micro-Manager
 pm = mm.getPositionListManager();
 pl = pm.getPositionList();
 positions = pl.getPositions();
 
+// open the output file
+outfile = new BufferedWriter(new FileWriter(outputFile));
+outfile.write ("Site" + "\t" + "Pre-Post" + "\t" + "X" + "\t" + "Y" + "\t" + "Mean" + "\t" + "Int.Den");
+outfile.newLine();
+
 int counter = 0;
 for (position : positions) {
 	counter++;
 	MultiStagePosition.goToPosition(position, core);
-	core.setConfig(channelGroup, imagingChannel);
+	
 	// snap an image and in a convoluted way get it out as an ImageJ ImagePlus object
 	mm.scripter().message("Snapping image #" + counter);
+	core.setConfig(channelGroup, imagingChannel);
+	core.setExposure(imagingExposure);
 	mm.live().snap(true);
 	dw = mm.live().getDisplay();
+	//dw.getImagePlus().setRoi(null); // make sure that there is no roi on the image
 	ip = dw.getImagePlus().duplicate();
 
+	// get the nuclear masks 
 	IJ.setAutoThreshold(ip, "Otsu Dark");
 	IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
 	IJ.run(ip, "Analyze Particles...", "size=" + minSize + "-" + maxSize + 
 			" exclude clear add");
 
-	Roi[] rois = roiManager.getRoisAsArray();
-	Roi[] polygonRois = new PolygonRoi[rois.length];
-	for (int i = 0; i < rois.length; i++) {
-		polygonRois[i] = new PolygonRoi(rois[i].getConvexHull(), Roi.POLYGON);
+	// prepare the masks to be send to the DMD
+	Roi[] allNuclei = roiManager.getRoisAsArray();
+	Roi[] convertRois = new PolygonRoi[(int) (allNuclei.length * fractionOfNucleiToBeConverted) + 1];
+	nrNucleiToSkip = (int) (1 / fractionOfNucleiToBeConverted);
+	int convertCounter = 0;
+	for (int i = 0; i < allNuclei.length; i += nrNucleiToSkip) {
+		convertRois[convertCounter] = 
+			new PolygonRoi(allNuclei[i].getConvexHull(), Roi.POLYGON);
+		convertCounter++;
 	}
 
-	pcf.setROIs(polygonRois);
+	// take and analyze the preconversion image
+	core.setConfig(channelGroup, afterConversionChannel);
+	core.setExposure(afterConversionExposure);
+	mm.live().snap(true);
+	dw = mm.live().getDisplay();
+	ip = dw.getImagePlus().duplicate();
+	for (roi : allNuclei) {
+		ip.setRoi(roi);
+		stats = ip.getStatistics(ImagePlus.CENTROID + ImagePlus.MEAN + ImagePlus.INTEGRATED_DENSITY);
+		mm.scripter().message("Mean: " + stats.mean );
+		outfile.write("" + counter + "\t" + "Pre" + "\t" + stats.xCentroid + "\t" + stats.yCentroid + "\t" +
+							stats.mean + "\t" + stats.INTEGRATED_DENSITY);
+		outfile.newLine();
+	}
+	// TODO: write these intensities to a file
+	
+
+	// convert the selected nuclei
+	core.setConfig(channelGroup, conversionChannel);
+	core.setExposure(conversionTimeMs);
+	pcf.setROIs(convertRois);
 	pcf.runRois();
+	// use the snap function to expose for the desired amount of time
+	mm.live().snap(true);
+
+	// re-image the now converted image and get the intensities of the converted nuclei
+	core.setConfig(channelGroup, afterConversionChannel);
+	core.setExposure(afterConversionExposure);
+	mm.live().snap(true);
+	dw = mm.live().getDisplay();
+	ip = dw.getImagePlus().duplicate();
+	for (roi : convertRois) {
+		ip.setRoi(roi);
+		stats = ip.getStatistics(ImagePlus.CENTROID + ImagePlus.MEAN + ImagePlus.INTEGRATED_DENSITY);
+		outfile.write("" + counter + "\t" + "Post" + "\t" + stats.xCentroid + "\t" + stats.yCentroid + "\t" +
+							stats.mean + "\t" + stats.INTEGRATED_DENSITY);
+		outfile.newLine();
+		
+		mm.scripter().message("Conv. Mean: " + stats.mean );
+	}
 
 }
+
+outfile.close();
 
 mm.scripter().message("done!");
 
