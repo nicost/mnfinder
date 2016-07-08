@@ -119,7 +119,7 @@ public class ResultsListener implements KeyListener, MouseListener{
          MMWindow mw = new MMWindow(siPlus_);
          if (mw.isMMWindow()) {
             try {
-               int position = (int) res_.getValue(Terms.POSITION, row);
+               int position = (int) res_.getValue(Terms.POSITION, row) + 1;
                mw.setPosition(position);
             } catch (Exception ex) {
             }
