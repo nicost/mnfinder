@@ -5,7 +5,7 @@ import ij.gui.Roi;
 import ij.gui.PolygonRoi;
 import java.util.Arrays;
 
-import org.micromanager.projector.ProjectorControlForm;
+import org.micromanager.projector.internal.ProjectorControlForm;
 import org.micromanager.MultiStagePosition;
 
 channelGroup = "Channel";
@@ -21,7 +21,11 @@ maxSize = 800.0;
 
 fractionOfNucleiToBeConverted = 0.1;
 
+// filename for measurements
 outputFile = "E:\\\\Users\\Vale Lab\\Desktop\\nuclei.txt";
+
+// filename for images, leave blank if you do not want to save images
+imageFileName = "";
 
 /** There usually is no need to edit below this line **/
 
@@ -29,7 +33,7 @@ outputFile = "E:\\\\Users\\Vale Lab\\Desktop\\nuclei.txt";
 core = mm.getCMMCore();
 
 // open the Projector plugin
-pcf = ProjectorControlForm.showSingleton(core, mm);
+//pcf = ProjectorControlForm.showSingleton(core, mm);
 
 // the ImageJ roiManager	
 roiManager = RoiManager.getInstance();
@@ -41,24 +45,43 @@ pm = mm.getPositionListManager();
 pl = pm.getPositionList();
 positions = pl.getPositions();
 
-// open the output file
+// open the output file to write the measuerements to
 outfile = new BufferedWriter(new FileWriter(outputFile));
 outfile.write ("Site" + "\t" + "Pre-Post" + "\t" + "X" + "\t" + "Y" + "\t" + "Mean" + "\t" + "Int.Den");
 outfile.newLine();
 
+// create our own dataStore
+if (imageFileName.length() > 0) {
+	store = mm.data().createMultipageTIFFDatastore(imageFileName, false, false);
+} else {
+	store = mm.data().createRAMDatastore();
+}
+dw = mm.getDisplayManager().createDisplay(store);
+mm.getDisplayManager().manage(store);
+
+// get a copy of the application's pipeline
+blockingPipeline = true;
+pipeLine = mm.data().copyApplicationPipeline(store, blockingPipeline);
+
+
 int counter = 0;
 for (position : positions) {
-	counter++;
 	MultiStagePosition.goToPosition(position, core);
 	
-	// snap an image and in a convoluted way get it out as an ImageJ ImagePlus object
+	// snap an image, process and get it out as an ImageJ ImagePlus object
 	mm.scripter().message("Snapping image #" + counter);
 	core.setConfig(channelGroup, imagingChannel);
 	core.setExposure(imagingExposure);
-	mm.live().snap(true);
-	dw = mm.live().getDisplay();
+	imgList = mm.acquisitions().snap();
+	coord = mm.data().createCoords("t=0,p="+counter+",c=0,z=0");
+	img = imgList.get(0).copyAtCoords(coord);
+	pipeLine.insertImage(img);
+	procImg = store.getImage(coord);
+	iProcessor = mm.data().ij().createProcessor(procImg);
+	ip = (new ImagePlus("tmp", iProcessor)).duplicate();
+	
 	//dw.getImagePlus().setRoi(null); // make sure that there is no roi on the image
-	ip = dw.getImagePlus().duplicate();
+	//ip = dw.getImagePlus().duplicate();
 
 	// get the nuclear masks 
 	IJ.setAutoThreshold(ip, "Otsu Dark");
@@ -81,9 +104,14 @@ for (position : positions) {
 	// take and analyze the preconversion image
 	core.setConfig(channelGroup, afterConversionChannel);
 	core.setExposure(afterConversionExposure);
-	mm.live().snap(true);
-	dw = mm.live().getDisplay();
-	ip = dw.getImagePlus().duplicate();
+	imgList = mm.acquisition().snap();
+	coord = mm.data().createCoords("t=0,p="+counter+",c=1,z=0");
+	img = imgList.get(0).copyAtCoords(coord);
+	pipeLine.insertImage(img);
+	procImg = store.getImage(coord);
+	iProcessor = mm.data().ij().createProcessor(procImg);
+	ip = (new ImagePlus("tmp", iProcessor)).duplicate();
+
 	for (roi : allNuclei) {
 		ip.setRoi(roi);
 		stats = ip.getStatistics(ImagePlus.CENTROID + ImagePlus.MEAN + ImagePlus.INTEGRATED_DENSITY);
@@ -106,9 +134,13 @@ for (position : positions) {
 	// re-image the now converted image and get the intensities of the converted nuclei
 	core.setConfig(channelGroup, afterConversionChannel);
 	core.setExposure(afterConversionExposure);
-	mm.live().snap(true);
-	dw = mm.live().getDisplay();
-	ip = dw.getImagePlus().duplicate();
+	imgList = mm.acquisition().snap();
+	coord = mm.data().createCoords("t=0,p="+counter+",c=2,z=0");
+	img = imgList.get(0).copyAtCoords(coord);
+	pipeLine.insertImage(img);
+	procImg = store.getImage(coord);
+	iProcessor = mm.data().ij().createProcessor(procImg);
+	ip = (new ImagePlus("tmp", iProcessor)).duplicate();
 	for (roi : convertRois) {
 		ip.setRoi(roi);
 		stats = ip.getStatistics(ImagePlus.CENTROID + ImagePlus.MEAN + ImagePlus.INTEGRATED_DENSITY);
@@ -118,8 +150,11 @@ for (position : positions) {
 		
 		mm.scripter().message("Conv. Mean: " + stats.mean );
 	}
-
+	
+	counter++;
 }
+
+store.freeze();
 
 outfile.close();
 
