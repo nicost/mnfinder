@@ -11,9 +11,9 @@ import org.micromanager.MultiStagePosition;
 channelGroup = "Channel";
 imagingChannel = "Cy5";
 imagingExposure = 500;
-conversionChannel = "DAPI";
+conversionChannel = "Bleach";
 conversionTimeMs = 1000;
-afterConversionChannel = "Rhodamine";
+afterConversionChannel = "Cherry";
 afterConversionExposure = 500;
 
 minSize = 25.0;
@@ -21,7 +21,7 @@ maxSize = 800.0;
 
 fractionOfNucleiToBeConverted = 0.1;
 
-outputFile = "/Users/nico/tmp/nuc.delme";
+outputFile = "E:\\\\Users\\Vale Lab\\Desktop\\nuclei.txt";
 
 /** There usually is no need to edit below this line **/
 
@@ -63,6 +63,7 @@ for (position : positions) {
 	// get the nuclear masks 
 	IJ.setAutoThreshold(ip, "Otsu Dark");
 	IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
+	
 	IJ.run(ip, "Analyze Particles...", "size=" + minSize + "-" + maxSize + 
 			" exclude clear add");
 
@@ -91,16 +92,16 @@ for (position : positions) {
 							stats.mean + "\t" + stats.INTEGRATED_DENSITY);
 		outfile.newLine();
 	}
-	// TODO: write these intensities to a file
-	
 
 	// convert the selected nuclei
-	core.setConfig(channelGroup, conversionChannel);
-	core.setExposure(conversionTimeMs);
-	pcf.setROIs(convertRois);
-	pcf.runRois();
-	// use the snap function to expose for the desired amount of time
-	mm.live().snap(true);
+	if (convertRois != null && convertRois.length > 0) {
+		core.setConfig(channelGroup, conversionChannel);
+		core.setExposure(conversionTimeMs);
+		pcf.setRois(convertRois);
+		pcf.runRois();
+		// use the snap function to expose for the desired amount of time
+		mm.live().snap(true);
+	}
 
 	// re-image the now converted image and get the intensities of the converted nuclei
 	core.setConfig(channelGroup, afterConversionChannel);
