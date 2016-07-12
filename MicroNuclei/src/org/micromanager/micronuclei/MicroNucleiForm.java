@@ -19,9 +19,6 @@
 
 package org.micromanager.micronuclei;
 
-import org.micromanager.micronuclei.gui.ResultsListener;
-import org.micromanager.micronuclei.gui.DragDropUtil;
-import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
@@ -31,6 +28,7 @@ import ij.io.Opener;
 import ij.measure.ResultsTable;
 import ij.text.TextPanel;
 import ij.text.TextWindow;
+
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -56,8 +54,11 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.border.TitledBorder;
+
 import mmcorej.TaggedImage;
+
 import net.miginfocom.swing.MigLayout;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -81,9 +82,12 @@ import org.micromanager.internal.utils.MMScriptException;
 
 import org.micromanager.projector.ProjectorControlForm;
 import org.micromanager.micronuclei.analysis.MicroNucleiAnalysisModule;
+import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.PropertyException;
+import org.micromanager.micronuclei.gui.ResultsListener;
+import org.micromanager.micronuclei.gui.DragDropUtil;
 import org.micromanager.micronuclei.gui.PropertyGUI;
 import org.micromanager.micronuclei.utilities.Utils;
 
