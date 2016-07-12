@@ -7,6 +7,7 @@ import java.util.Arrays;
 
 import org.micromanager.projector.internal.ProjectorControlForm;
 import org.micromanager.MultiStagePosition;
+import org.micromanager.data.DataStore;
 
 channelGroup = "Channel";
 imagingChannel = "Cy5";
@@ -33,7 +34,7 @@ imageFileName = "";
 core = mm.getCMMCore();
 
 // open the Projector plugin
-//pcf = ProjectorControlForm.showSingleton(core, mm);
+pcf = ProjectorControlForm.showSingleton(core, mm);
 
 // the ImageJ roiManager	
 roiManager = RoiManager.getInstance();
@@ -51,11 +52,11 @@ outfile.write ("Site" + "\t" + "Pre-Post" + "\t" + "X" + "\t" + "Y" + "\t" + "Me
 outfile.newLine();
 
 // create our own dataStore
+store = mm.data().createRAMDatastore();
 if (imageFileName.length() > 0) {
 	store = mm.data().createMultipageTIFFDatastore(imageFileName, false, false);
-} else {
-	store = mm.data().createRAMDatastore();
 }
+
 dw = mm.getDisplayManager().createDisplay(store);
 mm.getDisplayManager().manage(store);
 
@@ -100,11 +101,12 @@ for (position : positions) {
 			new PolygonRoi(allNuclei[i].getConvexHull(), Roi.POLYGON);
 		convertCounter++;
 	}
+	mm.scripter().message("Found " + convertCounter + " ROIs");
 
 	// take and analyze the preconversion image
 	core.setConfig(channelGroup, afterConversionChannel);
 	core.setExposure(afterConversionExposure);
-	imgList = mm.acquisition().snap();
+	imgList = mm.acquisitions().snap();
 	coord = mm.data().createCoords("t=0,p="+counter+",c=1,z=0");
 	img = imgList.get(0).copyAtCoords(coord);
 	pipeLine.insertImage(img);
@@ -123,9 +125,10 @@ for (position : positions) {
 
 	// convert the selected nuclei
 	if (convertRois != null && convertRois.length > 0) {
+		mm.scripter().message("Found " + convertRois.length + " ROIs");
 		core.setConfig(channelGroup, conversionChannel);
 		core.setExposure(conversionTimeMs);
-		pcf.setRois(convertRois);
+		pcf.setROIs(convertRois);
 		pcf.runRois();
 		// use the snap function to expose for the desired amount of time
 		mm.live().snap(true);
@@ -134,7 +137,7 @@ for (position : positions) {
 	// re-image the now converted image and get the intensities of the converted nuclei
 	core.setConfig(channelGroup, afterConversionChannel);
 	core.setExposure(afterConversionExposure);
-	imgList = mm.acquisition().snap();
+	imgList = mm.acquisitions().snap();
 	coord = mm.data().createCoords("t=0,p="+counter+",c=2,z=0");
 	img = imgList.get(0).copyAtCoords(coord);
 	pipeLine.insertImage(img);
