@@ -140,7 +140,7 @@ for (position : positions) {
 		mm.scripter().message("Will convert " + convertRois.length + " ROIs");
 		core.setConfig(channelGroup, conversionChannel);
 		core.setExposure(conversionTimeMs);
-		core.waitForConfig(channelGroup, afterConversionChannel);
+		core.waitForConfig(channelGroup, conversionChannel);
 		pcf.setROIs(convertRois);
 		pcf.runRois();
 		// use the snap function to expose for the desired amount of time
@@ -150,6 +150,7 @@ for (position : positions) {
 	// re-image the now converted image and get the intensities of the converted nuclei
 	core.setConfig(channelGroup, afterConversionChannel);
 	core.setExposure(afterConversionExposure);
+	core.waitForConfig(channelGroup, afterConversionChannel);
 	imgList = mm.acquisitions().snap();
 	coord = mm.data().createCoords("t=0,p="+counter+",c=2,z=0");
 	img = imgList.get(0).copyAtCoords(coord);
