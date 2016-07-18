@@ -80,7 +80,7 @@ import org.micromanager.internal.utils.MMFrame;
 import org.micromanager.internal.utils.MMScriptException;
 
 
-import org.micromanager.projector.ProjectorControlForm;
+import org.micromanager.projector.internal.ProjectorControlForm;
 import org.micromanager.micronuclei.analysis.MicroNucleiAnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
