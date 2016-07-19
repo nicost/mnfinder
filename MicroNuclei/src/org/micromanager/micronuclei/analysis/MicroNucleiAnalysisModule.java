@@ -27,6 +27,7 @@ import ij.measure.ResultsTable;
 import ij.plugin.Duplicator;
 import ij.plugin.filter.Analyzer;
 import ij.plugin.frame.RoiManager;
+
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.geom.Point2D;
@@ -34,23 +35,25 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import mmcorej.TaggedImage;
+
 import org.json.JSONException;
 import org.json.JSONObject;
+
 import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.PropertyException;
-import org.micromanager.internal.utils.ImageUtils;
-import org.micromanager.internal.utils.MMScriptException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
+
+import org.micromanager.internal.utils.ImageUtils;
+
 
 /**
  * Actual micro-nuclei detection code 
  * 
  * @author nico
  */
-
-
 public class MicroNucleiAnalysisModule extends AnalysisModule {
    private int nucleiCount_ = 0;
    private int zappedNucleiCount_ = 0;
@@ -122,7 +125,6 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
    @Override
    public Roi[] analyze(TaggedImage tImg, JSONObject parms) throws AnalysisException {
       
-
       nucleiCount_ = parms.optInt(CELLCOUNT, 0);
       zappedNucleiCount_ = parms.optInt(OBJECTCOUNT, 0);
 

@@ -73,14 +73,13 @@ import org.micromanager.data.Metadata;
 import org.micromanager.data.SummaryMetadata;
 import org.micromanager.display.DisplayWindow;
 
-
 import org.micromanager.internal.utils.FileDialogs;
 import org.micromanager.internal.utils.ImageUtils;
 import org.micromanager.internal.utils.MMFrame;
 import org.micromanager.internal.utils.MMScriptException;
 
-
 import org.micromanager.projector.internal.ProjectorControlForm;
+
 import org.micromanager.micronuclei.analysis.MicroNucleiAnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;

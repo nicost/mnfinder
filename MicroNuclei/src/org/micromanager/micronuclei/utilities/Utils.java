@@ -9,10 +9,8 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.plugin.ImageCalculator;
 import ij.process.ByteProcessor;
-import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
-import java.awt.Color;
 import mmcorej.TaggedImage;
 import org.micromanager.data.Image;
 import org.micromanager.internal.utils.ImageUtils;
@@ -30,7 +28,6 @@ public class Utils {
     * @param input Image to be normalized
     * @param background image
     * @param flatField image with average value of 1.0 representing flatness of field
-    * @param displayResult
     * @return normalized image
     */
    public static TaggedImage normalize(TaggedImage input, ImagePlus background,
