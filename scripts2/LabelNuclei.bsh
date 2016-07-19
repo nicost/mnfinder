@@ -22,14 +22,15 @@ conversionTimeMs = 1000;
 afterConversionChannel = "Cherry";
 afterConversionExposure = 250;
 
-minSize = 25.0;
-maxSize = 800.0;
+// sizes in square pixels
+minSize = 300.0;
+maxSize = 1200.0;
 
 
 fractionOfNucleiToBeConverted = 0.1;
 
 // filename for measurements
-outputFile = "E:\\\\Users\\Vale Lab\\Desktop\\nuclei.txt";
+outputFile = "E:\\\\Users\\Vale Lab\\Desktop\\nuclei-64.txt";
 
 // filename for images, leave blank if you do not want to save images
 imageFileName = "";
@@ -125,7 +126,7 @@ for (position : positions) {
 	// Now measure and store masks in ROI manager
 	IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
 	IJ.run(ip, "Analyze Particles...", "size=" + minSize + "-" + maxSize + 
-			" exclude clear add");
+			" pixel exclude clear add");
 
 	// prepare the masks to be send to the DMD
 	Roi[] allNuclei = roiManager.getRoisAsArray();
@@ -144,7 +145,9 @@ for (position : positions) {
 	}
 	convertRois = new PolygonRoi[convertRoiList.size()];
 	convertRois = convertRoiList.toArray(convertRois);
-	mm.scripter().message("Found " + convertCounter + " ROIs");
+	roiManager.reset();
+	for (Roi roi : convertRois)
+		roiManager.addRoi(roi);
 	nonConvertRois = new PolygonRoi[nonConvertRoiList.size()];
 	nonConvertRois = nonConvertRoiList.toArray(nonConvertRois);
 
@@ -173,7 +176,10 @@ for (position : positions) {
 		pcf.setROIs(convertRois);
 		pcf.runRois();
 		// use the snap function to expose for the desired amount of time
-		mm.live().snap(true);
+		imgList = mm.acquisitions().snap();
+		coord = mm.data().createCoords("t=0,p="+posCounter+",c=2,z=0");
+		img = imgList.get(0).copyAtCoords(coord);
+		pipeLine.insertImage(img);
 	}
 
 	// re-image the now converted image and get the intensities of the converted nuclei
@@ -181,7 +187,7 @@ for (position : positions) {
 	core.setExposure(afterConversionExposure);
 	core.waitForConfig(channelGroup, afterConversionChannel);
 	imgList = mm.acquisitions().snap();
-	coord = mm.data().createCoords("t=0,p="+posCounter+",c=2,z=0");
+	coord = mm.data().createCoords("t=0,p="+posCounter+",c=3,z=0");
 	img = imgList.get(0).copyAtCoords(coord);
 	pipeLine.insertImage(img);
 	procImg = store.getImage(coord);
