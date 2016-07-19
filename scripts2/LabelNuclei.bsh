@@ -25,6 +25,7 @@ afterConversionExposure = 250;
 minSize = 25.0;
 maxSize = 800.0;
 
+
 fractionOfNucleiToBeConverted = 0.1;
 
 // filename for measurements
@@ -33,7 +34,26 @@ outputFile = "E:\\\\Users\\Vale Lab\\Desktop\\nuclei.txt";
 // filename for images, leave blank if you do not want to save images
 imageFileName = "";
 
-/** There usually is no need to edit below this line **/
+/** There usually is no need to edit below this line 
+____________________________________________________________*/
+
+
+/** 
+ * Utility function that reports intensities of rois in an image
+ * 
+ */
+void reportIntensities(BufferedWriter theFile, int posCounter, ImagePlus ip, String label, PolygonRoi[] rois) {
+	for (int i = 0; i < rois.length; i++) {
+		ip.setRoi(rois[i]);
+		stats = ip.getStatistics(ImagePlus.CENTROID + ImagePlus.MEAN + ImagePlus.INTEGRATED_DENSITY + ImagePlus.AREA);
+		theFile.write("" + posCounter + "\t" + i + "\t" + label + "\t" + 
+						NumberUtils.doubleToDisplayString(stats.xCentroid) + "\t" + 
+						NumberUtils.doubleToDisplayString(stats.yCentroid) + "\t" +
+						NumberUtils.doubleToDisplayString(stats.mean) + "\t"  + 
+						NumberUtils.doubleToDisplayString(stats.area) );
+		theFile.newLine();
+	}
+}
 
 // we will use MMCore multiple times, so get it here
 core = mm.getCMMCore();
@@ -53,7 +73,7 @@ positions = pl.getPositions();
 
 // open the output file to write the measuerements to
 outfile = new BufferedWriter(new FileWriter(outputFile));
-outfile.write ("Site" + "\t" + "Pre-Post" + "\t" + "X" + "\t" + "Y" + "\t" + "Mean");
+outfile.write ("Site" + "\t" + "ID" + "\t" + "Pre-Post-Status" + "\t" + "X" + "\t" + "Y" + "\t" + "Mean" + "\t" + "Area");
 outfile.newLine();
 
 // create our own dataStore
@@ -70,17 +90,17 @@ blockingPipeline = true;
 pipeLine = mm.data().copyApplicationPipeline(store, blockingPipeline);
 
 
-int counter = 0;
+int posCounter = 0;
 for (position : positions) {
 	MultiStagePosition.goToPosition(position, core);
 	
 	// snap an image, process and get it out as an ImageJ ImagePlus object
-	mm.scripter().message("Snapping image #" + counter);
+	mm.scripter().message("Snapping image #" + posCounter);
 	core.setConfig(channelGroup, imagingChannel);
 	core.setExposure(imagingExposure);
 	core.waitForConfig(channelGroup, imagingChannel);
 	imgList = mm.acquisitions().snap();
-	coord = mm.data().createCoords("t=0,p="+counter+",c=0,z=0");
+	coord = mm.data().createCoords("t=0,p="+posCounter+",c=0,z=0");
 	img = imgList.get(0).copyAtCoords(coord);
 	pipeLine.insertImage(img);
 	procImg = store.getImage(coord);
@@ -90,50 +110,59 @@ for (position : positions) {
 	//dw.getImagePlus().setRoi(null); // make sure that there is no roi on the image
 	//ip = dw.getImagePlus().duplicate();
 
+	// Pre-filter to improve nuclear detection and slightly enlarge the masks
+	IJ.run(ip, "Smooth", "");
+   IJ.run(ip, "Gaussian Blur...", "sigma=5.0");
+
 	// get the nuclear masks 
 	IJ.setAutoThreshold(ip, "Otsu dark");
+	// Fill holes and watershed to split large nuclei
+	IJ.run(ip, "Convert to Mask", "");
+   IJ.run(ip, "Dilate", "");
+   IJ.run(ip, "Erode", "");
+   IJ.run(ip, "Watershed", "");
+
+	// Now measure and store masks in ROI manager
 	IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
-	
 	IJ.run(ip, "Analyze Particles...", "size=" + minSize + "-" + maxSize + 
 			" exclude clear add");
 
 	// prepare the masks to be send to the DMD
 	Roi[] allNuclei = roiManager.getRoisAsArray();
 	mm.scripter().message("Found " + allNuclei.length + " nuclei");
-	// Roi[] convertRois = new PolygonRoi[(int) (allNuclei.length * fractionOfNucleiToBeConverted) + 1];
 	List convertRoiList = new ArrayList();
+	List nonConvertRoiList = new ArrayList();
 	nrNucleiToSkip = (int) (1 / fractionOfNucleiToBeConverted);
 	int convertCounter = 0;
-	for (int i = 0; i < allNuclei.length; i += nrNucleiToSkip) {
-		convertRoiList.add (new PolygonRoi(allNuclei[i].getConvexHull(), Roi.POLYGON));
-		convertCounter++;
+	for (int i = 0; i < allNuclei.length; i++) {
+		if (i % nrNucleiToSkip == 0) {
+			convertRoiList.add (new PolygonRoi(allNuclei[i].getConvexHull(), Roi.POLYGON));
+			convertCounter++;
+		} else {
+			nonConvertRoiList.add (new PolygonRoi(allNuclei[i].getConvexHull(), Roi.POLYGON));
+		}
 	}
 	convertRois = new PolygonRoi[convertRoiList.size()];
 	convertRois = convertRoiList.toArray(convertRois);
 	mm.scripter().message("Found " + convertCounter + " ROIs");
+	nonConvertRois = new PolygonRoi[nonConvertRoiList.size()];
+	nonConvertRois = nonConvertRoiList.toArray(nonConvertRois);
 
 	// take and analyze the preconversion image
 	core.setConfig(channelGroup, afterConversionChannel);
 	core.setExposure(afterConversionExposure);
 	core.waitForConfig(channelGroup, afterConversionChannel);
 	imgList = mm.acquisitions().snap();
-	coord = mm.data().createCoords("t=0,p="+counter+",c=1,z=0");
+	coord = mm.data().createCoords("t=0,p="+posCounter+",c=1,z=0");
 	img = imgList.get(0).copyAtCoords(coord);
 	pipeLine.insertImage(img);
 	procImg = store.getImage(coord);
 	iProcessor = mm.data().ij().createProcessor(procImg);
 	ip = (new ImagePlus("tmp", iProcessor)).duplicate();
 
-	for (roi : convertRois) {
-		ip.setRoi(roi);
-		stats = ip.getStatistics(ImagePlus.CENTROID + ImagePlus.MEAN + ImagePlus.INTEGRATED_DENSITY);
-		// mm.scripter().message("Mean: " + NumberUtils.doubleToDisplayString(stats.mean) );
-		outfile.write("" + counter + "\t" + "Pre" + "\t" + 
-						NumberUtils.doubleToDisplayString(stats.xCentroid) + "\t" + 
-						NumberUtils.doubleToDisplayString(stats.yCentroid) + "\t" +
-						NumberUtils.doubleToDisplayString(stats.mean) + "\t" );
-		outfile.newLine();
-	}
+	// Report intensities of objects found
+	reportIntensities(outfile, posCounter, ip, "Pre-Hit", convertRois);
+	reportIntensities(outfile, posCounter, ip, "Pre-NoHit", nonConvertRois);
 
 	// convert the selected nuclei
 	if (convertRois != null && convertRois.length > 0) {
@@ -152,25 +181,18 @@ for (position : positions) {
 	core.setExposure(afterConversionExposure);
 	core.waitForConfig(channelGroup, afterConversionChannel);
 	imgList = mm.acquisitions().snap();
-	coord = mm.data().createCoords("t=0,p="+counter+",c=2,z=0");
+	coord = mm.data().createCoords("t=0,p="+posCounter+",c=2,z=0");
 	img = imgList.get(0).copyAtCoords(coord);
 	pipeLine.insertImage(img);
 	procImg = store.getImage(coord);
 	iProcessor = mm.data().ij().createProcessor(procImg);
 	ip = (new ImagePlus("tmp", iProcessor)).duplicate();
-	for (roi : convertRois) {
-		ip.setRoi(roi);
-		stats = ip.getStatistics(ImagePlus.CENTROID + ImagePlus.MEAN + ImagePlus.INTEGRATED_DENSITY);
-		outfile.write("" + counter + "\t" + "Post" + "\t" + 
-						NumberUtils.doubleToDisplayString(stats.xCentroid) + "\t" + 
-						NumberUtils.doubleToDisplayString(stats.yCentroid) + "\t" +
-						NumberUtils.doubleToDisplayString(stats.mean) );
-		outfile.newLine();
-		
-		// mm.scripter().message("Conv. Mean: " + NumberUtils.doubleToDisplayString(stats.mean) );
-	}
 	
-	counter++;
+	// Report Intensities
+	reportIntensities(outfile, posCounter, ip, "Post-Hit", convertRois);
+	reportIntensities(outfile, posCounter, ip, "Post-NoHit", nonConvertRois);
+	
+	posCounter++;
 }
 
 store.freeze();
