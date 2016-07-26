@@ -3,6 +3,7 @@ import ij.ImagePlus;
 import ij.plugin.frame.RoiManager;
 import ij.gui.Roi;
 import ij.gui.PolygonRoi;
+import ij.gui.OvalRoi;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,16 +25,22 @@ afterConversionExposure = 250;
 
 // sizes in square pixels
 minSize = 300.0;
-maxSize = 1200.0;
-
+maxSize = 1800.0;
 
 fractionOfNucleiToBeConverted = 0.1;
 
+// skip images whose standard deviation or intensity is higher than this cutoff
+//  Used to skip images that have edges in them.
+maxStdDev = 12500.0;
+maxMeanIntensity = 20000.0;
+
+
 // filename for measurements
-outputFile = "E:\\\\Users\\Vale Lab\\Desktop\\nuclei-64.txt";
+outputFile = "E:\\\\Users\\Vale Lab\\Desktop\\nuclei.txt";
 
 // filename for images, leave blank if you do not want to save images
 imageFileName = "";
+
 
 /** There usually is no need to edit below this line 
 ____________________________________________________________*/
@@ -43,7 +50,7 @@ ____________________________________________________________*/
  * Utility function that reports intensities of rois in an image
  * 
  */
-void reportIntensities(BufferedWriter theFile, int posCounter, ImagePlus ip, String label, PolygonRoi[] rois) {
+void reportIntensities(BufferedWriter theFile, int posCounter, ImagePlus ip, String label, Roi[] rois) {
 	for (int i = 0; i < rois.length; i++) {
 		ip.setRoi(rois[i]);
 		stats = ip.getStatistics(ImagePlus.CENTROID + ImagePlus.MEAN + ImagePlus.INTEGRATED_DENSITY + ImagePlus.AREA);
@@ -107,6 +114,14 @@ for (position : positions) {
 	procImg = store.getImage(coord);
 	iProcessor = mm.data().ij().createProcessor(procImg);
 	ip = (new ImagePlus("tmp", iProcessor)).duplicate();
+
+	// check for edges by calculating stdev
+	stat = ip.getStatistics();
+	stdDev = stat.stdDev;
+	mean = stat.mean;
+	if (stdDev > maxStdDev || mean > maxMeanIntensity) {
+		mm.scripter().message("Std. Dev. (" + stdDev + ") or intenisty (" + mean + ") too high, skipping this position");
+	} else {
 	
 	//dw.getImagePlus().setRoi(null); // make sure that there is no roi on the image
 	//ip = dw.getImagePlus().duplicate();
@@ -137,13 +152,14 @@ for (position : positions) {
 	int convertCounter = 0;
 	for (int i = 0; i < allNuclei.length; i++) {
 		if (i % nrNucleiToSkip == 0) {
-			convertRoiList.add (new PolygonRoi(allNuclei[i].getConvexHull(), Roi.POLYGON));
+			rect = allNuclei[i].getBounds();
+			convertRoiList.add (new OvalRoi(rect.x, rect.y, rect.width, rect.height));
 			convertCounter++;
 		} else {
 			nonConvertRoiList.add (new PolygonRoi(allNuclei[i].getConvexHull(), Roi.POLYGON));
 		}
 	}
-	convertRois = new PolygonRoi[convertRoiList.size()];
+	convertRois = new OvalRoi[convertRoiList.size()];
 	convertRois = convertRoiList.toArray(convertRois);
 	roiManager.reset();
 	for (Roi roi : convertRois)
@@ -197,7 +213,8 @@ for (position : positions) {
 	// Report Intensities
 	reportIntensities(outfile, posCounter, ip, "Post-Hit", convertRois);
 	reportIntensities(outfile, posCounter, ip, "Post-NoHit", nonConvertRois);
-	
+
+	}
 	posCounter++;
 }
 
@@ -206,6 +223,4 @@ store.freeze();
 outfile.close();
 
 mm.scripter().message("done!");
-
-
 
