@@ -24,7 +24,6 @@ import ij.ImagePlus;
 import ij.WindowManager;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
-import ij.io.Opener;
 import ij.measure.ResultsTable;
 import ij.text.TextPanel;
 import ij.text.TextWindow;
@@ -36,7 +35,6 @@ import java.awt.Insets;
 import java.awt.Polygon;
 import java.awt.Rectangle;
 import java.awt.Window;
-import java.awt.dnd.DropTarget;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.BufferedWriter;
@@ -44,6 +42,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Date;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.prefs.Preferences;
 import javax.swing.BorderFactory;
@@ -70,8 +69,10 @@ import org.micromanager.data.Coords;
 import org.micromanager.data.Datastore;
 import org.micromanager.data.Image;
 import org.micromanager.data.Metadata;
+import org.micromanager.data.Pipeline;
 import org.micromanager.data.SummaryMetadata;
 import org.micromanager.display.DisplayWindow;
+import org.micromanager.internal.MMStudio;
 
 import org.micromanager.internal.utils.FileDialogs;
 import org.micromanager.internal.utils.ImageUtils;
@@ -85,8 +86,8 @@ import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.PropertyException;
+
 import org.micromanager.micronuclei.gui.ResultsListener;
-import org.micromanager.micronuclei.gui.DragDropUtil;
 import org.micromanager.micronuclei.gui.PropertyGUI;
 import org.micromanager.micronuclei.utilities.Utils;
 
@@ -111,12 +112,9 @@ public class MicroNucleiForm extends MMFrame {
    private final JComboBox AfterZapChannelComboBox_;
    private final JCheckBox doZap_;
    private final JCheckBox showMasks_;
-   private final JTextField backgroundTextField_;
-   private final JTextField flatfieldTextField_;
    private final Preferences prefs_;
-   
-   private ImagePlus background_;
-   private ImagePlus flatfield_;
+
+   private final JCheckBox useOnTheFlyProcessorPipeline_;
    
    private final String SAVELOCATION = "SaveLocation";
    private final String IMAGINGCHANNEL = "ImagingChannel";
@@ -132,10 +130,12 @@ public class MicroNucleiForm extends MMFrame {
    
    private final AnalysisModule analysisModule_;
    
-   public MicroNucleiForm(Studio gui) {
+   private Pipeline pipeline_;
+   
+   public MicroNucleiForm(final Studio gui) {
       gui_ = gui;
       
-      super.loadAndRestorePosition(100, 100, 200, 200);
+      loadAndRestorePosition(100, 100, 200, 200);
       prefs_ = Preferences.userNodeForPackage(this.getClass());
       
 
@@ -173,7 +173,7 @@ public class MicroNucleiForm extends MMFrame {
       // make this clear to the user and update the contents of the dropdowns
       // when the channel group changes.
       
-      acqPanel.add(myLabel(arialSmallFont_, "Imaging Channel: "));
+      acqPanel.add(myLabel(arialSmallFont_, "Nuclear Channel: "));
       channelComboBox_ = new JComboBox();
       imagingChannel_ = prefs_.get(IMAGINGCHANNEL, imagingChannel_);
       updateChannels(channelComboBox_, imagingChannel_, false);
@@ -229,55 +229,18 @@ public class MicroNucleiForm extends MMFrame {
               "flowx, fill, insets 8"));
       analysisPanel.setBorder(makeTitledBorder("Analysis Settings"));
       
-      analysisPanel.add(new JLabel("Background: "));
-      backgroundTextField_ = new JTextField();
-      backgroundTextField_.setText(prefs_.get(BACKGROUNDLOCATION, ""));
-      backgroundTextField_.setMinimumSize(new Dimension(250, 12));
-      backgroundTextField_.setMaximumSize(new Dimension(250, 20));
-      backgroundTextField_.addActionListener(new java.awt.event.ActionListener() {
+      useOnTheFlyProcessorPipeline_ = new JCheckBox("Use On-The-Fly Processor Pipeline");
+      useOnTheFlyProcessorPipeline_.setSelected(
+              !gui.getDataManager().getApplicationPipelineConfigurators().isEmpty());
+      useOnTheFlyProcessorPipeline_.addActionListener(new ActionListener() {
          @Override
-         public void actionPerformed(ActionEvent e) {
-            if (prefs_ != null)
-               prefs_.put(BACKGROUNDLOCATION, backgroundTextField_.getText());
+         public void actionPerformed(ActionEvent ae) {
+            if (useOnTheFlyProcessorPipeline_.isSelected()) {
+               ((MMStudio) gui).getPipelineFrame().setVisible(true);
+            }
          }
       });
-      analysisPanel.add(backgroundTextField_);
-      DropTarget dropTarget = new DropTarget(backgroundTextField_, 
-              new DragDropUtil(backgroundTextField_));
-      final JButton backgroundButton = myButton(buttonSize_, arialSmallFont_, "...");
-      backgroundButton.addActionListener(new java.awt.event.ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent e) {
-            fileActionPerformed(e, 
-                  backgroundTextField_, "Background Image", BACKGROUNDLOCATION);
-         }
-      });
-      analysisPanel.add(backgroundButton, "wrap");
-      
-      analysisPanel.add(new JLabel("Flatfield: "));
-      flatfieldTextField_ = new JTextField();
-      flatfieldTextField_.setText(prefs_.get(FLATFIELDLOCATION, ""));
-      flatfieldTextField_.setMinimumSize(new Dimension(250, 12));
-      flatfieldTextField_.setMaximumSize(new Dimension(250, 20));
-      flatfieldTextField_.addActionListener(new java.awt.event.ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent e) {
-             if (prefs_ != null)
-               prefs_.put( FLATFIELDLOCATION, flatfieldTextField_.getText());
-         }
-      });
-      analysisPanel.add(flatfieldTextField_);
-      dropTarget = new DropTarget(flatfieldTextField_, 
-              new DragDropUtil(flatfieldTextField_));
-      final JButton flatfieldButton = myButton(buttonSize_, arialSmallFont_, "...");
-      flatfieldButton.addActionListener(new java.awt.event.ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent e) {
-            fileActionPerformed(e, 
-                  flatfieldTextField_, "Flatfield Image", FLATFIELDLOCATION);
-         }
-      });
-      analysisPanel.add(flatfieldButton, "wrap");
+      analysisPanel.add(useOnTheFlyProcessorPipeline_);
       
       super.add(analysisPanel, "span 3, center, wrap");
       
@@ -407,18 +370,6 @@ public class MicroNucleiForm extends MMFrame {
       }
    }   
    
-   private void fileActionPerformed(java.awt.event.ActionEvent evt, 
-           JTextField textField, String title, String prefKey) {                                                  
-      File f = FileDialogs.openFile(this, title,
-              new FileDialogs.FileType("File", title,
-              textField.getText(), true, "tif", "tiff") );
-      if (f != null) {
-         textField.setText(f.getAbsolutePath());
-         if (prefs_ != null)
-               prefs_.put(prefKey, f.getAbsolutePath());    
-      }
-   } 
-   
    private void channelActionPerformed(ActionEvent evt) {
       imagingChannel_ = (String) channelComboBox_.getSelectedItem();
       if (prefs_ != null)
@@ -453,17 +404,10 @@ public class MicroNucleiForm extends MMFrame {
       public void run() {
          try {
             running_ = true;
-            Opener opener = new Opener();
-            if (!backgroundTextField_.getText().equals("")) 
-               background_ = opener.openImage(backgroundTextField_.getText());
-            if (!flatfieldTextField_.getText().equals(""))
-               flatfield_ = opener.openImage(flatfieldTextField_.getText());            
+
             if (!testing_) {
-               warnAboutMissingCorrections(background_, flatfield_);
                runAnalysisAndZapping(saveTextField_.getText());
-               warnAboutMissingCorrections(background_, flatfield_);
             } else {
-               warnAboutMissingCorrections(background_, flatfield_);
                runTest();
             }
                
@@ -526,7 +470,7 @@ public class MicroNucleiForm extends MMFrame {
             dw = null;
             TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
             tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
-            tImg = Utils.normalize(tImg, background_, flatfield_);
+            //tImg = Utils.normalize(tImg, background_, flatfield_);
             if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
                (new ImagePlus("Normalized", ImageUtils.makeProcessor(tImg))).show();
             }
@@ -544,6 +488,8 @@ public class MicroNucleiForm extends MMFrame {
          } else { // MM display
             Datastore store = dw.getDatastore();
             Coords.CoordsBuilder builder = store.getAnyImage().getCoords().copy();
+            // make sure that we will work with the first channel (that has the nuclei)
+            builder.channel(0);
             int nrPositions = store.getAxisLength(Coords.STAGE_POSITION); 
             for (int p = 0; p < nrPositions && !stop_.get(); p++) {
                try {
@@ -551,7 +497,7 @@ public class MicroNucleiForm extends MMFrame {
                   if (image != null) {
                      TaggedImage tImg = ImageUtils.makeTaggedImage(Utils.getProcessor(image));
                      tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
-                     tImg = Utils.normalize(tImg, background_, flatfield_);
+                     //tImg = Utils.normalize(tImg, background_, flatfield_);
                      if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
                         (new ImagePlus("Normalized", ImageUtils.makeProcessor(tImg))).show();
                      }
@@ -696,7 +642,7 @@ public class MicroNucleiForm extends MMFrame {
 
       PropertyMap.PropertyMapBuilder pmb = gui_.data().getPropertyMapBuilder();
       
-      SummaryMetadata summaryMetadata = smb.build();
+      // SummaryMetadata summaryMetadata = smb.build();
 
       for (MultiStagePosition msp : positions) {
          if (stop_.get()) {
@@ -725,6 +671,10 @@ public class MicroNucleiForm extends MMFrame {
             data.setSummaryMetadata(smb.build());
             dw = gui_.displays().createDisplay(data);
             gui_.displays().manage(data);
+            if (useOnTheFlyProcessorPipeline_.isSelected()) {
+               // Create a blocking pipeline
+               pipeline_ = gui_.data().copyApplicationPipeline(data, true);
+            }
             //gui_.openAcquisition(well, saveLocation, 1, nrChannels + 1, 1, nrImagesPerWell, true, true);
             analysisModule_.reset();
             // reset cell and object counters
@@ -737,17 +687,17 @@ public class MicroNucleiForm extends MMFrame {
             gui_.getCMMCore().waitForSystem();
             gui_.logs().logMessage("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y);
             gui_.getCMMCore().setConfig(channelGroup, imagingChannel_);
-            TaggedImage tImg = snapAndInsertImage(data, msp,siteCount, 0); 
+            Image image = snapAndInsertImage(data, msp,siteCount, 0); 
 
             if (nrChannels == 2) {
                gui_.getCMMCore().setConfig(channelGroup, secondImagingChannel_);
                gui_.getCMMCore().snapImage();
-               tImg = snapAndInsertImage(data, msp,siteCount, 1); 
+               image = snapAndInsertImage(data, msp,siteCount, 1); 
             }
             gui_.getCMMCore().setConfig(channelGroup, zapChannel_);
 
             // Analyze (second channel if we had it) and zap
-            tImg = Utils.normalize(tImg, background_, flatfield_);
+            //tImg = Utils.normalize(tImg, background_, flatfield_);
             Roi[] zapRois = analysisModule_.analyze(tImg, parms);
             if (zapRois != null && doZap_.isSelected()) {
                zap(zapRois);
@@ -819,13 +769,13 @@ public class MicroNucleiForm extends MMFrame {
     * @param channelNr - Channel Nr to be used to insert into store.
     * @throws Exception 
     */
-   private TaggedImage snapAndInsertImage(Datastore data, MultiStagePosition msp,
+   private Image snapAndInsertImage(Datastore data, MultiStagePosition msp,
             int siteCount, int channelNr) throws Exception {
-      gui_.getCMMCore().snapImage();
-      TaggedImage tImg = gui_.getCMMCore().getTaggedImage();
+      List<Image> snap = gui_.acquisitions().snap();
       Coords coord = gui_.data().createCoords("t=0,p=" + siteCount + 
               ",c=" + channelNr + ",z=0");
-      Image img = gui_.data().convertTaggedImage(tImg);
+      Image img = snap.get(0).copyAtCoords(coord);
+     
       Metadata md = img.getMetadata();
       Metadata.MetadataBuilder mdb = md.copy();
       PropertyMap ud = md.getUserData();
@@ -835,9 +785,13 @@ public class MicroNucleiForm extends MMFrame {
       md = mdb.positionName(msp.getLabel()).userData(ud).build();
       img = img.copyWith(coord, md);
 
-      data.putImage(img);
+       if (pipeline_ != null) {
+         pipeline_.insertImage(img);
+      } else {
+         data.putImage(img);
+       }
       
-      return tImg;
+      return data.getImage(coord);
    }
    
    /**
@@ -900,18 +854,6 @@ public class MicroNucleiForm extends MMFrame {
       myBorder.setTitleJustification(TitledBorder.CENTER);
       return myBorder;
    }
-  
+          
  
-   private static void warnAboutMissingCorrections(ImagePlus background, 
-           ImagePlus flatfield) {
-      if (background == null) {
-         ij.IJ.log("No background correction applied because of missing background image");
-      }
-      if (flatfield == null) {
-         ij.IJ.log("No flatfield correction applied because of missing flatfield image");
-      }
-   }
-           
-
-   
 }
