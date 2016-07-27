@@ -22,6 +22,7 @@ package org.micromanager.micronuclei.analysisinterface;
 import ij.gui.Roi;
 import java.util.List;
 import org.json.JSONObject;
+import org.micromanager.Studio;
 import org.micromanager.data.Image;
 
 /**
@@ -39,7 +40,7 @@ public abstract class AnalysisModule  {
    private List<AnalysisProperty> analysisProperties_;
 
   
-   public abstract Roi[] analyze (Image img, JSONObject parms) 
+   public abstract Roi[] analyze (Studio studio, Image img, JSONObject parms) 
            throws AnalysisException;
    
    /**
