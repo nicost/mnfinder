@@ -36,17 +36,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import mmcorej.TaggedImage;
-
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import org.micromanager.Studio;
+import org.micromanager.data.Image;
 
 import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.PropertyException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 
-import org.micromanager.internal.utils.ImageUtils;
 
 
 /**
@@ -123,21 +123,18 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
    }
   
    @Override
-   public Roi[] analyze(TaggedImage tImg, JSONObject parms) throws AnalysisException {
+   public Roi[] analyze(Studio studio, Image image, JSONObject parms) throws AnalysisException {
       
       nucleiCount_ = parms.optInt(CELLCOUNT, 0);
       zappedNucleiCount_ = parms.optInt(OBJECTCOUNT, 0);
 
       long startTime = System.currentTimeMillis();
       
-      ImagePlus imp = new ImagePlus ("tmp", ImageUtils.makeProcessor(tImg));
+      ImagePlus imp = new ImagePlus ("tmp", studio.data().ij().createProcessor(image));
       Calibration cal = imp.getCalibration();
-      try {
-         cal.pixelWidth = tImg.tags.getDouble("PixelSizeUm"); 
-         cal.pixelHeight = cal.pixelWidth;
-      } catch(JSONException je) {
-         throw new AnalysisException ("Failed to find pixelsize in the metadata");
-      }
+      cal.pixelWidth = image.getWidth(); 
+      cal.pixelHeight = image.getHeight();
+
       // remove images that have the well edge in them
       double stdDev = imp.getStatistics().stdDev;
       // do not analyze images whose stdev is above this value

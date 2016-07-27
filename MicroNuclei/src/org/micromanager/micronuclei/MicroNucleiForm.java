@@ -470,11 +470,11 @@ public class MicroNucleiForm extends MMFrame {
             dw = null;
             TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
             tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
-            //tImg = Utils.normalize(tImg, background_, flatfield_);
             if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
                (new ImagePlus("Normalized", ImageUtils.makeProcessor(tImg))).show();
             }
-            Roi[] zapRois = analysisModule_.analyze(tImg, parms);
+            Roi[] zapRois = analysisModule_.analyze(gui_, 
+                    gui_.data().convertTaggedImage(tImg), parms);
             for (Roi roi : zapRois) {
                outTable.incrementCounter();
                Rectangle bounds = roi.getBounds();
@@ -497,11 +497,10 @@ public class MicroNucleiForm extends MMFrame {
                   if (image != null) {
                      TaggedImage tImg = ImageUtils.makeTaggedImage(Utils.getProcessor(image));
                      tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
-                     //tImg = Utils.normalize(tImg, background_, flatfield_);
                      if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
                         (new ImagePlus("Normalized", ImageUtils.makeProcessor(tImg))).show();
                      }
-                     Roi[] zapRois = analysisModule_.analyze(tImg, parms);
+                     Roi[] zapRois = analysisModule_.analyze(gui_, image, parms);
                      for (Roi roi : zapRois) {
                         outTable.incrementCounter();
                         Rectangle bounds = roi.getBounds();
@@ -698,7 +697,7 @@ public class MicroNucleiForm extends MMFrame {
 
             // Analyze (second channel if we had it) and zap
             //tImg = Utils.normalize(tImg, background_, flatfield_);
-            Roi[] zapRois = analysisModule_.analyze(tImg, parms);
+            Roi[] zapRois = analysisModule_.analyze(gui_, image, parms);
             if (zapRois != null && doZap_.isSelected()) {
                zap(zapRois);
                for (Roi roi : zapRois) {
