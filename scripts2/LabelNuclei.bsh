@@ -37,10 +37,10 @@ maxMeanIntensity = 20000.0;
 
 
 // filename for measurements
-outputFile = "E:\\\\Users\\Vale Lab\\Desktop\\nuclei-24wells.txt";
+outputFile = "E:\\\\Users\\Xiaowei\\Test20160728.txt";
 
 // filename for images, leave blank if you do not want to save images
-imageFileName = "";
+imageFileName = "E:\\\\Users\\Xiaowei\\Test20160728";
 
 
 /** There usually is no need to edit below this line 
@@ -86,9 +86,10 @@ outfile.write ("Site" + "\t" + "ID" + "\t" + "Pre-Post-Status" + "\t" + "X" + "\
 outfile.newLine();
 
 // create our own dataStore
-store = mm.data().createRAMDatastore();
 if (imageFileName.length() > 0) {
 	store = mm.data().createMultipageTIFFDatastore(imageFileName, false, false);
+} else {
+	store = mm.data().createRAMDatastore();
 }
 
 dw = mm.getDisplayManager().createDisplay(store);
