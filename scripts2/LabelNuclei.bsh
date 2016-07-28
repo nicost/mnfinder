@@ -35,12 +35,13 @@ fractionOfNucleiToBeConverted = 0.1;
 maxStdDev = 12500.0;
 maxMeanIntensity = 20000.0;
 
+baseName = "Test20160728c";
 
 // filename for measurements
-outputFile = "E:\\\\Users\\Xiaowei\\Test20160728.txt";
+outputFile = "E:\\\\Users\\Xiaowei\\"  + baseName + ".txt";
 
 // filename for images, leave blank if you do not want to save images
-imageFileName = "E:\\\\Users\\Xiaowei\\Test20160728";
+imageFileName = "E:\\\\Users\\Xiaowei\\" + baseName;
 
 
 /** There usually is no need to edit below this line 
@@ -86,12 +87,12 @@ outfile.write ("Site" + "\t" + "ID" + "\t" + "Pre-Post-Status" + "\t" + "X" + "\
 outfile.newLine();
 
 // create our own dataStore
+store = mm.data().createRAMDatastore();
 if (imageFileName.length() > 0) {
 	store = mm.data().createMultipageTIFFDatastore(imageFileName, false, false);
-} else {
-	store = mm.data().createRAMDatastore();
-}
+} 
 
+Thread.sleep(1000);
 dw = mm.getDisplayManager().createDisplay(store);
 mm.getDisplayManager().manage(store);
 
@@ -196,6 +197,8 @@ for (position : positions) {
 		core.setExposure(conversionTimeMs);
 		core.waitForConfig(channelGroup, conversionChannel);
 		pcf.setROIs(convertRois);
+		// attempt to fix the disappearing MM_SLM window
+		Thread.sleep(100);
 		pcf.runRois();
 		// use the snap function to expose for the desired amount of time
 		imgList = mm.acquisitions().snap();
