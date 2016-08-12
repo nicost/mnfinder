@@ -42,6 +42,7 @@ public abstract class AnalysisModule  {
   
    public abstract Roi[] analyze (Studio studio, Image img, JSONObject parms) 
            throws AnalysisException;
+  
    
    /**
     * Resets the module so that it can be re-used without side effects

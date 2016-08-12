@@ -32,8 +32,10 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
+import java.util.List;
 import org.micromanager.data.Coords;
 import org.micromanager.data.Coords.CoordsBuilder;
+import org.micromanager.data.Image;
 import org.micromanager.display.DisplayWindow;
 import org.micromanager.micronuclei.Terms;
 
@@ -112,7 +114,8 @@ public class ResultsListener implements KeyListener, MouseListener{
       int row = tp_.getSelectionStart();
       if (row >= 0 && row < tp_.getLineCount()) {
          if (dw_ != null) {
-            CoordsBuilder cb = dw_.getDatastore().getAnyImage().getCoords().copy();
+            List<Image> displayedImages = dw_.getDisplayedImages();
+            CoordsBuilder cb = displayedImages.get(0).getCoords().copy();
             Coords c = cb.stagePosition((int) res_.getValue(Terms.POSITION, row)).build();
             dw_.setDisplayedImageTo(c);
          }
@@ -125,15 +128,6 @@ public class ResultsListener implements KeyListener, MouseListener{
             siPlus_ = null;
             return;
          }
-
-         //MMWindow mw = new MMWindow(siPlus_);
-         //if (mw.isMMWindow()) {
-         //   try {
-         //      int position = (int) res_.getValue(Terms.POSITION, row);
-         //      mw.setPosition(position);
-         //   } catch (Exception ex) {
-         //   }
-         //}
 
          double x = (int) res_.getValue(Terms.X, row);
          double y = (int) res_.getValue(Terms.Y, row);

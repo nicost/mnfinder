@@ -25,6 +25,7 @@ import ij.WindowManager;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.measure.ResultsTable;
+import ij.plugin.frame.RoiManager;
 import ij.text.TextPanel;
 import ij.text.TextWindow;
 
@@ -41,10 +42,10 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.prefs.Preferences;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -78,6 +79,7 @@ import org.micromanager.internal.utils.FileDialogs;
 import org.micromanager.internal.utils.ImageUtils;
 import org.micromanager.internal.utils.MMFrame;
 import org.micromanager.internal.utils.MMScriptException;
+import org.micromanager.micronuclei.analysis.JustNucleiModule;
 
 import org.micromanager.projector.internal.ProjectorControlForm;
 
@@ -112,7 +114,6 @@ public class MicroNucleiForm extends MMFrame {
    private final JComboBox AfterZapChannelComboBox_;
    private final JCheckBox doZap_;
    private final JCheckBox showMasks_;
-   private final Preferences prefs_;
 
    private final JCheckBox useOnTheFlyProcessorPipeline_;
    
@@ -123,32 +124,37 @@ public class MicroNucleiForm extends MMFrame {
    private final String AFTERZAPCHANNEL = "AfterZapChannel";
    private final String DOZAP = "DoZap";
    private final String SHOWMASKS = "ShowMasks";
-   private final String BACKGROUNDLOCATION = "BackgroundLocation";
-   private final String FLATFIELDLOCATION = "FlatfieldLocation";
    
    private final AtomicBoolean stop_ = new AtomicBoolean(false);
    
-   private final AnalysisModule analysisModule_;
+   private final List<AnalysisModule> analysisModules_;
+   private final List<String> analysisModulesNames_;
+   private final String MODULE ="ActiveModuleName";
    
    private Pipeline pipeline_;
    
    public MicroNucleiForm(final Studio gui) {
       gui_ = gui;
+      final MicroNucleiForm ourForm = this;
       
       loadAndRestorePosition(100, 100, 200, 200);
-      prefs_ = Preferences.userNodeForPackage(this.getClass());
-      
-
-      // TODO: make this user selectable from available modules
-      analysisModule_ = new MicroNucleiAnalysisModule();
-      
+        
+      // Hard coded analysis modules.  This should be changed to make the
+      // modules disoverable at run-time      
+      analysisModules_ = new ArrayList<AnalysisModule>();
+      // For now, whenever you write a new module, add it here
+      analysisModules_.add(new MicroNucleiAnalysisModule());
+      analysisModules_.add(new JustNucleiModule());
+      analysisModulesNames_ = new ArrayList<String>();
+      for (AnalysisModule module : analysisModules_) {
+         analysisModulesNames_.add(module.name());
+      }
       
       arialSmallFont_ = new Font("Arial", Font.PLAIN, 12);
       buttonSize_ = new Dimension(70, 21);
 
       super.setLayout(new MigLayout("flowx, fill, insets 8"));
-      super.setTitle("MicroNuclei Analyze");
-      
+      super.setTitle("Analyze and Photoconvert");     
       
       JPanel acqPanel = new JPanel(new MigLayout(
               "flowx, fill, insets 8"));
@@ -156,7 +162,7 @@ public class MicroNucleiForm extends MMFrame {
       acqPanel.add(myLabel(arialSmallFont_,"Save here:"));
       
       saveTextField_ = new JTextField();
-      saveTextField_.setText(prefs_.get(SAVELOCATION, ""));
+      saveTextField_.setText(gui_.profile().getString(MicroNucleiForm.class, SAVELOCATION, ""));
       saveTextField_.setMinimumSize(new Dimension(200, 12));
       acqPanel.add(saveTextField_);
       
@@ -175,7 +181,8 @@ public class MicroNucleiForm extends MMFrame {
       
       acqPanel.add(myLabel(arialSmallFont_, "Nuclear Channel: "));
       channelComboBox_ = new JComboBox();
-      imagingChannel_ = prefs_.get(IMAGINGCHANNEL, imagingChannel_);
+      imagingChannel_ = gui_.profile().getString(MicroNucleiForm.class, 
+              IMAGINGCHANNEL, imagingChannel_);
       updateChannels(channelComboBox_, imagingChannel_, false);
       channelComboBox_.addActionListener(new ActionListener() {
          @Override
@@ -187,7 +194,8 @@ public class MicroNucleiForm extends MMFrame {
       
       acqPanel.add(myLabel(arialSmallFont_, "2nd Imaging Channel: "));
       secondChannelComboBox_ = new JComboBox();
-      secondImagingChannel_ = prefs_.get(SECONDIMAGINGCHANNEL, secondImagingChannel_);
+      secondImagingChannel_ =  gui_.profile().getString(MicroNucleiForm.class,
+              SECONDIMAGINGCHANNEL, secondImagingChannel_);
       updateChannels(secondChannelComboBox_, secondImagingChannel_, true);
       secondChannelComboBox_.addActionListener(new ActionListener() {
          @Override
@@ -199,7 +207,8 @@ public class MicroNucleiForm extends MMFrame {
       
       acqPanel.add(myLabel(arialSmallFont_, "Zap Channel: "));
       zapChannelComboBox_ = new JComboBox();
-      zapChannel_ = prefs_.get(ZAPCHANNEL, zapChannel_);
+      zapChannel_ =  gui_.profile().getString(MicroNucleiForm.class, 
+              ZAPCHANNEL, zapChannel_);
       updateChannels(zapChannelComboBox_, zapChannel_, false);
       zapChannelComboBox_.addActionListener(new ActionListener() {
          @Override
@@ -211,7 +220,8 @@ public class MicroNucleiForm extends MMFrame {
       
       acqPanel.add(myLabel(arialSmallFont_, "After Zap Channel: "));
       AfterZapChannelComboBox_ = new JComboBox();
-      afterZapChannel_ = prefs_.get(AFTERZAPCHANNEL, afterZapChannel_);
+      afterZapChannel_ =  gui_.profile().getString(MicroNucleiForm.class, 
+              AFTERZAPCHANNEL, afterZapChannel_);
       updateChannels(AfterZapChannelComboBox_, afterZapChannel_, false);
       AfterZapChannelComboBox_.addActionListener(new ActionListener() {
          @Override
@@ -240,40 +250,58 @@ public class MicroNucleiForm extends MMFrame {
             }
          }
       });
-      analysisPanel.add(useOnTheFlyProcessorPipeline_);
+      analysisPanel.add(useOnTheFlyProcessorPipeline_, "span 2, center, wrap");
       
-      super.add(analysisPanel, "span 3, center, wrap");
-      
-      JPanel modulePanel = new JPanel(new MigLayout(
+      final JPanel modulePanel = new JPanel(new MigLayout(
               "flowx, fill, insets 8"));
-      modulePanel.setBorder(makeTitledBorder(analysisModule_.name()));
+      final JComboBox analysisModulesBox = new JComboBox (analysisModulesNames_.toArray()); 
+      analysisModulesBox.addActionListener(new ActionListener() {
+         @Override
+         public void actionPerformed(ActionEvent e) {
+            AnalysisModule module = moduleFromName(
+                    (String) analysisModulesBox.getSelectedItem());
+            gui_.profile().setString(MicroNucleiForm.class, MODULE, module.name());
+            modulePanel.removeAll();
+            modulePanel.setBorder(makeTitledBorder(module.name()));
       
-      for (AnalysisProperty ap : analysisModule_.getAnalysisProperties()) {
-         modulePanel.add(new JLabel(ap.getDescription()));
-         modulePanel.add(new PropertyGUI(ap).getJComponent(), "wrap");
-      }
+            for (AnalysisProperty ap : module.getAnalysisProperties()) {
+               modulePanel.add(new JLabel(ap.getDescription()));
+               modulePanel.add(new PropertyGUI(ap).getJComponent(), "wrap");
+            }
+            modulePanel.revalidate();
+            ourForm.pack();
+         }
+      });
       
+      analysisModulesBox.setSelectedItem(gui_.profile().getString(MicroNucleiForm.class, 
+              MODULE, analysisModulesNames_.get(0)));
+      
+      analysisPanel.add(new JLabel("Analysis Method:"));
+      analysisPanel.add(analysisModulesBox, "center, wrap");
+            
+      super.add(analysisPanel, "span 3, center, wrap");
       super.add(modulePanel, "span 3, center, wrap");
       
       
       doZap_ = new JCheckBox("Zap");
-      doZap_.setSelected(prefs_.getBoolean(DOZAP, false));
+      doZap_.setSelected(gui_.profile().getBoolean(MicroNucleiForm.class, DOZAP, false));
       doZap_.setFont(arialSmallFont_);
       doZap_.addActionListener(new ActionListener() {
          @Override
          public void actionPerformed(ActionEvent ae) {
-              prefs_.putBoolean(DOZAP, doZap_.isSelected());
+              gui_.profile().setBoolean(MicroNucleiForm.class, DOZAP, doZap_.isSelected());
          }
       });
       super.add (doZap_);
       
       showMasks_  = new JCheckBox("Show Masks");
-      showMasks_.setSelected (prefs_.getBoolean(SHOWMASKS, false));
+      showMasks_.setSelected (gui_.profile().getBoolean(MicroNucleiForm.class, 
+              SHOWMASKS, false));
       showMasks_.setFont(arialSmallFont_);
       showMasks_.addActionListener(new ActionListener() {
          @Override
          public void actionPerformed(ActionEvent ae) {
-              prefs_.putBoolean(SHOWMASKS, showMasks_.isSelected());
+              gui_.profile().setBoolean(MicroNucleiForm.class, SHOWMASKS, showMasks_.isSelected());
          }
       });
       super.add (showMasks_, "wrap");
@@ -365,35 +393,44 @@ public class MicroNucleiForm extends MMFrame {
               saveTextField_.getText(), true, "") );
       if (f != null) {
          saveTextField_.setText(f.getAbsolutePath());
-         if (prefs_ != null)
-               prefs_.put(SAVELOCATION, f.getAbsolutePath());    
+         gui_.profile().setString(MicroNucleiForm.class, SAVELOCATION, f.getAbsolutePath());    
       }
    }   
    
    private void channelActionPerformed(ActionEvent evt) {
       imagingChannel_ = (String) channelComboBox_.getSelectedItem();
-      if (prefs_ != null)
-         prefs_.put(IMAGINGCHANNEL, imagingChannel_);
+      gui_.profile().setString(MicroNucleiForm.class, IMAGINGCHANNEL, imagingChannel_);
    }
    
    private void secondChannelActionPerformed(ActionEvent evt) {
       secondImagingChannel_ = (String) secondChannelComboBox_.getSelectedItem();
-      if (prefs_ != null) 
-         prefs_.put(SECONDIMAGINGCHANNEL, secondImagingChannel_);
+      gui_.profile().setString(MicroNucleiForm.class, SECONDIMAGINGCHANNEL, secondImagingChannel_);
    }
    
    private void zapChannelActionPerformed(ActionEvent evt) {
       zapChannel_ = (String) zapChannelComboBox_.getSelectedItem();
-      if (prefs_ != null) 
-         prefs_.put(ZAPCHANNEL, zapChannel_);
+      gui_.profile().setString(MicroNucleiForm.class, ZAPCHANNEL, zapChannel_);
    }
    
    private void afterZapChannelActionPerformed(ActionEvent evt) {
       afterZapChannel_ = (String) AfterZapChannelComboBox_.getSelectedItem();
-      if (prefs_ != null) 
-        prefs_.put(AFTERZAPCHANNEL, afterZapChannel_);
+      gui_.profile().setString(MicroNucleiForm.class, AFTERZAPCHANNEL, afterZapChannel_);
    }
          
+   /**
+    * Looks for a module with the given name in our list of 
+    * analysisModules
+    * @param name - desired name of analysis module
+    * @return the first AnalysisModule with this name or null if not found
+    */
+   private AnalysisModule moduleFromName(String name) {
+      for (AnalysisModule am : analysisModules_) {
+         if (am.name().equals(name)) {
+            return am;
+         }
+      }
+      return null;
+   }
    
    private class RunAll implements Runnable {
       private boolean running_ = false;
@@ -452,6 +489,12 @@ public class MicroNucleiForm extends MMFrame {
          return;
       }
       
+      AnalysisModule analysisModule = moduleFromName(gui_.profile().getString(MicroNucleiForm.class, 
+              MODULE, ""));
+      if (analysisModule == null) {
+         throw new MMScriptException("AnalysisModule not found");
+      }
+      
       ResultsTable outTable = new ResultsTable();
       String outTableName = Terms.RESULTTABLENAME;
       Window oldOutTable = WindowManager.getWindow(outTableName);
@@ -470,11 +513,10 @@ public class MicroNucleiForm extends MMFrame {
             dw = null;
             TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
             tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
-            if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
-               (new ImagePlus("Normalized", ImageUtils.makeProcessor(tImg))).show();
-            }
-            Roi[] zapRois = analysisModule_.analyze(gui_, 
+            
+            Roi[] zapRois = analysisModule.analyze(gui_, 
                     gui_.data().convertTaggedImage(tImg), parms);
+            RoiManager.getInstance2().reset();
             for (Roi roi : zapRois) {
                outTable.incrementCounter();
                Rectangle bounds = roi.getBounds();
@@ -483,7 +525,12 @@ public class MicroNucleiForm extends MMFrame {
                outTable.addValue(Terms.X, x);
                outTable.addValue(Terms.Y, y);
                outTable.show(outTableName);
+               RoiManager.getInstance2().addRoi(roi);
             }
+            if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
+               RoiManager.getInstance2().runCommand("Show All");
+            }
+            
 
          } else { // MM display
             Datastore store = dw.getDatastore();
@@ -493,14 +540,17 @@ public class MicroNucleiForm extends MMFrame {
             int nrPositions = store.getAxisLength(Coords.STAGE_POSITION); 
             for (int p = 0; p < nrPositions && !stop_.get(); p++) {
                try {
-                  Image image = store.getImage(builder.stagePosition(p).build());
+                  Coords coords = builder.stagePosition(p).build();
+                  Image image = store.getImage(coords);
                   if (image != null) {
-                     TaggedImage tImg = ImageUtils.makeTaggedImage(Utils.getProcessor(image));
-                     tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
+                     dw.setDisplayedImageTo(coords);
+                     //TaggedImage tImg = ImageUtils.makeTaggedImage(Utils.getProcessor(image));
+                     //tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
+
+                     Roi[] zapRois = analysisModule.analyze(gui_, image, parms);
                      if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
-                        (new ImagePlus("Normalized", ImageUtils.makeProcessor(tImg))).show();
+                        RoiManager.getInstance().reset();
                      }
-                     Roi[] zapRois = analysisModule_.analyze(gui_, image, parms);
                      for (Roi roi : zapRois) {
                         outTable.incrementCounter();
                         Rectangle bounds = roi.getBounds();
@@ -509,8 +559,14 @@ public class MicroNucleiForm extends MMFrame {
                         outTable.addValue(Terms.X, x);
                         outTable.addValue(Terms.Y, y);
                         outTable.addValue(Terms.POSITION, p);
+                        if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
+                           RoiManager.getInstance().addRoi(roi);
+                        }
                      }
                      outTable.show(outTableName);
+                     if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
+                        RoiManager.getInstance().runCommand("Show All");
+                     }
                   }
                } catch (JSONException ex) {
                } catch (NullPointerException npe) {
@@ -555,7 +611,13 @@ public class MicroNucleiForm extends MMFrame {
     * @throws Exception 
     */
    public void runAnalysisAndZapping(String saveLocation) throws IOException, MMScriptException, Exception {
-      
+                
+      AnalysisModule analysisModule = moduleFromName(gui_.profile().getString(MicroNucleiForm.class, 
+              MODULE, ""));
+      if (analysisModule == null) {
+         throw new MMScriptException("AnalysisModule not found");
+      }
+          
       String channelGroup = gui_.getCMMCore().getChannelGroup();
       
       //TODO: error checking for file IO!
@@ -675,7 +737,7 @@ public class MicroNucleiForm extends MMFrame {
                pipeline_ = gui_.data().copyApplicationPipeline(data, true);
             }
             //gui_.openAcquisition(well, saveLocation, 1, nrChannels + 1, 1, nrImagesPerWell, true, true);
-            analysisModule_.reset();
+            analysisModule.reset();
             // reset cell and object counters
             parms.put(AnalysisModule.CELLCOUNT, 0);
             parms.put(AnalysisModule.OBJECTCOUNT, 0);
@@ -697,7 +759,7 @@ public class MicroNucleiForm extends MMFrame {
 
             // Analyze (second channel if we had it) and zap
             //tImg = Utils.normalize(tImg, background_, flatfield_);
-            Roi[] zapRois = analysisModule_.analyze(gui_, image, parms);
+            Roi[] zapRois = analysisModule.analyze(gui_, image, parms);
             if (zapRois != null && doZap_.isSelected()) {
                zap(zapRois);
                for (Roi roi : zapRois) {

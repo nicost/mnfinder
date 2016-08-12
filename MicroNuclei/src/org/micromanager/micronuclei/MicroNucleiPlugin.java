@@ -29,7 +29,7 @@ import org.scijava.plugin.SciJavaPlugin;
 
 @Plugin(type = MenuPlugin.class)
 public class MicroNucleiPlugin implements MenuPlugin, SciJavaPlugin {
-   public static final String MENUNAME = "MicroNuclei";
+   public static final String MENUNAME = "Auto-PhotoConverter";
    public static final String TOOLTIP_DESCRIPTION =
       "Cool screening technology";
 
