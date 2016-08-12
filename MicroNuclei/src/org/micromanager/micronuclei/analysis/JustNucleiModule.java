@@ -29,6 +29,7 @@ import ij.process.ImageStatistics;
 import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.micromanager.Studio;
 import org.micromanager.data.Image;
@@ -124,20 +125,25 @@ public class JustNucleiModule extends AnalysisModule {
 
       // prepare the masks to be send to the DMD
       Roi[] allNuclei = roiManager_.getRoisAsArray();
-      mm.alerts().postAlert(UINAME, JustNucleiModule.class, 
-              "Found " + allNuclei.length + " nuclei");
+      //mm.alerts().postAlert(UINAME, JustNucleiModule.class, 
+      //        "Found " + allNuclei.length + " nuclei");
       List convertRoiList = new ArrayList();
       int nrNucleiToSkip = (int) (1 / ((Double) percentageOfNuclei_.get() / 100.0));
-      int convertCounter = 0;
       for (int i = 0; i < allNuclei.length; i++) {
          if (i % nrNucleiToSkip == 0) {
          	Rectangle rect = allNuclei[i].getBounds();
          	convertRoiList.add (new OvalRoi(rect.x, rect.y, rect.width, rect.height));
-         	convertCounter++;
          } 
       }
       Roi[] convertRois = new OvalRoi[convertRoiList.size()];
       convertRois = (Roi[]) convertRoiList.toArray(convertRois);
+      
+      try {
+         parms.put(CELLCOUNT, allNuclei.length);
+         parms.put(OBJECTCOUNT, convertRois.length);
+      } catch (JSONException jse) {
+         throw new AnalysisException (jse.getMessage());
+      }
       
       return convertRois;
    }

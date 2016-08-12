@@ -91,7 +91,6 @@ import org.micromanager.micronuclei.analysisinterface.PropertyException;
 
 import org.micromanager.micronuclei.gui.ResultsListener;
 import org.micromanager.micronuclei.gui.PropertyGUI;
-import org.micromanager.micronuclei.utilities.Utils;
 
 
 /**
@@ -117,6 +116,7 @@ public class MicroNucleiForm extends MMFrame {
 
    private final JCheckBox useOnTheFlyProcessorPipeline_;
    
+   private final String FORMNAME = "Analyze and Photoconvert";
    private final String SAVELOCATION = "SaveLocation";
    private final String IMAGINGCHANNEL = "ImagingChannel";
    private final String SECONDIMAGINGCHANNEL = "SecondImagingChannel";
@@ -154,7 +154,7 @@ public class MicroNucleiForm extends MMFrame {
       buttonSize_ = new Dimension(70, 21);
 
       super.setLayout(new MigLayout("flowx, fill, insets 8"));
-      super.setTitle("Analyze and Photoconvert");     
+      super.setTitle(FORMNAME);     
       
       JPanel acqPanel = new JPanel(new MigLayout(
               "flowx, fill, insets 8"));
@@ -596,9 +596,10 @@ public class MicroNucleiForm extends MMFrame {
          frame.setVisible(true);
       }
       
-      ij.IJ.log("Analyzed " + parms.getString(AnalysisModule.CELLCOUNT) + 
-              " nuclei, found " + parms.getString(AnalysisModule.OBJECTCOUNT) +
-                      " nuclei with micronuclei" );
+      gui_.alerts().postAlert(FORMNAME, MicroNucleiForm.class, 
+             "Analyzed " + parms.getString(AnalysisModule.CELLCOUNT) + 
+              " objects, found " + parms.getString(AnalysisModule.OBJECTCOUNT) +
+                      " objects to be photo-converted" );
       
       
    }
