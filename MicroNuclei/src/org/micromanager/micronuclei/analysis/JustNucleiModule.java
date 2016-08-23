@@ -21,7 +21,7 @@ package org.micromanager.micronuclei.analysis;
 
 import ij.IJ;
 import ij.ImagePlus;
-import ij.gui.OvalRoi;
+import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
@@ -90,8 +90,14 @@ public class JustNucleiModule extends AnalysisModule {
    }
    
    @Override
-   public Roi[] analyze(Studio mm, Image img, JSONObject parms) throws AnalysisException {
+   public Roi[] analyze(Studio mm, Image img, Roi userRoi, JSONObject parms) throws AnalysisException {
       ImageProcessor iProcessor = mm.data().ij().createProcessor(img);
+      Rectangle userRoiBounds = null;
+      if (userRoi != null) {
+         iProcessor.setRoi(userRoi);
+         iProcessor = iProcessor.crop();
+         userRoiBounds = userRoi.getBounds();
+      }
       ImagePlus ip = (new ImagePlus("tmp", iProcessor)).duplicate();
 
       // check for edges by calculating stdev
@@ -102,10 +108,12 @@ public class JustNucleiModule extends AnalysisModule {
          mm.alerts().postAlert(UINAME, JustNucleiModule.class, 
                  "Std. Dev. (" + stdDev + ") or intenisty (" + mean + ") too high, skipping this position"); 
       } 
-	
-      //dw.getImagePlus().setRoi(null); // make sure that there is no roi on the image
-      //ip = dw.getImagePlus().duplicate();
 
+
+      // Even though we are flatfielding, results are much better after
+      // background subtraction.  In one test, I get about 2 fold more nuclei
+      // when doing this background subtraction
+      IJ.run(ip, "Subtract Background...", "rolling=5 sliding");
       // Pre-filter to improve nuclear detection and slightly enlarge the masks
       IJ.run(ip, "Smooth", "");
       IJ.run(ip, "Gaussian Blur...", "sigma=5.0");
@@ -131,11 +139,14 @@ public class JustNucleiModule extends AnalysisModule {
       int nrNucleiToSkip = (int) (1 / ((Double) percentageOfNuclei_.get() / 100.0));
       for (int i = 0; i < allNuclei.length; i++) {
          if (i % nrNucleiToSkip == 0) {
-         	Rectangle rect = allNuclei[i].getBounds();
-         	convertRoiList.add (new OvalRoi(rect.x, rect.y, rect.width, rect.height));
+            if (userRoiBounds != null) {
+               Rectangle  r2d = allNuclei[i].getBounds();
+               allNuclei[i].setLocation(r2d.x + userRoiBounds.x, r2d.y + userRoiBounds.y);
+            }
+            convertRoiList.add(allNuclei[i]);
          } 
       }
-      Roi[] convertRois = new OvalRoi[convertRoiList.size()];
+      Roi[] convertRois = new Roi[convertRoiList.size()];
       convertRois = (Roi[]) convertRoiList.toArray(convertRois);
       
       try {

@@ -39,8 +39,22 @@ public abstract class AnalysisModule  {
    
    private List<AnalysisProperty> analysisProperties_;
 
-  
-   public abstract Roi[] analyze (Studio studio, Image img, JSONObject parms) 
+   /**
+    * Function in which the actual analysis takes place
+    * Inputs are the image itself, a user definable Roi (which restricts the 
+    * analysis to a part of the image, and the analysis settings.
+    * The implementation returns an Array of Rois that contains the objects
+    * of interest
+    * @param studio - the MMStudio object, needed by the implementation to call
+    * MM functionality
+    * @param img - The MM image to be analyzed
+    * @param roi - an ImageJ ROI that should restrict the are to be analyzed
+    * if null, the whole image should be analyzed
+    * @param parms - Parameters as Key-Value pairs in JSONFormat
+    * @return - array of Rois containing the objects of interest
+    * @throws AnalysisException 
+    */
+   public abstract Roi[] analyze (Studio studio, Image img, Roi roi, JSONObject parms) 
            throws AnalysisException;
   
    

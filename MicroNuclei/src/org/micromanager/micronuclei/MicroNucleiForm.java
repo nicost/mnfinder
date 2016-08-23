@@ -515,7 +515,7 @@ public class MicroNucleiForm extends MMFrame {
             tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
             
             Roi[] zapRois = analysisModule.analyze(gui_, 
-                    gui_.data().convertTaggedImage(tImg), parms);
+                    gui_.data().convertTaggedImage(tImg), ip.getRoi(), parms);
             RoiManager.getInstance2().reset();
             for (Roi roi : zapRois) {
                outTable.incrementCounter();
@@ -534,6 +534,12 @@ public class MicroNucleiForm extends MMFrame {
 
          } else { // MM display
             Datastore store = dw.getDatastore();
+            Roi userRoi = dw.getImagePlus().getRoi();
+            if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
+               RoiManager.getInstance().runCommand("Show All");
+               dw.getImagePlus().setRoi(userRoi);
+            }
+            
             Coords.CoordsBuilder builder = store.getAnyImage().getCoords().copy();
             // make sure that we will work with the first channel (that has the nuclei)
             builder.channel(0);
@@ -544,10 +550,7 @@ public class MicroNucleiForm extends MMFrame {
                   Image image = store.getImage(coords);
                   if (image != null) {
                      dw.setDisplayedImageTo(coords);
-                     //TaggedImage tImg = ImageUtils.makeTaggedImage(Utils.getProcessor(image));
-                     //tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
-
-                     Roi[] zapRois = analysisModule.analyze(gui_, image, parms);
+                     Roi[] zapRois = analysisModule.analyze(gui_, image, userRoi, parms);
                      if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
                         RoiManager.getInstance().reset();
                      }
@@ -564,10 +567,12 @@ public class MicroNucleiForm extends MMFrame {
                         }
                      }
                      outTable.show(outTableName);
-                     if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
-                        RoiManager.getInstance().runCommand("Show All");
-                     }
+
                   }
+                  gui_.alerts().postAlert(FORMNAME, MicroNucleiForm.class,
+                          "Analyzed " + parms.getString(AnalysisModule.CELLCOUNT)
+                          + " objects, found " + parms.getString(AnalysisModule.OBJECTCOUNT)
+                          + " objects to be photo-converted");
                } catch (JSONException ex) {
                } catch (NullPointerException npe) {
                   ij.IJ.log("Null pointer exception at position : " + p);
@@ -628,7 +633,7 @@ public class MicroNucleiForm extends MMFrame {
             return;
          }
       }
-      // gui_.closeAllAcquisitions();
+      
       new File(saveLocation).mkdirs();
       File resultsFile = new File(saveLocation + File.separator + "results.txt");
       resultsFile.createNewFile();
@@ -760,7 +765,7 @@ public class MicroNucleiForm extends MMFrame {
 
             // Analyze (second channel if we had it) and zap
             //tImg = Utils.normalize(tImg, background_, flatfield_);
-            Roi[] zapRois = analysisModule.analyze(gui_, image, parms);
+            Roi[] zapRois = analysisModule.analyze(gui_, image, null, parms);
             if (zapRois != null && doZap_.isSelected()) {
                zap(zapRois);
                for (Roi roi : zapRois) {

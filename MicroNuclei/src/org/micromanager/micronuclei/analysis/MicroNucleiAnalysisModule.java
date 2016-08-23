@@ -93,8 +93,8 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
          List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
          apl.add(minSizeMN_);
          apl.add(maxSizeMN_);
-         //apl.add(minSizeN_);
-         //apl.add(maxSizeN_);
+         apl.add(minSizeN_);
+         apl.add(maxSizeN_);
          apl.add(minNMNPerNucleus_);
          apl.add(maxDistance_);
          apl.add(maxNumberOfNuclei_);
@@ -123,7 +123,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
    }
   
    @Override
-   public Roi[] analyze(Studio studio, Image image, JSONObject parms) throws AnalysisException {
+   public Roi[] analyze(Studio studio, Image image, Roi userRoi, JSONObject parms) throws AnalysisException {
       
       nucleiCount_ = parms.optInt(CELLCOUNT, 0);
       zappedNucleiCount_ = parms.optInt(OBJECTCOUNT, 0);
@@ -252,8 +252,9 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       IJ.run(microNucleiImp, "Close-", "");
       IJ.run(microNucleiImp, "Watershed", "");
       IJ.run("Set Measurements...", "area center decimal=2");
-      IJ.run(microNucleiImp, "Analyze Particles...", "size=" + microNucleiMinSize + "-" + microNucleiMaxSize
-              + "  show clear add");
+      IJ.run(microNucleiImp, "Analyze Particles...", "size=" + 
+              (Double) microNucleiMinSize + "-" + (Double) microNucleiMaxSize
+              + "  pixel exclude  clear add");
 
       // Build up a list of potential micronuclei
       RoiManager rm = RoiManager.getInstance2();
@@ -288,8 +289,8 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       // include large nuclei here so that we will assign the corresponding microNuclei 
       // correctly.  Weed these out later
       rt.reset();
-      IJ.run(nucleiImp, "Analyze Particles...", "size=" + nucleiMinSize + "-" +
-              4 * nucleiMaxSize + "  clear add display");
+      IJ.run(nucleiImp, "Analyze Particles...", "size=" + (Double) nucleiMinSize + "-" +
+              (Double) nucleiMaxSize + " pixel exclude clear add");
       rt.updateResults();
 
       // get nuclei from RoiManager and add to our list of nuclei:
