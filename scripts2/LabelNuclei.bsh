@@ -20,9 +20,9 @@ channelGroup = "Channel";
 imagingChannel = "Cy5";
 imagingExposure = 250;
 conversionChannel = "Bleach";
-conversionTimeMs = 1000;
+conversionTimeMs = 200;
 afterConversionChannel = "Cherry";
-afterConversionExposure = 250;
+afterConversionExposure = 50;
 
 // sizes in square pixels
 minSize = 300.0;
@@ -35,14 +35,14 @@ fractionOfNucleiToBeConverted = 0.1;
 maxStdDev = 12500.0;
 maxMeanIntensity = 20000.0;
 
-baseName = "Test20160728c";
+baseName = "Test20160812_0.5s";
 
 // filename for measurements
 outputFile = "E:\\\\Users\\Xiaowei\\"  + baseName + ".txt";
 
 // filename for images, leave blank if you do not want to save images
-imageFileName = "E:\\\\Users\\Xiaowei\\" + baseName;
-
+//imageFileName = "E:\\\\Users\\Xiaowei\\" + baseName;
+imageFileName = "";
 
 /** There usually is no need to edit below this line 
 ____________________________________________________________*/
@@ -198,7 +198,7 @@ for (position : positions) {
 		core.waitForConfig(channelGroup, conversionChannel);
 		pcf.setROIs(convertRois);
 		// attempt to fix the disappearing MM_SLM window
-		Thread.sleep(100);
+		//Thread.sleep(100);
 		pcf.runRois();
 		// use the snap function to expose for the desired amount of time
 		imgList = mm.acquisitions().snap();
