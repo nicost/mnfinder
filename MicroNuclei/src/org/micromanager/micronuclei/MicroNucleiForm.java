@@ -758,16 +758,17 @@ public class MicroNucleiForm extends MMFrame {
 
             if (nrChannels == 2) {
                gui_.getCMMCore().setConfig(channelGroup, secondImagingChannel_);
-               gui_.getCMMCore().snapImage();
-               image = snapAndInsertImage(data, msp,siteCount, 1); 
+               //gui_.getCMMCore().snapImage();
+               snapAndInsertImage(data, msp,siteCount, 1); 
             }
             gui_.getCMMCore().setConfig(channelGroup, zapChannel_);
 
-            // Analyze (second channel if we had it) and zap
+            // Analyze and zap
             //tImg = Utils.normalize(tImg, background_, flatfield_);
             Roi[] zapRois = analysisModule.analyze(gui_, image, null, parms);
             if (zapRois != null && doZap_.isSelected()) {
                zap(zapRois);
+               snapAndInsertImage(data, msp, siteCount, 2); 
                for (Roi roi : zapRois) {
                   outTable.incrementCounter();
                   Rectangle bounds = roi.getBounds();
@@ -897,6 +898,14 @@ public class MicroNucleiForm extends MMFrame {
       }
 
       // send to the galvo device and zap them for real
+      gui_.logs().logMessage("Zapping " + (i + 1) + " of " + rois.length);
+      pcf.setROIs(rois);
+      pcf.updateROISettings();
+      pcf.getDevice().waitForDevice();
+      pcf.runRois();
+      pcf.getDevice().waitForDevice();
+      
+      /*  The following was written for a Galvo conversion system
       pcf.setNrRepetitions(5);
       for (i = 0; i < rois.length; i++) {
          gui_.logs().logMessage("Zapping " + (i + 1) + " of " + rois.length);
@@ -907,6 +916,7 @@ public class MicroNucleiForm extends MMFrame {
          pcf.runRois();
          pcf.getDevice().waitForDevice();
       }
+      */
 
    }
    

@@ -21,7 +21,6 @@ package org.micromanager.micronuclei.analysis;
 
 import ij.IJ;
 import ij.ImagePlus;
-import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
@@ -63,7 +62,7 @@ public class JustNucleiModule extends AnalysisModule {
          maxStdDev_ = new AnalysisProperty(this.getClass(),
                   "Maximum Std. Dev.", 12500.0);
          maxMeanIntensity_ = new AnalysisProperty(this.getClass(),
-                  "Maximum Std. Dev.", 20000.0);
+                  "Maximum Mean Int.", 20000.0);
          minSizeN_ = new AnalysisProperty(this.getClass(),
                   "Minimum nuclear size", 300.0);
          maxSizeN_ = new AnalysisProperty(this.getClass(),
@@ -161,7 +160,7 @@ public class JustNucleiModule extends AnalysisModule {
 
    @Override
    public void reset() {
-      throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+      // Nothing todo
    }
 
    @Override
