@@ -102,15 +102,20 @@ public class MicroNucleiForm extends MMFrame {
    private final Studio gui_;
    private final Font arialSmallFont_;
    private final Dimension buttonSize_;
+   private final Dimension textFieldSize_;
    private final JTextField saveTextField_;
    private String imagingChannel_;
    private final JComboBox channelComboBox_;
+   private final JTextField imagingChannelExposureField_;
    private String secondImagingChannel_;
+   private  JTextField secondImagingChannelExposureField_;
    private final JComboBox secondChannelComboBox_;
    private String zapChannel_;
    private final JComboBox zapChannelComboBox_;
+   private  JTextField zapExposureField_;
    private String afterZapChannel_;
    private final JComboBox AfterZapChannelComboBox_;
+   private  JTextField afterZapExposureField_;
    private final JCheckBox doZap_;
    private final JCheckBox showMasks_;
 
@@ -119,9 +124,13 @@ public class MicroNucleiForm extends MMFrame {
    private final String FORMNAME = "Analyze and Photoconvert";
    private final String SAVELOCATION = "SaveLocation";
    private final String IMAGINGCHANNEL = "ImagingChannel";
+   private final String IMAGINGEXPOSURE = "ImageinExposure";
    private final String SECONDIMAGINGCHANNEL = "SecondImagingChannel";
+   private final String SECONDEXPOSURE = "SecondImagingChanelExposure";
    private final String ZAPCHANNEL = "ZapChannel";
+   private final String ZAPEXOSURE = "ZapExposure";
    private final String AFTERZAPCHANNEL = "AfterZapChannel";
+   private final String AFTERZAPEXPOSURE = "AfterZapExposure";
    private final String DOZAP = "DoZap";
    private final String SHOWMASKS = "ShowMasks";
    
@@ -152,6 +161,7 @@ public class MicroNucleiForm extends MMFrame {
       
       arialSmallFont_ = new Font("Arial", Font.PLAIN, 12);
       buttonSize_ = new Dimension(70, 21);
+      textFieldSize_ = new Dimension(70, 21);
 
       super.setLayout(new MigLayout("flowx, fill, insets 8"));
       super.setTitle(FORMNAME);     
@@ -190,7 +200,12 @@ public class MicroNucleiForm extends MMFrame {
             channelActionPerformed(ae);
          }
       } );
-      acqPanel.add(channelComboBox_, "span 2, left, wrap");
+      acqPanel.add(channelComboBox_, "split 2, left");
+      
+      imagingChannelExposureField_ = new JTextField(gui_.profile().getString(
+              MicroNucleiForm.class, IMAGINGEXPOSURE, "100.0"));
+      imagingChannelExposureField_.setMinimumSize(textFieldSize_);
+      acqPanel.add(imagingChannelExposureField_, "wrap");
       
       acqPanel.add(myLabel(arialSmallFont_, "2nd Imaging Channel: "));
       secondChannelComboBox_ = new JComboBox();
