@@ -105,7 +105,9 @@ public class JustNucleiModule extends AnalysisModule {
       double mean = stat.mean;
       if (stdDev > (Double) maxStdDev_.get() || mean > (Double) maxMeanIntensity_.get() ) {
          mm.alerts().postAlert(UINAME, JustNucleiModule.class, 
-                 "Std. Dev. (" + stdDev + ") or intenisty (" + mean + ") too high, skipping this position"); 
+                 "Std. Dev. (" + stdDev + ") or intensity (" + mean + ") too high, " +
+                         "skipping this position"); 
+         return null;
       } 
 
 
