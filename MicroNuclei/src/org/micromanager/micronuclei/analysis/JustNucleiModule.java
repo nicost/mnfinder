@@ -149,8 +149,8 @@ public class JustNucleiModule extends AnalysisModule {
       convertRois = (Roi[]) convertRoiList.toArray(convertRois);
       
       try {
-         parms.put(CELLCOUNT, allNuclei.length);
-         parms.put(OBJECTCOUNT, convertRois.length);
+         parms.put(CELLCOUNT, allNuclei.length + parms.getInt(CELLCOUNT));
+         parms.put(OBJECTCOUNT, convertRois.length + parms.getInt(OBJECTCOUNT));
       } catch (JSONException jse) {
          throw new AnalysisException (jse.getMessage());
       }
