@@ -738,8 +738,8 @@ public class MicroNucleiForm extends MMFrame {
       // prepare stuff needed to store data in MM
       Datastore data = null;
       DisplayWindow dw = null;
-      int arraySize = doZap_.isSelected() ? nrChannels + 1 : nrChannels;
-      String[] channelNames = new String[arraySize];
+      int realNrChannels = doZap_.isSelected() ? nrChannels + 1 : nrChannels;
+      String[] channelNames = new String[realNrChannels];
       channelNames[0] =  imagingChannel_;
       double imagingExposure = Double.parseDouble(imagingExposureField_.getText());
       double secondExposure = 0.0;
@@ -765,17 +765,15 @@ public class MicroNucleiForm extends MMFrame {
               channelGroup(channelGroup).
               microManagerVersion(gui_.compat().getVersion()).
               prefix("MicroNucleiScreen").
-              startDate((new Date()).toString());
-      smb = smb.intendedDimensions(gui_.data().getCoordsBuilder().
-              channel(channelNames.length).
-              z(0).
-              time(0).
-              stagePosition(nrImagesPerWell).
-              build());
+              startDate((new Date()).toString()).
+              intendedDimensions(gui_.data().getCoordsBuilder().
+                  channel(realNrChannels).
+                  z(0).
+                  time(0).
+                  stagePosition(nrImagesPerWell).
+              build() );
 
       PropertyMap.PropertyMapBuilder pmb = gui_.data().getPropertyMapBuilder();
-      
-      // SummaryMetadata summaryMetadata = smb.build();
 
       for (MultiStagePosition msp : positions) {
          if (stop_.get()) {
@@ -800,7 +798,8 @@ public class MicroNucleiForm extends MMFrame {
             siteCount = 0;
 
             
-            data = gui_.data().createMultipageTIFFDatastore(saveLocation + "/" + well, true, false);
+            data = gui_.data().createMultipageTIFFDatastore(saveLocation + 
+                    File.separator + well, true, false);
             data.setSummaryMetadata(smb.build());
             dw = gui_.displays().createDisplay(data);
             gui_.displays().manage(data);
@@ -808,26 +807,28 @@ public class MicroNucleiForm extends MMFrame {
                // Create a blocking pipeline
                pipeline_ = gui_.data().copyApplicationPipeline(data, true);
             }
-            //gui_.openAcquisition(well, saveLocation, 1, nrChannels + 1, 1, nrImagesPerWell, true, true);
             analysisModule.reset();
             // reset cell and object counters
             parms.put(AnalysisModule.CELLCOUNT, 0);
             parms.put(AnalysisModule.OBJECTCOUNT, 0);
          }
-         
+                 
          if (data != null) {
+            int currentChannel = 0;
             MultiStagePosition.goToPosition(msp, gui_.getCMMCore());
             gui_.getCMMCore().waitForSystem();
             gui_.logs().logMessage("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y);
             gui_.getCMMCore().setConfig(channelGroup, imagingChannel_);
             gui_.getCMMCore().setExposure(imagingExposure);
-            Image image = snapAndInsertImage(data, msp,siteCount, 0); 
+            Image image = snapAndInsertImage(data, msp,siteCount, currentChannel); 
+            currentChannel++;
 
             if (nrChannels == 2) {
                gui_.getCMMCore().setConfig(channelGroup, secondImagingChannel_);
                //gui_.getCMMCore().snapImage();
                gui_.getCMMCore().setExposure(secondExposure);
-               snapAndInsertImage(data, msp,siteCount, 1); 
+               snapAndInsertImage(data, msp,siteCount, currentChannel); 
+               currentChannel++;
             }
             gui_.getCMMCore().setConfig(channelGroup, zapChannel_);
             gui_.getCMMCore().setExposure(zapTime);
@@ -836,7 +837,8 @@ public class MicroNucleiForm extends MMFrame {
             Roi[] zapRois = analysisModule.analyze(gui_, image, null, parms);
             if (zapRois != null && doZap_.isSelected()) {
                zap(zapRois);
-               snapAndInsertImage(data, msp, siteCount, 2); 
+               snapAndInsertImage(data, msp, siteCount, currentChannel); 
+               currentChannel++;
                for (Roi roi : zapRois) {
                   outTable.incrementCounter();
                   Rectangle bounds = roi.getBounds();
@@ -851,10 +853,10 @@ public class MicroNucleiForm extends MMFrame {
                if (zapRois.length > 0) {
                   String acq2 = msp.getLabel();
                   gui_.logs().logMessage("Imaging zapped cells at site: " + acq2);
-                  // take the red image and save it
+                  // take the afterzapImage and save it
                   gui_.getCMMCore().setConfig(channelGroup, afterZapChannel_);
                   gui_.getCMMCore().setExposure(afterZapExposure);
-                  snapAndInsertImage(data, msp,siteCount, nrChannels);
+                  snapAndInsertImage(data, msp,siteCount, currentChannel);
                }
             }
             siteCount++;
