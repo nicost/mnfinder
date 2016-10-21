@@ -19,6 +19,7 @@
 
 package org.micromanager.micronuclei;
 
+import com.google.common.eventbus.Subscribe;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.WindowManager;
@@ -73,6 +74,7 @@ import org.micromanager.data.Metadata;
 import org.micromanager.data.Pipeline;
 import org.micromanager.data.SummaryMetadata;
 import org.micromanager.display.DisplayWindow;
+import org.micromanager.events.ShutdownCommencingEvent;
 import org.micromanager.internal.MMStudio;
 
 import org.micromanager.internal.utils.FileDialogs;
@@ -106,16 +108,16 @@ public class MicroNucleiForm extends MMFrame {
    private final JTextField saveTextField_;
    private String imagingChannel_;
    private final JComboBox channelComboBox_;
-   private final JTextField imagingChannelExposureField_;
+   private final JTextField imagingExposureField_;
    private String secondImagingChannel_;
-   private  JTextField secondImagingChannelExposureField_;
+   private final JTextField secondImagingExposureField_;
    private final JComboBox secondChannelComboBox_;
    private String zapChannel_;
    private final JComboBox zapChannelComboBox_;
-   private  JTextField zapExposureField_;
+   private final JTextField zapExposureField_;
    private String afterZapChannel_;
    private final JComboBox AfterZapChannelComboBox_;
-   private  JTextField afterZapExposureField_;
+   private final JTextField afterZapExposureField_;
    private final JCheckBox doZap_;
    private final JCheckBox showMasks_;
 
@@ -128,7 +130,7 @@ public class MicroNucleiForm extends MMFrame {
    private final String SECONDIMAGINGCHANNEL = "SecondImagingChannel";
    private final String SECONDEXPOSURE = "SecondImagingChanelExposure";
    private final String ZAPCHANNEL = "ZapChannel";
-   private final String ZAPEXOSURE = "ZapExposure";
+   private final String ZAPEXPOSURE = "ZapExposure";
    private final String AFTERZAPCHANNEL = "AfterZapChannel";
    private final String AFTERZAPEXPOSURE = "AfterZapExposure";
    private final String DOZAP = "DoZap";
@@ -145,8 +147,6 @@ public class MicroNucleiForm extends MMFrame {
    public MicroNucleiForm(final Studio gui) {
       gui_ = gui;
       final MicroNucleiForm ourForm = this;
-      
-      loadAndRestorePosition(100, 100, 200, 200);
         
       // Hard coded analysis modules.  This should be changed to make the
       // modules disoverable at run-time      
@@ -202,10 +202,13 @@ public class MicroNucleiForm extends MMFrame {
       } );
       acqPanel.add(channelComboBox_, "split 2, left");
       
-      imagingChannelExposureField_ = new JTextField(gui_.profile().getString(
+      imagingExposureField_ = new JTextField(gui_.profile().getString(
               MicroNucleiForm.class, IMAGINGEXPOSURE, "100.0"));
-      imagingChannelExposureField_.setMinimumSize(textFieldSize_);
-      acqPanel.add(imagingChannelExposureField_, "wrap");
+      imagingExposureField_.setMinimumSize(textFieldSize_);
+      acqPanel.add(imagingExposureField_);
+      JLabel msLabel = new JLabel("ms");
+      acqPanel.add(msLabel, "wrap");
+      
       
       acqPanel.add(myLabel(arialSmallFont_, "2nd Imaging Channel: "));
       secondChannelComboBox_ = new JComboBox();
@@ -218,7 +221,14 @@ public class MicroNucleiForm extends MMFrame {
             secondChannelActionPerformed(ae);
          }
       } );
-      acqPanel.add(secondChannelComboBox_, "span 2, left, wrap");
+      acqPanel.add(secondChannelComboBox_, "split 2, left");
+      secondImagingExposureField_ = new JTextField(gui_.profile().getString(
+              MicroNucleiForm.class, SECONDEXPOSURE, "100.0"));
+      secondImagingExposureField_.setMinimumSize(textFieldSize_);
+      acqPanel.add(secondImagingExposureField_);
+      msLabel = new JLabel("ms");
+      acqPanel.add(msLabel, "wrap");
+      
       
       acqPanel.add(myLabel(arialSmallFont_, "Zap Channel: "));
       zapChannelComboBox_ = new JComboBox();
@@ -231,7 +241,14 @@ public class MicroNucleiForm extends MMFrame {
             zapChannelActionPerformed(ae);
          }
       } );
-      acqPanel.add(zapChannelComboBox_, "span 2, left, wrap");
+      acqPanel.add(zapChannelComboBox_, "split 2, left");
+      zapExposureField_ = new JTextField(gui_.profile().getString(
+              MicroNucleiForm.class, ZAPEXPOSURE, "2000.0"));
+      zapExposureField_.setMinimumSize(textFieldSize_);
+      acqPanel.add(zapExposureField_);
+      msLabel = new JLabel("ms");
+      acqPanel.add(msLabel, "wrap");
+      
       
       acqPanel.add(myLabel(arialSmallFont_, "After Zap Channel: "));
       AfterZapChannelComboBox_ = new JComboBox();
@@ -244,7 +261,15 @@ public class MicroNucleiForm extends MMFrame {
             afterZapChannelActionPerformed(ae);
          }
       } );
-      acqPanel.add(AfterZapChannelComboBox_, "span 2, left, wrap");
+      acqPanel.add(AfterZapChannelComboBox_, "split 2, left");
+      afterZapExposureField_ = new JTextField(gui_.profile().getString(
+              MicroNucleiForm.class, AFTERZAPEXPOSURE, "100.0"));
+      afterZapExposureField_.setMinimumSize(textFieldSize_);
+      acqPanel.add(afterZapExposureField_);
+      msLabel = new JLabel("ms");
+      acqPanel.add(msLabel, "wrap");
+      
+      
       acqPanel.setBorder(makeTitledBorder("Acquisition Settings"));
       
       super.add(acqPanel, "span 3, center, wrap");
@@ -361,8 +386,22 @@ public class MicroNucleiForm extends MMFrame {
 
    }
    
+   @Subscribe
+   public void onShutdownCommencing(ShutdownCommencingEvent cse) {
+      this.dispose();
+   } 
+   
    @Override
    public void dispose() {
+      gui_.events().unregisterForEvents(this);
+      gui_.profile().setString(MicroNucleiForm.class, IMAGINGEXPOSURE, 
+              imagingExposureField_.getText());
+      gui_.profile().setString(MicroNucleiForm.class, SECONDEXPOSURE, 
+              secondImagingExposureField_.getText());
+      gui_.profile().setString(MicroNucleiForm.class, ZAPEXPOSURE, 
+              zapExposureField_.getText());
+      gui_.profile().setString(MicroNucleiForm.class, AFTERZAPEXPOSURE, 
+              afterZapExposureField_.getText());
       super.dispose();
    }
    
@@ -632,21 +671,24 @@ public class MicroNucleiForm extends MMFrame {
     * @throws Exception 
     */
    public void runAnalysisAndZapping(String saveLocation) throws IOException, MMScriptException, Exception {
-                
-      AnalysisModule analysisModule = moduleFromName(gui_.profile().getString(MicroNucleiForm.class, 
-              MODULE, ""));
+      
+      String analysisModuleName = gui_.profile().getString(MicroNucleiForm.class, 
+              MODULE, "");
+      AnalysisModule analysisModule = moduleFromName(analysisModuleName);
       if (analysisModule == null) {
-         throw new MMScriptException("AnalysisModule not found");
+         throw new MMScriptException(analysisModuleName + "was not found");
       }
           
       String channelGroup = gui_.getCMMCore().getChannelGroup();
       
       //TODO: error checking for file IO!
-      if (new File(saveLocation).exists()) {
+      File fd = new File(saveLocation);
+      if (fd.exists()) {
          if (! IJ.showMessageWithCancel("Save location already exists.", 
                  saveLocation + " already exists.  Overwrite?") ) {
             return;
          }
+         delete(fd);
       }
       
       new File(saveLocation).mkdirs();
@@ -673,7 +715,7 @@ public class MicroNucleiForm extends MMFrame {
       int nrImagesPerWell = 0;
       int wellCount = 0;
       
-      // figure out how many sites per there are, we actually get that number 
+      // figure out how many sites per well there are, we actually get that number 
       // from the last well
       for (MultiStagePosition msp : positions) {
          String label = msp.getLabel();
@@ -699,15 +741,24 @@ public class MicroNucleiForm extends MMFrame {
       int arraySize = doZap_.isSelected() ? nrChannels + 1 : nrChannels;
       String[] channelNames = new String[arraySize];
       channelNames[0] =  imagingChannel_;
+      double imagingExposure = Double.parseDouble(imagingExposureField_.getText());
+      double secondExposure = 0.0;
+      double zapTime = 0.0;
+      double afterZapExposure = Double.parseDouble(afterZapExposureField_.getText());
+      
       if (doZap_.isSelected()) {
          channelNames[1] = zapChannel_;
+         zapTime = Double.parseDouble(zapExposureField_.getText());
       }
       if (secondImagingChannel_.length() > 1) {
          channelNames[1] = secondImagingChannel_;
+         secondExposure = Double.parseDouble(secondImagingExposureField_.getText());
          if (doZap_.isSelected()) {
             channelNames[2] = zapChannel_;
+            zapTime = Double.parseDouble(zapExposureField_.getText());
          }
       }
+      double originalExposure = gui_.getCMMCore().getExposure();
 
       SummaryMetadata.SummaryMetadataBuilder smb = gui_.data().getSummaryMetadataBuilder();
       smb = smb.channelNames(channelNames).
@@ -769,17 +820,19 @@ public class MicroNucleiForm extends MMFrame {
             gui_.getCMMCore().waitForSystem();
             gui_.logs().logMessage("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y);
             gui_.getCMMCore().setConfig(channelGroup, imagingChannel_);
+            gui_.getCMMCore().setExposure(imagingExposure);
             Image image = snapAndInsertImage(data, msp,siteCount, 0); 
 
             if (nrChannels == 2) {
                gui_.getCMMCore().setConfig(channelGroup, secondImagingChannel_);
                //gui_.getCMMCore().snapImage();
+               gui_.getCMMCore().setExposure(secondExposure);
                snapAndInsertImage(data, msp,siteCount, 1); 
             }
             gui_.getCMMCore().setConfig(channelGroup, zapChannel_);
+            gui_.getCMMCore().setExposure(zapTime);
 
             // Analyze and zap
-            //tImg = Utils.normalize(tImg, background_, flatfield_);
             Roi[] zapRois = analysisModule.analyze(gui_, image, null, parms);
             if (zapRois != null && doZap_.isSelected()) {
                zap(zapRois);
@@ -800,6 +853,7 @@ public class MicroNucleiForm extends MMFrame {
                   gui_.logs().logMessage("Imaging zapped cells at site: " + acq2);
                   // take the red image and save it
                   gui_.getCMMCore().setConfig(channelGroup, afterZapChannel_);
+                  gui_.getCMMCore().setExposure(afterZapExposure);
                   snapAndInsertImage(data, msp,siteCount, nrChannels);
                }
             }
@@ -807,6 +861,7 @@ public class MicroNucleiForm extends MMFrame {
             count++;
          }
       }
+      gui_.getCMMCore().setExposure(originalExposure);
 
       // add listeners to our ResultsTable that let user click on row and go 
       // to cell that was found
@@ -833,6 +888,21 @@ public class MicroNucleiForm extends MMFrame {
       gui_.logs().showMessage(msg);
    }
 
+   /**
+    * Be vary careful with this function as it will follow symlinks and delete
+    * everything it finds
+   */
+   private void delete(File f) throws IOException {
+      if (f.isDirectory()) {
+         for (File c : f.listFiles()) {
+            delete(c);
+         }
+      }
+      if (!f.delete()) {
+         // simply ignore
+      }
+   }
+
    private void recordResults(BufferedWriter resultsWriter, String currentWell,
            final JSONObject parms) throws IOException, MMScriptException {
       resultsWriter.write(currentWell + "\t"
@@ -840,7 +910,7 @@ public class MicroNucleiForm extends MMFrame {
               + parms.optInt(AnalysisModule.OBJECTCOUNT));
       resultsWriter.newLine();
       resultsWriter.flush();
-      gui_.logs().showMessage(currentWell + " " + parms.optInt(AnalysisModule.CELLCOUNT)
+      gui_.logs().logMessage(currentWell + " " + parms.optInt(AnalysisModule.CELLCOUNT)
               + "    " + parms.optInt(AnalysisModule.OBJECTCOUNT));
    }
 

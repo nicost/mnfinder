@@ -20,6 +20,7 @@
 package org.micromanager.micronuclei;
 
 
+import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import org.micromanager.MenuPlugin;
 import org.micromanager.Studio;
@@ -68,6 +69,15 @@ public class MicroNucleiPlugin implements MenuPlugin, SciJavaPlugin {
    public String getSubMenu() {
       return "";
    }
+   
+   private class WindowQuitter extends WindowAdapter{
+      @Override
+      public void windowClosing(WindowEvent e) {
+         if (theForm_ != null) {
+            theForm_.dispose();
+         }
+      }
+   }
 
    @Override
    public void onPluginSelected() {
@@ -77,5 +87,10 @@ public class MicroNucleiPlugin implements MenuPlugin, SciJavaPlugin {
       }
       // create brand new instance of plugin frame every time
       theForm_ = new MicroNucleiForm(app_);
-      theForm_.setVisible(true);}
+      theForm_.setVisible(true);
+
+      theForm_.addWindowListener(new WindowQuitter());
+      
+      app_.events().registerForEvents(theForm_);
+   }
 }
