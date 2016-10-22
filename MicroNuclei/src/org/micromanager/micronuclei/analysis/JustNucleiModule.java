@@ -36,6 +36,7 @@ import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.PropertyException;
+import org.micromanager.micronuclei.analysisinterface.ResultRois;
 
 /**
  *
@@ -89,7 +90,7 @@ public class JustNucleiModule extends AnalysisModule {
    }
    
    @Override
-   public Roi[] analyze(Studio mm, Image img, Roi userRoi, JSONObject parms) throws AnalysisException {
+   public ResultRois analyze(Studio mm, Image img, Roi userRoi, JSONObject parms) throws AnalysisException {
       ImageProcessor iProcessor = mm.data().ij().createProcessor(img);
       Rectangle userRoiBounds = null;
       if (userRoi != null) {
@@ -137,18 +138,23 @@ public class JustNucleiModule extends AnalysisModule {
       //mm.alerts().postAlert(UINAME, JustNucleiModule.class, 
       //        "Found " + allNuclei.length + " nuclei");
       List convertRoiList = new ArrayList();
+      List nonConvertRoiList = new ArrayList();
       int nrNucleiToSkip = (int) (1 / ((Double) percentageOfNuclei_.get() / 100.0));
       for (int i = 0; i < allNuclei.length; i++) {
+         if (userRoiBounds != null) {
+            Rectangle r2d = allNuclei[i].getBounds();
+            allNuclei[i].setLocation(r2d.x + userRoiBounds.x, r2d.y + userRoiBounds.y);
+         }
          if (i % nrNucleiToSkip == 0) {
-            if (userRoiBounds != null) {
-               Rectangle  r2d = allNuclei[i].getBounds();
-               allNuclei[i].setLocation(r2d.x + userRoiBounds.x, r2d.y + userRoiBounds.y);
-            }
             convertRoiList.add(allNuclei[i]);
-         } 
+         } else {
+            nonConvertRoiList.add(allNuclei[i]);
+         }
       }
       Roi[] convertRois = new Roi[convertRoiList.size()];
       convertRois = (Roi[]) convertRoiList.toArray(convertRois);
+      Roi[] nonConvertRois = new Roi[nonConvertRoiList.size()];
+      nonConvertRois = (Roi[]) nonConvertRoiList.toArray(nonConvertRois);
       
       try {
          parms.put(CELLCOUNT, allNuclei.length + parms.getInt(CELLCOUNT));
@@ -157,7 +163,7 @@ public class JustNucleiModule extends AnalysisModule {
          throw new AnalysisException (jse.getMessage());
       }
       
-      return convertRois;
+      return new ResultRois(allNuclei, convertRois, nonConvertRois);
    }
 
    @Override

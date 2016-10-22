@@ -27,6 +27,8 @@ import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.measure.ResultsTable;
 import ij.plugin.frame.RoiManager;
+import ij.process.ImageProcessor;
+import ij.process.ImageStatistics;
 import ij.text.TextPanel;
 import ij.text.TextWindow;
 
@@ -47,6 +49,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -81,6 +85,7 @@ import org.micromanager.internal.utils.FileDialogs;
 import org.micromanager.internal.utils.ImageUtils;
 import org.micromanager.internal.utils.MMFrame;
 import org.micromanager.internal.utils.MMScriptException;
+import org.micromanager.internal.utils.NumberUtils;
 import org.micromanager.micronuclei.analysis.JustNucleiModule;
 
 import org.micromanager.projector.internal.ProjectorControlForm;
@@ -90,6 +95,7 @@ import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.PropertyException;
+import org.micromanager.micronuclei.analysisinterface.ResultRois;
 
 import org.micromanager.micronuclei.gui.ResultsListener;
 import org.micromanager.micronuclei.gui.PropertyGUI;
@@ -568,10 +574,10 @@ public class MicroNucleiForm extends MMFrame {
             TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
             tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
             
-            Roi[] zapRois = analysisModule.analyze(gui_, 
+            ResultRois rr = analysisModule.analyze(gui_, 
                     gui_.data().convertTaggedImage(tImg), ip.getRoi(), parms);
             RoiManager.getInstance2().reset();
-            for (Roi roi : zapRois) {
+            for (Roi roi : rr.getHitRois()) {
                outTable.incrementCounter();
                Rectangle bounds = roi.getBounds();
                int x = bounds.x + (int) (0.5 * bounds.width);
@@ -604,11 +610,11 @@ public class MicroNucleiForm extends MMFrame {
                   Image image = store.getImage(coords);
                   if (image != null) {
                      dw.setDisplayedImageTo(coords);
-                     Roi[] zapRois = analysisModule.analyze(gui_, image, userRoi, parms);
+                     ResultRois rr = analysisModule.analyze(gui_, image, userRoi, parms);
                      if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
                         RoiManager.getInstance().reset();
                      }
-                     for (Roi roi : zapRois) {
+                     for (Roi roi : rr.getHitRois()) {
                         outTable.incrementCounter();
                         Rectangle bounds = roi.getBounds();
                         int x = bounds.x + (int) (0.5 * bounds.width);
@@ -692,9 +698,17 @@ public class MicroNucleiForm extends MMFrame {
       }
       
       new File(saveLocation).mkdirs();
-      File resultsFile = new File(saveLocation + File.separator + "results.txt");
-      resultsFile.createNewFile();
-      BufferedWriter resultsWriter = new BufferedWriter(new FileWriter(resultsFile));
+      File summaryFile = new File(saveLocation + File.separator + "summary.txt");
+      summaryFile.createNewFile();
+      BufferedWriter resultsWriter = new BufferedWriter(new FileWriter(summaryFile));
+      // open the output file to write the measuerements to
+      // TODO: Add background cells
+      File dataFile = new File(saveLocation + File.separator + "data.txt");
+      dataFile.createNewFile();
+      BufferedWriter dataWriter = new BufferedWriter(new FileWriter(dataFile));
+      dataWriter.write ("Well" + "\t" + "Site" + "\t" + "ID" + "\t" + "Pre-Post-Status" + "\t" + 
+              "X" + "\t" + "Y" + "\t" + "Mean" + "\t" + "Area");
+      dataWriter.newLine();
 
       PositionList posList = gui_.getPositionListManager().getPositionList();
       MultiStagePosition[] positions = posList.getPositions();
@@ -792,7 +806,7 @@ public class MicroNucleiForm extends MMFrame {
             }
             gui_.logs().logMessage("Starting well: " + well);
             if (!currentWell.equals("")) {
-               recordResults(resultsWriter, currentWell, parms);
+               recordWellSummary(resultsWriter, currentWell, parms);
             }
             currentWell = well;
             siteCount = 0;
@@ -823,23 +837,29 @@ public class MicroNucleiForm extends MMFrame {
             Image image = snapAndInsertImage(data, msp,siteCount, currentChannel); 
             currentChannel++;
 
+            Image preZapImage = image;
             if (nrChannels == 2) {
                gui_.getCMMCore().setConfig(channelGroup, secondImagingChannel_);
-               //gui_.getCMMCore().snapImage();
                gui_.getCMMCore().setExposure(secondExposure);
-               snapAndInsertImage(data, msp,siteCount, currentChannel); 
+               preZapImage = snapAndInsertImage(data, msp,siteCount, currentChannel); 
                currentChannel++;
             }
             gui_.getCMMCore().setConfig(channelGroup, zapChannel_);
             gui_.getCMMCore().setExposure(zapTime);
 
             // Analyze and zap
-            Roi[] zapRois = analysisModule.analyze(gui_, image, null, parms);
-            if (zapRois != null && doZap_.isSelected()) {
-               zap(zapRois);
-               snapAndInsertImage(data, msp, siteCount, currentChannel); 
+            ResultRois rr = analysisModule.analyze(gui_, image, null, parms);
+            ImageProcessor iProcessor = gui_.data().ij().createProcessor(preZapImage);
+            ImagePlus ip = new ImagePlus("tmp", iProcessor);
+            reportIntensities(dataWriter, currentWell, siteCount, ip, "Pre-Hit", 
+                    rr.getHitRois());
+            reportIntensities(dataWriter, currentWell, siteCount, ip, "Pre-NoHit", 
+                    rr.getNonHitRois());
+            if (rr.getHitRois() != null && doZap_.isSelected()) {
+               zap(rr.getHitRois());
+               snapAndInsertImage(data, msp, siteCount, currentChannel);
                currentChannel++;
-               for (Roi roi : zapRois) {
+               for (Roi roi : rr.getHitRois()) {
                   outTable.incrementCounter();
                   Rectangle bounds = roi.getBounds();
                   int x = bounds.x + (int) (0.5 * bounds.width);
@@ -850,13 +870,17 @@ public class MicroNucleiForm extends MMFrame {
                }
                outTable.show(outTableName);
 
-               if (zapRois.length > 0) {
+               if (rr.getHitRois().length > 0) {
                   String acq2 = msp.getLabel();
                   gui_.logs().logMessage("Imaging zapped cells at site: " + acq2);
                   // take the afterzapImage and save it
                   gui_.getCMMCore().setConfig(channelGroup, afterZapChannel_);
                   gui_.getCMMCore().setExposure(afterZapExposure);
-                  snapAndInsertImage(data, msp,siteCount, currentChannel);
+                  Image postZapImage = snapAndInsertImage(data, msp,siteCount, currentChannel);
+                  ImageProcessor iProcessor2 = gui_.data().ij().createProcessor(postZapImage);
+                  ImagePlus ip2 = new ImagePlus("tmp", iProcessor2);
+                  reportIntensities(dataWriter, currentWell, siteCount, ip2, "Post-Hit", rr.getHitRois());
+                  reportIntensities(dataWriter, currentWell, siteCount, ip2, "Post-NoHit", rr.getNonHitRois());
                }
             }
             siteCount++;
@@ -882,9 +906,10 @@ public class MicroNucleiForm extends MMFrame {
       }
 
       // record the results from the last well:
-      recordResults(resultsWriter, currentWell, parms);
+      recordWellSummary(resultsWriter, currentWell, parms);
 
       resultsWriter.close();
+      dataWriter.close();
       String msg = "Analyzed " + count + " images, in " + wellCount + " wells.";
       gui_.logs().logMessage(msg);
       gui_.logs().showMessage(msg);
@@ -905,7 +930,7 @@ public class MicroNucleiForm extends MMFrame {
       }
    }
 
-   private void recordResults(BufferedWriter resultsWriter, String currentWell,
+   private void recordWellSummary(BufferedWriter resultsWriter, String currentWell,
            final JSONObject parms) throws IOException, MMScriptException {
       resultsWriter.write(currentWell + "\t"
               + parms.optInt(AnalysisModule.CELLCOUNT) + "\t"
@@ -1018,6 +1043,26 @@ public class MicroNucleiForm extends MMFrame {
       myBorder.setTitleJustification(TitledBorder.CENTER);
       return myBorder;
    }
-          
+        
+   private void reportIntensities(BufferedWriter theFile, String well, 
+           int posCounter, ImagePlus ip, String label, Roi[] rois) {
+   if (rois == null)
+         return;
+	for (int i = 0; i < rois.length; i++) {
+		ip.setRoi(rois[i]);
+      ImageStatistics stats = ip.getStatistics(ImagePlus.CENTROID + ImagePlus.MEAN + ImagePlus.INTEGRATED_DENSITY + ImagePlus.AREA);
+      try {
+         theFile.write(well + "\t" + posCounter + "\t" + i + "\t" + label + "\t" +
+                 NumberUtils.doubleToDisplayString(stats.xCentroid) + "\t" +
+                 NumberUtils.doubleToDisplayString(stats.yCentroid) + "\t" +
+                 NumberUtils.doubleToDisplayString(stats.mean) + "\t"  +
+                 NumberUtils.doubleToDisplayString(stats.area) );
+         theFile.newLine();
+      } catch (IOException ex) {
+         Logger.getLogger(MicroNucleiForm.class.getName()).log(Level.SEVERE, null, ex);
+      }
+
+	}
+}
  
 }

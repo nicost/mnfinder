@@ -54,7 +54,7 @@ public abstract class AnalysisModule  {
     * @return - array of Rois containing the objects of interest
     * @throws AnalysisException 
     */
-   public abstract Roi[] analyze (Studio studio, Image img, Roi roi, JSONObject parms) 
+   public abstract ResultRois analyze (Studio studio, Image img, Roi roi, JSONObject parms) 
            throws AnalysisException;
   
    

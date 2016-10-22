@@ -46,6 +46,7 @@ import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.PropertyException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
+import org.micromanager.micronuclei.analysisinterface.ResultRois;
 
 
 
@@ -123,7 +124,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
    }
   
    @Override
-   public Roi[] analyze(Studio studio, Image image, Roi userRoi, JSONObject parms) throws AnalysisException {
+   public ResultRois analyze(Studio studio, Image image, Roi userRoi, JSONObject parms) throws AnalysisException {
       
       nucleiCount_ = parms.optInt(CELLCOUNT, 0);
       zappedNucleiCount_ = parms.optInt(OBJECTCOUNT, 0);
@@ -178,7 +179,9 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       long endTime = System.currentTimeMillis();
       ij.IJ.log("Analysis took: " + (endTime - startTime) + " millisec");
       
-      return hits;
+      ResultRois rr = new ResultRois(null, hits, null);
+      
+      return rr;
    }
    
    
