@@ -108,7 +108,7 @@ public class JustNucleiModule extends AnalysisModule {
          mm.alerts().postAlert(UINAME, JustNucleiModule.class, 
                  "Std. Dev. (" + stdDev + ") or intensity (" + mean + ") too high, " +
                          "skipping this position"); 
-         return null;
+         return new ResultRois(null, null, null);
       } 
 
 
