@@ -44,6 +44,10 @@ import org.micromanager.micronuclei.analysisinterface.ResultRois;
  */
 public class JustNucleiModule extends AnalysisModule {
    private final String UINAME = "Zap Some Nuclei";
+   private final String DESCRIPTION = 
+           "<html>Simple module that finds nuclei in the first channel, <br>" +
+           "and identifies a user-defined percentage of these<br>" +
+           "as hits";
    
    private AnalysisProperty percentageOfNuclei_;
    private AnalysisProperty maxStdDev_;
@@ -182,8 +186,13 @@ public class JustNucleiModule extends AnalysisModule {
    }
 
    @Override
-   public String name() {
+   public String getName() {
       return UINAME;
+   }
+   
+   @Override
+   public String getDescription() {
+      return DESCRIPTION;
    }
    
 }

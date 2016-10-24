@@ -161,7 +161,7 @@ public class MicroNucleiForm extends MMFrame {
       analysisModules_.add(new JustNucleiModule());
       analysisModulesNames_ = new ArrayList<String>();
       for (AnalysisModule module : analysisModules_) {
-         analysisModulesNames_.add(module.name());
+         analysisModulesNames_.add(module.getName());
       }
       
       arialSmallFont_ = new Font("Arial", Font.PLAIN, 12);
@@ -300,14 +300,17 @@ public class MicroNucleiForm extends MMFrame {
       final JPanel modulePanel = new JPanel(new MigLayout(
               "flowx, fill, insets 8"));
       final JComboBox analysisModulesBox = new JComboBox (analysisModulesNames_.toArray()); 
+      final JLabel analysisMethodLabel = new JLabel("Analysis Method:");
       analysisModulesBox.addActionListener(new ActionListener() {
          @Override
          public void actionPerformed(ActionEvent e) {
             AnalysisModule module = moduleFromName(
                     (String) analysisModulesBox.getSelectedItem());
-            gui_.profile().setString(MicroNucleiForm.class, MODULE, module.name());
+            gui_.profile().setString(MicroNucleiForm.class, MODULE, module.getName());
+            analysisMethodLabel.setToolTipText(module.getDescription());
+            analysisModulesBox.setToolTipText(module.getDescription());
             modulePanel.removeAll();
-            modulePanel.setBorder(makeTitledBorder(module.name()));
+            modulePanel.setBorder(makeTitledBorder(module.getName()));
       
             for (AnalysisProperty ap : module.getAnalysisProperties()) {
                JLabel jl = new JLabel(ap.getName());
@@ -322,10 +325,14 @@ public class MicroNucleiForm extends MMFrame {
          }
       });
       
-      analysisModulesBox.setSelectedItem(gui_.profile().getString(MicroNucleiForm.class, 
-              MODULE, analysisModulesNames_.get(0)));
-      
-      analysisPanel.add(new JLabel("Analysis Method:"));
+      String moduleName = gui_.profile().getString(MicroNucleiForm.class, 
+              MODULE, analysisModulesNames_.get(0));
+      analysisModulesBox.setSelectedItem(moduleName);
+      AnalysisModule module = moduleFromName(moduleName);
+      analysisMethodLabel.setToolTipText(module.getDescription());
+      analysisModulesBox.setToolTipText(module.getDescription());
+
+      analysisPanel.add(analysisMethodLabel);
       analysisPanel.add(analysisModulesBox, "center, wrap");
             
       super.add(analysisPanel, "span 3, center, wrap");
@@ -488,7 +495,7 @@ public class MicroNucleiForm extends MMFrame {
     */
    private AnalysisModule moduleFromName(String name) {
       for (AnalysisModule am : analysisModules_) {
-         if (am.name().equals(name)) {
+         if (am.getName().equals(name)) {
             return am;
          }
       }

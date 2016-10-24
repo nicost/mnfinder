@@ -63,6 +63,11 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
            maxDistance_, minNMNPerNucleus_, maxStdDev_, maxNumberOfNuclei_,
            maxNumberOfZaps_, checkInSmallerImage_, minEdgeDistance_; 
    private final String UINAME = "MicroNucleiAnalysis";
+      private final String DESCRIPTION = 
+           "<html>Identifies cells with micro-nuclei by comparing<br>" +
+           "two masks, one obtained after smoothing the image, <br>" +
+           "the other after sharpening the image.";
+   
    
    
    public MicroNucleiAnalysisModule()  {
@@ -473,11 +478,14 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
    }
 
    @Override
-   public String name() {
+   public String getName() {
       return UINAME;
    }
 
- 
+   @Override
+   public String getDescription() {
+      return DESCRIPTION;
+   }
 
    
 }

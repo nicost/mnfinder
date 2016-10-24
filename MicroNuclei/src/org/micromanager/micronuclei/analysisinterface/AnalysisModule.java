@@ -68,7 +68,14 @@ public abstract class AnalysisModule  {
     * UI name for the analysis module
     * @return String to be displayed to the user
     */
-   public abstract String name();
+   public abstract String getName();
+   
+   /**
+    * Provides a longer description of the purpose of this module
+    * and its algorithms.  Is currently displayed as a tooltip.
+    * @return Description of this analysis module
+    */
+   public abstract String getDescription();
    
    /**
     * This should be called in the implementing class, preferably in the constructor
