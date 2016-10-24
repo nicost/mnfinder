@@ -298,9 +298,11 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       IJ.run(nucleiImp, "Gaussian Blur...", "sigma=5.0");
       IJ.setAutoThreshold(nucleiImp, "Otsu dark");
       ij.Prefs.blackBackground = true;
-      IJ.run(nucleiImp, "Convert to Mask", "");
-      IJ.run(nucleiImp, "Dilate", "");
-      IJ.run(nucleiImp, "Erode", "");
+      IJ.run(nucleiImp, "Convert to Mask", "");      
+      // Use this instead of erode/dilate or Close since we can pad the edges this way
+      // and can still reject nuclei touching the edge (which is not true when 
+      // eroding normall)
+      IJ.run(nucleiImp, "Options...", "iterations=1 count=1 black pad edm=Overwrite do=Close");
       IJ.run(nucleiImp, "Watershed", "");
       IJ.run("Set Measurements...", "area center decimal=2");
       // include large nuclei here so that we will assign the corresponding microNuclei 
@@ -330,7 +332,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
             counter++;
          }
       } else {
-         ij.IJ.log("Number of Rois does not equal number of Particels in results table");
+         ij.IJ.log("Number of Rois does not equal number of Particles in results table");
       }
 
       // either close or show the nuclear mask as desired
