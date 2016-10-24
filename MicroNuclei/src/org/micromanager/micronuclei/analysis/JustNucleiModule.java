@@ -59,15 +59,23 @@ public class JustNucleiModule extends AnalysisModule {
          // the allowed type, and can create problems when the user enters something
          // different
          percentageOfNuclei_ = new AnalysisProperty(this.getClass(),
-                 "Percentage of nuclei to be converted", 10.0 );
+                 "Percentage of nuclei to be converted", null, 10.0 );
          maxStdDev_ = new AnalysisProperty(this.getClass(),
-                  "Maximum Std. Dev.", 12500.0);
+                 "Maximum Std. Dev.", 
+                 "<html>Std. Dev. of grayscale values of original image<br>" +
+                          "Used to exclude images with edges</html>", 12500.0);
          maxMeanIntensity_ = new AnalysisProperty(this.getClass(),
-                  "Maximum Mean Int.", 20000.0);
+                 "Maximum Mean Int.", 
+                 "<html>If the average intensity of the image is higher<br>" + 
+                          "than this number, the image will be skipped", 20000.0);
          minSizeN_ = new AnalysisProperty(this.getClass(),
-                  "Minimum nuclear size", 300.0);
+                  "<html>Minimum nuclear size (&micro;m<sup>2</sup>)</html>", 
+                 "<html>Smallest size of putative nucleus in " + 
+                          "&micro;m<sup>2</sup></html>", 300.0);
          maxSizeN_ = new AnalysisProperty(this.getClass(),
-                  "Maximum nuclear size", 1800.0);
+                  "<html>Maximum nuclear size (&micro;m<sup>2</sup>)</html>", 
+                 "<html>Largest size of putative nucleus in " + 
+                          "&micro;m<sup>2</sup></html>",1800.0);
          
          List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
          apl.add(percentageOfNuclei_);

@@ -27,7 +27,8 @@ import java.util.prefs.Preferences;
  * @param <T> value that will be stored in this property
  */
 public class AnalysisProperty<T> {
-   private final String description_;
+   private final String name_;
+   private final String tooltip_;
    private T t_;
    private final Preferences prefs_;
    
@@ -37,15 +38,19 @@ public class AnalysisProperty<T> {
     * Values are stored keyed by the calling class (and description) 
     * 
     * @param caller calling class
-    * @param description String to be displayed to the user
+    * @param name String to be displayed to the user
+    * @param tooltip Detailed description of the parameter for the user
+    *                Will be displayed as a tooltip.  Can be set to null if 
+    *                irrelevant.
     * @param t variable that will be get or set.  Type should be Integer, Double,
     * String, or Boolean
     * @throws PropertyException Exception thrown when the type of the provided variable
     * is not one of Integer, Double, String, or Boolean
     */
-   public AnalysisProperty(Class caller, String description, T t) throws PropertyException {
+   public AnalysisProperty(Class caller, String name, String tooltip, T t) throws PropertyException {
       prefs_ = Preferences.userNodeForPackage(caller);
-      description_ = description;
+      name_ = name;
+      tooltip_ = tooltip;
       if (!  ( (t instanceof Integer ) || (t  instanceof Double) ||
               (t instanceof String) || (t instanceof Boolean)  ) ) {
          throw new PropertyException("This type is not supported");
@@ -62,25 +67,29 @@ public class AnalysisProperty<T> {
       return t_;
    }
    
-   public String getDescription() {
-      return description_;
+   public String getName() {
+      return name_;
    }  
+   
+   public String getTooltip() {
+      return tooltip_;
+   }
    
    private T getValueFromPrefs(T t) {
       if (t instanceof Integer) {
-         Integer i = prefs_.getInt(description_, (Integer) t);
+         Integer i = prefs_.getInt(name_, (Integer) t);
          t = (T) i;
       }
       if (t instanceof Double) {
-         Double i = prefs_.getDouble(description_, (Double) t);
+         Double i = prefs_.getDouble(name_, (Double) t);
          t = (T) i;
       }
       if (t instanceof String) {
-         String i = prefs_.get(description_, (String) t);
+         String i = prefs_.get(name_, (String) t);
          t = (T) i;
       }      
       if (t instanceof Boolean) {
-         Boolean i = prefs_.getBoolean(description_, (Boolean) t);
+         Boolean i = prefs_.getBoolean(name_, (Boolean) t);
          t = (T) i;
       }
       return t;
@@ -88,16 +97,16 @@ public class AnalysisProperty<T> {
    
    private void setValueToPrefs(T t) {
       if (t instanceof Integer) {
-         prefs_.putInt(description_, (Integer) t);
+         prefs_.putInt(name_, (Integer) t);
       }
       if (t instanceof Double) {
-         prefs_.putDouble(description_, (Double) t);
+         prefs_.putDouble(name_, (Double) t);
       }
       if (t instanceof String) {
-         prefs_.put(description_, (String) t);
+         prefs_.put(name_, (String) t);
       }
       if (t instanceof Boolean) {
-         prefs_.putBoolean(description_, (Boolean) t);
+         prefs_.putBoolean(name_, (Boolean) t);
       }
    }
    

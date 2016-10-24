@@ -86,6 +86,7 @@ public class PropertyGUI {
             });
          }
       }
+      jc_.setToolTipText(prop.getTooltip());
    }
    
    public JComponent getJComponent() {

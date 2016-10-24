@@ -310,7 +310,11 @@ public class MicroNucleiForm extends MMFrame {
             modulePanel.setBorder(makeTitledBorder(module.name()));
       
             for (AnalysisProperty ap : module.getAnalysisProperties()) {
-               modulePanel.add(new JLabel(ap.getDescription()));
+               JLabel jl = new JLabel(ap.getName());
+               if (ap.getTooltip() != null) {
+                  jl.setToolTipText(ap.getTooltip());
+               }
+               modulePanel.add(jl);
                modulePanel.add(new PropertyGUI(ap).getJComponent(), "width 70px, wrap");
             }
             modulePanel.revalidate();
