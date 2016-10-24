@@ -124,8 +124,10 @@ public class JustNucleiModule extends AnalysisModule {
       IJ.setAutoThreshold(ip, "Otsu dark");
       // Fill holes and watershed to split large nuclei
       IJ.run(ip, "Convert to Mask", "");
-      IJ.run(ip, "Dilate", "");
-      IJ.run(ip, "Erode", "");
+      // Use this instead of erode/dilate or Close since we can pad the edges this way
+      // and can still reject nuclei touching the edge (which is not true when 
+      // eroding normall)
+      IJ.run(ip, "Options...", "iterations=1 count=1 black pad edm=Overwrite do=Close");
       IJ.run(ip, "Watershed", "");
 
       // Now measure and store masks in ROI manager
