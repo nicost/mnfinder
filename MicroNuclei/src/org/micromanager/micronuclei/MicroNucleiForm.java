@@ -624,29 +624,31 @@ public class MicroNucleiForm extends MMFrame {
                      if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
                         RoiManager.getInstance().reset();
                      }
-                     Roi[] hitRois = rr.getHitRois();
-                     if (hitRois != null) {
-                        for (Roi roi : rr.getHitRois()) {
-                           outTable.incrementCounter();
-                           Rectangle bounds = roi.getBounds();
-                           int x = bounds.x + (int) (0.5 * bounds.width);
-                           int y = bounds.y + (int) (0.5 * bounds.height);
-                           outTable.addValue(Terms.X, x);
-                           outTable.addValue(Terms.Y, y);
-                           outTable.addValue(Terms.POSITION, p);
-                           if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
-                              RoiManager.getInstance().addRoi(roi);
+                     if (rr != null) {
+                        Roi[] hitRois = rr.getHitRois();
+                        if (hitRois != null) {
+                           for (Roi roi : rr.getHitRois()) {
+                              outTable.incrementCounter();
+                              Rectangle bounds = roi.getBounds();
+                              int x = bounds.x + (int) (0.5 * bounds.width);
+                              int y = bounds.y + (int) (0.5 * bounds.height);
+                              outTable.addValue(Terms.X, x);
+                              outTable.addValue(Terms.Y, y);
+                              outTable.addValue(Terms.POSITION, p);
+                              if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
+                                 RoiManager.getInstance().addRoi(roi);
+                              }
+                           }
+                           outTable.show(outTableName);
+
+                           if (rr.getAllRois() != null) {
+                              gui_.alerts().postAlert(FORMNAME, MicroNucleiForm.class,
+                                      "Analyzed " + rr.getAllRois().length
+                                      + " objects, found " + rr.getHitRois().length
+                                      + " objects to be photo-converted at position " + p);
                            }
                         }
-                        outTable.show(outTableName);
-                        
-                        if (rr.getAllRois() != null)
-                        gui_.alerts().postAlert(FORMNAME, MicroNucleiForm.class,
-                                "Analyzed " + rr.getAllRois().length
-                                + " objects, found " + rr.getHitRois().length
-                                + " objects to be photo-converted at position " + p);
                      }
-
                   }
 
                } catch (JSONException ex) {
