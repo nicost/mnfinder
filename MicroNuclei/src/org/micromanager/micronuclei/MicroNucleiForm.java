@@ -86,17 +86,16 @@ import org.micromanager.internal.utils.ImageUtils;
 import org.micromanager.internal.utils.MMFrame;
 import org.micromanager.internal.utils.MMScriptException;
 import org.micromanager.internal.utils.NumberUtils;
-import org.micromanager.micronuclei.analysis.JustNucleiModule;
 
 import org.micromanager.projector.internal.ProjectorControlForm;
 
+import org.micromanager.micronuclei.analysis.JustNucleiModule;
 import org.micromanager.micronuclei.analysis.MicroNucleiAnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.PropertyException;
 import org.micromanager.micronuclei.analysisinterface.ResultRois;
-
 import org.micromanager.micronuclei.gui.ResultsListener;
 import org.micromanager.micronuclei.gui.PropertyGUI;
 
@@ -312,7 +311,7 @@ public class MicroNucleiForm extends MMFrame {
       
             for (AnalysisProperty ap : module.getAnalysisProperties()) {
                modulePanel.add(new JLabel(ap.getDescription()));
-               modulePanel.add(new PropertyGUI(ap).getJComponent(), "wrap");
+               modulePanel.add(new PropertyGUI(ap).getJComponent(), "width 70px, wrap");
             }
             modulePanel.revalidate();
             ourForm.pack();
@@ -614,25 +613,31 @@ public class MicroNucleiForm extends MMFrame {
                      if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
                         RoiManager.getInstance().reset();
                      }
-                     for (Roi roi : rr.getHitRois()) {
-                        outTable.incrementCounter();
-                        Rectangle bounds = roi.getBounds();
-                        int x = bounds.x + (int) (0.5 * bounds.width);
-                        int y = bounds.y + (int) (0.5 * bounds.height);
-                        outTable.addValue(Terms.X, x);
-                        outTable.addValue(Terms.Y, y);
-                        outTable.addValue(Terms.POSITION, p);
-                        if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
-                           RoiManager.getInstance().addRoi(roi);
+                     Roi[] hitRois = rr.getHitRois();
+                     if (hitRois != null) {
+                        for (Roi roi : rr.getHitRois()) {
+                           outTable.incrementCounter();
+                           Rectangle bounds = roi.getBounds();
+                           int x = bounds.x + (int) (0.5 * bounds.width);
+                           int y = bounds.y + (int) (0.5 * bounds.height);
+                           outTable.addValue(Terms.X, x);
+                           outTable.addValue(Terms.Y, y);
+                           outTable.addValue(Terms.POSITION, p);
+                           if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
+                              RoiManager.getInstance().addRoi(roi);
+                           }
                         }
+                        outTable.show(outTableName);
+                        
+                        if (rr.getAllRois() != null)
+                        gui_.alerts().postAlert(FORMNAME, MicroNucleiForm.class,
+                                "Analyzed " + rr.getAllRois().length
+                                + " objects, found " + rr.getHitRois().length
+                                + " objects to be photo-converted at position " + p);
                      }
-                     outTable.show(outTableName);
 
                   }
-                  gui_.alerts().postAlert(FORMNAME, MicroNucleiForm.class,
-                          "Analyzed " + parms.getString(AnalysisModule.CELLCOUNT)
-                          + " objects, found " + parms.getString(AnalysisModule.OBJECTCOUNT)
-                          + " objects to be photo-converted");
+
                } catch (JSONException ex) {
                } catch (NullPointerException npe) {
                   ij.IJ.log("Null pointer exception at position : " + p);
@@ -642,6 +647,10 @@ public class MicroNucleiForm extends MMFrame {
       } catch (AnalysisException ex) {
          ij.IJ.log("Error during analysis");
       }
+      gui_.alerts().postAlert(FORMNAME, MicroNucleiForm.class,
+                          "Analyzed " + parms.getString(AnalysisModule.CELLCOUNT)
+                          + " objects, found " + parms.getString(AnalysisModule.OBJECTCOUNT)
+                          + " objects to be photo-converted");
 
       // we have the ROIs, the rest is just reporting
         
