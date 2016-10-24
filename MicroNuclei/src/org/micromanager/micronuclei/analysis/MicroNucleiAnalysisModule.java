@@ -19,6 +19,7 @@
 
 package org.micromanager.micronuclei.analysis;
 
+import org.micromanager.micronuclei.utilities.Distance;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.Roi;

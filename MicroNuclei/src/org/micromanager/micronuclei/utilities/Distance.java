@@ -17,7 +17,7 @@
 //               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 
-package org.micromanager.micronuclei.analysis;
+package org.micromanager.micronuclei.utilities;
 
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
