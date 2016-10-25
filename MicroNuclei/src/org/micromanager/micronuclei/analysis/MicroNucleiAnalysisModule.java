@@ -147,8 +147,8 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       
       ImagePlus imp = new ImagePlus ("tmp", studio.data().ij().createProcessor(image));
       Calibration cal = imp.getCalibration();
-      cal.pixelWidth = image.getWidth(); 
-      cal.pixelHeight = image.getHeight();
+      cal.pixelWidth = image.getMetadata().getPixelSizeUm();
+      cal.pixelHeight = image.getMetadata().getPixelSizeUm();
 
       // remove images that have the well edge in them
       double stdDev = imp.getStatistics().stdDev;
@@ -202,12 +202,12 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
    /**
     * 
     * @param imp
-    * @param cal
+    * @param calibration
     * @param parms
     * @param nrNuclei
     * @return 
     */
-   private Roi[] analyzeImagePlus(ImagePlus imp, Calibration cal, JSONObject parms,
+   private Roi[] analyzeImagePlus(ImagePlus imp, Calibration calibration, JSONObject parms,
            MutableInt nrNuclei) {
       
       boolean showMasks = false;
@@ -233,9 +233,6 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       final int maxNumberOfNuclei = (Integer) maxNumberOfNuclei_.get();
       // if more than this number of nuclei should be zapped, skip zapping altogether
       final int maxNumberOfZaps = (Integer) maxNumberOfZaps_.get();
-
-      double pixelSize; // not sure why, but imp.getCalibration is unreliable
-
       
       // start of the main code
       List<Point2D.Double> microNuclei = new ArrayList<Point2D.Double>();
@@ -251,12 +248,6 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       ResultsTable res = ij.measure.ResultsTable.getResultsTable();
       res.reset();
 
-      int width = imp.getProcessor().getWidth();
-      int height = imp.getProcessor().getHeight();
-      double widthUm = cal.getX(width);
-      double heightUm = cal.getY(height);
-      pixelSize = cal.getX(1.0);
-
       ImagePlus imp2 = (new Duplicator()).run(imp, 1, 1);
 
       // find micronuclei by sharpening, segmentation using Otsu, and Watershed
@@ -271,7 +262,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       IJ.run("Set Measurements...", "area center decimal=2");
       IJ.run(microNucleiImp, "Analyze Particles...", "size=" + 
               (Double) microNucleiMinSize + "-" + (Double) microNucleiMaxSize
-              + "  pixel exclude  clear add");
+              + "  exclude  clear add");
 
       // Build up a list of potential micronuclei
       RoiManager rm = RoiManager.getInstance2();
@@ -283,8 +274,8 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
          Rectangle rc = roi.getBounds();
          double xc = rc.x + 0.5 * rc.width;
          double yc = rc.y + 0.5 * rc.height;
-         xc *= pixelSize;
-         yc *= pixelSize;
+         xc *= calibration.getX(1.0);
+         yc *= calibration.getX(1.0);
          Point2D.Double pt = new java.awt.geom.Point2D.Double(xc, yc);
          microNuclei.add(pt);
          microNucleiROIs.put(pt, roi);
@@ -309,7 +300,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       // correctly.  Weed these out later
       rt.reset();
       IJ.run(nucleiImp, "Analyze Particles...", "size=" + (Double) nucleiMinSize + "-" +
-              (Double) nucleiMaxSize + " pixel exclude clear add");
+              (Double) nucleiMaxSize + " exclude clear add");
       rt.updateResults();
 
       // get nuclei from RoiManager and add to our list of nuclei:
@@ -322,8 +313,8 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
             Rectangle rc = roi.getBounds();
             double xc = rc.x + 0.5 * rc.width;
             double yc = rc.y + 0.5 * rc.height;
-            xc *= pixelSize;
-            yc *= pixelSize;
+            xc *= calibration.getX(1.0);
+            yc *= calibration.getX(1.0);
             Point2D.Double pt = new java.awt.geom.Point2D.Double(xc, yc);
             nucleiRois.put(pt, roi);
             ArrayList<Point2D.Double> containedMNs = new ArrayList<Point2D.Double>();
@@ -367,7 +358,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       res.reset();
 
       // this is a bit funky, but seems to work
-      double roiMinSize = pixelSize * pixelSize * nucleiMinSize * 10;
+      double roiMinSize = calibration.getX(1.0) * calibration.getX(1.0) * nucleiMinSize * 10;
       for (Point2D.Double p  : nuclei.keySet()) {
          res.incrementCounter();
          res.addValue("X", p.x);

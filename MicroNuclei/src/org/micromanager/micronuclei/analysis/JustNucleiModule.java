@@ -22,6 +22,7 @@ package org.micromanager.micronuclei.analysis;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.Roi;
+import ij.measure.Calibration;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
@@ -111,6 +112,9 @@ public class JustNucleiModule extends AnalysisModule {
          userRoiBounds = userRoi.getBounds();
       }
       ImagePlus ip = (new ImagePlus("tmp", iProcessor)).duplicate();
+      Calibration calibration = ip.getCalibration();
+      calibration.pixelWidth = img.getMetadata().getPixelSizeUm();
+      calibration.pixelHeight = img.getMetadata().getPixelSizeUm();
 
       // check for edges by calculating stdev
       ImageStatistics stat = ip.getStatistics();
@@ -145,7 +149,7 @@ public class JustNucleiModule extends AnalysisModule {
       // Now measure and store masks in ROI manager
       IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
       IJ.run(ip, "Analyze Particles...", "size=" + (Double) minSizeN_.get() + "-" + 
-              (Double) maxSizeN_.get() + " pixel exclude clear add");
+              (Double) maxSizeN_.get() + " exclude clear add");
 
       // prepare the masks to be send to the DMD
       Roi[] allNuclei = roiManager_.getRoisAsArray();
