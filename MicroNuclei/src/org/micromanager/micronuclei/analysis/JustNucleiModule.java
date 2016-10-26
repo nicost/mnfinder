@@ -23,6 +23,7 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.Roi;
 import ij.measure.Calibration;
+import ij.measure.Measurements;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
@@ -33,6 +34,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.micromanager.Studio;
 import org.micromanager.data.Image;
+import org.micromanager.internal.utils.NumberUtils;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
@@ -118,15 +120,26 @@ public class JustNucleiModule extends AnalysisModule {
       calibration.setUnit("um");
 
       // check for edges by calculating stdev
-      ImageStatistics stat = ip.getStatistics();
-      double stdDev = stat.stdDev;
-      double mean = stat.mean;
-      if (stdDev > (Double) maxStdDev_.get() || mean > (Double) maxMeanIntensity_.get() ) {
-         mm.alerts().postAlert(UINAME, JustNucleiModule.class, 
-                 "Std. Dev. (" + stdDev + ") or intensity (" + mean + ") too high, " +
-                         "skipping this position"); 
+      ImageStatistics stat = ip.getStatistics(Measurements.MEAN+ Measurements.STD_DEV);
+      final double stdDev = stat.stdDev;
+      final double mean = stat.mean;
+      final double maxStdDev = (Double) maxStdDev_.get();
+      final double maxMean = (Double) maxMeanIntensity_.get();
+      int pos = img.getCoords().getStagePosition();
+      if (stdDev > maxStdDev) {
+         mm.alerts().postAlert("Skip image", JustNucleiModule.class,
+                 "Std. Dev. of image at position " + pos + " (" + 
+                  NumberUtils.doubleToDisplayString(stdDev) +
+                  ") is higher than the limit you set: " + maxStdDev);
          return new ResultRois(null, null, null);
-      } 
+      }
+      if (mean > maxMean) {
+         mm.alerts().postAlert("Skip image", JustNucleiModule.class,
+                 "Mean intensity of image at position " + pos + " (" + 
+                  NumberUtils.doubleToDisplayString(mean) +
+                  ") is higher than the limit you set: " + maxMean);
+         return new ResultRois(null, null, null);
+      }
 
 
       // Even though we are flatfielding, results are much better after
@@ -146,7 +159,6 @@ public class JustNucleiModule extends AnalysisModule {
       // eroding normall)
       IJ.run(ip, "Options...", "iterations=1 count=1 black pad edm=Overwrite do=Close");
       IJ.run(ip, "Watershed", "");
-      //ip.show();
 
       // Now measure and store masks in ROI manager
       IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");

@@ -24,10 +24,12 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.Roi;
 import ij.measure.Calibration;
+import ij.measure.Measurements;
 import ij.measure.ResultsTable;
 import ij.plugin.Duplicator;
 import ij.plugin.filter.Analyzer;
 import ij.plugin.frame.RoiManager;
+import ij.process.ImageStatistics;
 
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -42,6 +44,7 @@ import org.json.JSONObject;
 
 import org.micromanager.Studio;
 import org.micromanager.data.Image;
+import org.micromanager.internal.utils.NumberUtils;
 
 import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
@@ -61,7 +64,8 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
    private int zappedNucleiCount_ = 0;
    AnalysisProperty minSizeMN_, maxSizeMN_, minSizeN_, maxSizeN_,
            maxDistance_, minNMNPerNucleus_, maxStdDev_, maxNumberOfNuclei_,
-           maxNumberOfZaps_, checkInSmallerImage_, minEdgeDistance_; 
+           maxNumberOfZaps_, checkInSmallerImage_, minEdgeDistance_,
+           maxMeanIntensity_; 
    private final String UINAME = "MicroNucleiAnalysis";
       private final String DESCRIPTION = 
            "<html>Identifies cells with micro-nuclei by comparing<br>" +
@@ -75,6 +79,14 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
          // note: the type of the value when creating the AnalysisProperty determines
          // the allowed type, and can create problems when the user enters something
          // different
+         maxStdDev_ = new AnalysisProperty(this.getClass(),
+                 "Maximum Std. Dev.", 
+                 "<html>Std. Dev. of grayscale values of original image<br>" +
+                          "Used to exclude images with edges</html>", 12500.0);
+         maxMeanIntensity_ = new AnalysisProperty(this.getClass(),
+                 "Maximum Mean Int.", 
+                 "<html>If the average intensity of the image is higher<br>" + 
+                          "than this number, the image will be skipped", 20000.0);
          minSizeMN_ = new AnalysisProperty(this.getClass(),
                  "<html>Minimum micronuclear size (&micro;m<sup>2</sup>)</html>", 
                  null, 20.0 );
@@ -94,9 +106,6 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
          minEdgeDistance_ = new AnalysisProperty(this.getClass(),
                   "<html>Minimum distance from the edge (&micro;m<sup>2</sup>)</html>", 
                  null, 10.0);
-         maxStdDev_ = new AnalysisProperty(this.getClass(),
-                  "Maximum Std. Dev.", "Std. Dev. of grayscale values in original image\n" +
-                          "Used to exclude images with edges", 7000.0);
          maxNumberOfNuclei_ = new AnalysisProperty(this.getClass(), 
                  "Maximum number of nuclei per image", 
                  "Do not include images that have more than this number of nuclei", 250);
@@ -106,6 +115,8 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
                   "Check again in subregion", "When checked, will re-analyze the image, only looking \n" +
                           "at a local, small area.  This can improve accuracy at the cost of speed", true);
          List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
+         apl.add(maxStdDev_);
+         apl.add(maxMeanIntensity_);
          apl.add(minSizeMN_);
          apl.add(maxSizeMN_);
          apl.add(minSizeN_);
@@ -151,14 +162,30 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       cal.pixelHeight = image.getMetadata().getPixelSizeUm();
 
       // remove images that have the well edge in them
-      double stdDev = imp.getStatistics().stdDev;
-      // do not analyze images whose stdev is above this value
-      // Use this to remove images showing well edges
+      ImageStatistics statistics = imp.getStatistics(Measurements.MEAN+ Measurements.STD_DEV);
+      double stdDev = statistics.stdDev;
+      double mean = statistics.mean;
+      // do not analyze images whose stdev or mean is higher than user-specified value
+      // Use these criteria to remove images showing well edges
       final double maxStdDev = (Double) maxStdDev_.get();
+      final double maxMean = (Double) maxMeanIntensity_.get();
+      int pos = image.getCoords().getStagePosition();
       if (stdDev > maxStdDev) {
+         studio.alerts().postAlert("Skip image", MicroNucleiAnalysisModule.class,
+                 "Std. Dev. of image at position " + pos + " (" + 
+                  NumberUtils.doubleToDisplayString(stdDev) +
+                  ") is higher than the limit you set: " + maxStdDev);
          return null;
       }
-      
+
+      if (mean > maxMean) {
+         studio.alerts().postAlert("Skip image", MicroNucleiAnalysisModule.class,
+                 "Mean intenisty of image at position " + pos + " (" + 
+                  NumberUtils.doubleToDisplayString(mean) +
+                  ") is higher than the limit you set: " + maxMean);
+         return null;
+      }
+
       MutableInt nrNuclei = new MutableInt(0);
       
       Roi[] hits = analyzeImagePlus(imp, cal, parms, nrNuclei);
