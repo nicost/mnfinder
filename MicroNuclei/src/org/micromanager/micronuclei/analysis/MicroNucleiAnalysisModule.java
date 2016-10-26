@@ -260,15 +260,19 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       IJ.run(microNucleiImp, "Close-", "");
       IJ.run(microNucleiImp, "Watershed", "");
       IJ.run("Set Measurements...", "area center decimal=2");
+      // this roiManager reset is needed since Analyze Particles will not take 
+      // this action if it does not find any Rois, leading to erronous results 
+      RoiManager rm = RoiManager.getInstance2();
+      if (rm == null) {
+         rm = new RoiManager();
+      }
+      rm.reset();
       IJ.run(microNucleiImp, "Analyze Particles...", "size=" + 
               (Double) microNucleiMinSize + "-" + (Double) microNucleiMaxSize
               + "  exclude  clear add");
 
       // Build up a list of potential micronuclei
-      RoiManager rm = RoiManager.getInstance2();
-      if (rm == null) {
-         rm = new RoiManager();
-      }
+
       for (Roi roi  : rm.getRoisAsArray()) {
          // approximate microNuclear positions as the center of the bounding box
          Rectangle rc = roi.getBounds();
@@ -296,9 +300,13 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       IJ.run(nucleiImp, "Options...", "iterations=1 count=1 black pad edm=Overwrite do=Close");
       IJ.run(nucleiImp, "Watershed", "");
       IJ.run("Set Measurements...", "area center decimal=2");
+
+      // this roiManager reset is needed since Analyze Particles will not take 
+      // this action if it does not find any Rois, leading to erronous results 
+      rm.reset();
+      rt.reset();
       // include large nuclei here so that we will assign the corresponding microNuclei 
       // correctly.  Weed these out later
-      rt.reset();
       IJ.run(nucleiImp, "Analyze Particles...", "size=" + (Double) nucleiMinSize + "-" +
               (Double) nucleiMaxSize + " exclude clear add");
       rt.updateResults();

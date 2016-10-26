@@ -115,6 +115,7 @@ public class JustNucleiModule extends AnalysisModule {
       Calibration calibration = ip.getCalibration();
       calibration.pixelWidth = img.getMetadata().getPixelSizeUm();
       calibration.pixelHeight = img.getMetadata().getPixelSizeUm();
+      calibration.setUnit("um");
 
       // check for edges by calculating stdev
       ImageStatistics stat = ip.getStatistics();
@@ -145,11 +146,16 @@ public class JustNucleiModule extends AnalysisModule {
       // eroding normall)
       IJ.run(ip, "Options...", "iterations=1 count=1 black pad edm=Overwrite do=Close");
       IJ.run(ip, "Watershed", "");
+      //ip.show();
 
       // Now measure and store masks in ROI manager
       IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
-      IJ.run(ip, "Analyze Particles...", "size=" + (Double) minSizeN_.get() + "-" + 
-              (Double) maxSizeN_.get() + " exclude clear add");
+      String analyzeParticlesParameters =  "size=" + (Double) minSizeN_.get() + "-" + 
+              (Double) maxSizeN_.get() + " exclude clear add";
+      // this roiManager reset is needed since Analyze Particles will not take 
+      // this action if it does not find any Rois, leading to erronous results
+      roiManager_.reset();
+      IJ.run(ip, "Analyze Particles...", analyzeParticlesParameters);
 
       // prepare the masks to be send to the DMD
       Roi[] allNuclei = roiManager_.getRoisAsArray();
