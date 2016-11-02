@@ -855,6 +855,7 @@ public class MicroNucleiForm extends MMFrame {
             gui_.getCMMCore().waitForSystem();
             gui_.logs().logMessage("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y);
             gui_.getCMMCore().setConfig(channelGroup, imagingChannel_);
+               gui_.getCMMCore().waitForConfig(channelGroup, imagingChannel_);
             gui_.getCMMCore().setExposure(imagingExposure);
             Image image = snapAndInsertImage(data, msp,siteCount, currentChannel); 
             currentChannel++;
@@ -862,11 +863,13 @@ public class MicroNucleiForm extends MMFrame {
             Image preZapImage = image;
             if (nrChannels == 2) {
                gui_.getCMMCore().setConfig(channelGroup, secondImagingChannel_);
+               gui_.getCMMCore().waitForConfig(channelGroup, secondImagingChannel_);
                gui_.getCMMCore().setExposure(secondExposure);
                preZapImage = snapAndInsertImage(data, msp,siteCount, currentChannel); 
                currentChannel++;
             }
             gui_.getCMMCore().setConfig(channelGroup, zapChannel_);
+            gui_.getCMMCore().waitForConfig(channelGroup, zapChannel_);
             gui_.getCMMCore().setExposure(zapTime);
 
             // Analyze and zap
@@ -877,7 +880,8 @@ public class MicroNucleiForm extends MMFrame {
                     rr.getHitRois());
             reportIntensities(dataWriter, currentWell, siteCount, ip, "Pre-NoHit", 
                     rr.getNonHitRois());
-            if (rr.getHitRois() != null && doZap_.isSelected()) {
+            if (rr.getHitRois() != null && rr.getHitRois().length != 0 && 
+                    doZap_.isSelected()) {
                zap(rr.getHitRois());
                snapAndInsertImage(data, msp, siteCount, currentChannel);
                currentChannel++;
@@ -897,6 +901,7 @@ public class MicroNucleiForm extends MMFrame {
                   gui_.logs().logMessage("Imaging zapped cells at site: " + acq2);
                   // take the afterzapImage and save it
                   gui_.getCMMCore().setConfig(channelGroup, afterZapChannel_);
+                  gui_.getCMMCore().waitForConfig(channelGroup, afterZapChannel_);
                   gui_.getCMMCore().setExposure(afterZapExposure);
                   Image postZapImage = snapAndInsertImage(data, msp,siteCount, currentChannel);
                   ImageProcessor iProcessor2 = gui_.data().ij().createProcessor(postZapImage);
