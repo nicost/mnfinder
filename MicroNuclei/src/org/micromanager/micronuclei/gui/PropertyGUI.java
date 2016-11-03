@@ -26,6 +26,7 @@ import javax.swing.JComponent;
 import javax.swing.JFormattedTextField;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.text.DefaultFormatter;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 
 /**
@@ -52,7 +53,9 @@ public class PropertyGUI {
             }
          });
       } else {
-         final JFormattedTextField textField = new JFormattedTextField();
+         final DefaultFormatter df = new DefaultFormatter();
+         df.setOverwriteMode(false);
+         final JFormattedTextField textField = new JFormattedTextField(df);
          jc_ = textField;
          if ((prop.get() instanceof Double) || (prop.get() instanceof Integer)) {
             if (prop.get() instanceof Double) {
