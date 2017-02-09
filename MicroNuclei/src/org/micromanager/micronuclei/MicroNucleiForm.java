@@ -583,9 +583,9 @@ public class MicroNucleiForm extends MMFrame {
             dw = null;
             TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
             tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
-            
-            ResultRois rr = analysisModule.analyze(gui_, 
-                    gui_.data().convertTaggedImage(tImg), ip.getRoi(), parms);
+            Image[] imgs = new Image[1];
+            imgs[0] = gui_.data().convertTaggedImage(tImg);
+            ResultRois rr = analysisModule.analyze(gui_, imgs, ip.getRoi(), parms);
             RoiManager.getInstance2().reset();
             for (Roi roi : rr.getHitRois()) {
                outTable.incrementCounter();
@@ -611,16 +611,19 @@ public class MicroNucleiForm extends MMFrame {
             }
             
             Coords.CoordsBuilder builder = store.getAnyImage().getCoords().copy();
-            // make sure that we will work with the first channel (that has the nuclei)
             builder.channel(0);
             int nrPositions = store.getAxisLength(Coords.STAGE_POSITION); 
+            int nrChannels = store.getAxisLength(Coords.CHANNEL);
+            Image[] imgs = new Image[nrChannels];
             for (int p = 0; p < nrPositions && !stop_.get(); p++) {
                try {
-                  Coords coords = builder.stagePosition(p).build();
-                  Image image = store.getImage(coords);
-                  if (image != null) {
-                     dw.setDisplayedImageTo(coords);
-                     ResultRois rr = analysisModule.analyze(gui_, image, userRoi, parms);
+                  for (int ch = 0; ch < nrChannels; ch++) {
+                     Coords coords = builder.stagePosition(p).channel(ch).build();
+                     imgs[ch] = store.getImage(coords);
+                  }
+                  if (imgs[0] != null) {
+                     dw.setDisplayedImageTo( builder.stagePosition(p).channel(0).build());
+                     ResultRois rr = analysisModule.analyze(gui_, imgs, userRoi, parms);
                      if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
                         RoiManager.getInstance().reset();
                      }
@@ -855,17 +858,17 @@ public class MicroNucleiForm extends MMFrame {
             gui_.getCMMCore().waitForSystem();
             gui_.logs().logMessage("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y);
             gui_.getCMMCore().setConfig(channelGroup, imagingChannel_);
-               gui_.getCMMCore().waitForConfig(channelGroup, imagingChannel_);
+            gui_.getCMMCore().waitForConfig(channelGroup, imagingChannel_);
             gui_.getCMMCore().setExposure(imagingExposure);
-            Image image = snapAndInsertImage(data, msp,siteCount, currentChannel); 
+            Image[] imgs = new Image[nrChannels];
+            imgs[0] = snapAndInsertImage(data, msp,siteCount, currentChannel); 
             currentChannel++;
 
-            Image preZapImage = image;
             if (nrChannels == 2) {
                gui_.getCMMCore().setConfig(channelGroup, secondImagingChannel_);
                gui_.getCMMCore().waitForConfig(channelGroup, secondImagingChannel_);
                gui_.getCMMCore().setExposure(secondExposure);
-               preZapImage = snapAndInsertImage(data, msp,siteCount, currentChannel); 
+               imgs[1] = snapAndInsertImage(data, msp,siteCount, currentChannel); 
                currentChannel++;
             }
             gui_.getCMMCore().setConfig(channelGroup, zapChannel_);
@@ -873,8 +876,8 @@ public class MicroNucleiForm extends MMFrame {
             gui_.getCMMCore().setExposure(zapTime);
 
             // Analyze and zap
-            ResultRois rr = analysisModule.analyze(gui_, image, null, parms);
-            ImageProcessor iProcessor = gui_.data().ij().createProcessor(preZapImage);
+            ResultRois rr = analysisModule.analyze(gui_, imgs, null, parms);
+            ImageProcessor iProcessor = gui_.data().ij().createProcessor(imgs[1]);
             ImagePlus ip = new ImagePlus("tmp", iProcessor);
             reportIntensities(dataWriter, currentWell, siteCount, ip, "Pre-Hit", 
                     rr.getHitRois());

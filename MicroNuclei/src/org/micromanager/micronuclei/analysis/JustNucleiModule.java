@@ -105,7 +105,8 @@ public class JustNucleiModule extends AnalysisModule {
    }
    
    @Override
-   public ResultRois analyze(Studio mm, Image img, Roi userRoi, JSONObject parms) throws AnalysisException {
+   public ResultRois analyze(Studio mm, Image[] imgs, Roi userRoi, JSONObject parms) throws AnalysisException {
+      Image img = imgs[0];
       ImageProcessor iProcessor = mm.data().ij().createProcessor(img);
       Rectangle userRoiBounds = null;
       if (userRoi != null) {
@@ -175,13 +176,13 @@ public class JustNucleiModule extends AnalysisModule {
       //        "Found " + allNuclei.length + " nuclei");
       List convertRoiList = new ArrayList();
       List nonConvertRoiList = new ArrayList();
-      int nrNucleiToSkip = (int) (1 / ((Double) percentageOfNuclei_.get() / 100.0));
+      int nrNucleiToSkip = (int) (1 / ((Double) percentageOfNuclei_.get() / 100.0) );
       for (int i = 0; i < allNuclei.length; i++) {
          if (userRoiBounds != null) {
             Rectangle r2d = allNuclei[i].getBounds();
             allNuclei[i].setLocation(r2d.x + userRoiBounds.x, r2d.y + userRoiBounds.y);
          }
-         if (i % nrNucleiToSkip == 0) {
+         if (nrNucleiToSkip ==  0 || i % nrNucleiToSkip == 0) {
             convertRoiList.add(allNuclei[i]);
          } else {
             nonConvertRoiList.add(allNuclei[i]);

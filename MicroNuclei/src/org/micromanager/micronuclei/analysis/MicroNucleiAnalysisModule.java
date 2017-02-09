@@ -149,8 +149,8 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
    }
   
    @Override
-   public ResultRois analyze(Studio studio, Image image, Roi userRoi, JSONObject parms) throws AnalysisException {
-      
+   public ResultRois analyze(Studio studio, Image[] imgs, Roi userRoi, JSONObject parms) throws AnalysisException {
+      Image image = imgs[0];
       nucleiCount_ = parms.optInt(CELLCOUNT, 0);
       zappedNucleiCount_ = parms.optInt(OBJECTCOUNT, 0);
 

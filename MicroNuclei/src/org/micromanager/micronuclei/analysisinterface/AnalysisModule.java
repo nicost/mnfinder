@@ -47,14 +47,14 @@ public abstract class AnalysisModule  {
     * of interest
     * @param studio - the MMStudio object, needed by the implementation to call
     * MM functionality
-    * @param img - The MM image to be analyzed
+    * @param imgs - The MM images to be analyzed
     * @param roi - an ImageJ ROI that should restrict the are to be analyzed
     * if null, the whole image should be analyzed
     * @param parms - Parameters as Key-Value pairs in JSONFormat
     * @return - array of Rois containing the objects of interest
     * @throws AnalysisException 
     */
-   public abstract ResultRois analyze (Studio studio, Image img, Roi roi, JSONObject parms) 
+   public abstract ResultRois analyze (Studio studio, Image[] imgs, Roi roi, JSONObject parms) 
            throws AnalysisException;
   
    

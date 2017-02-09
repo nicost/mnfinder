@@ -104,8 +104,8 @@ public class GreenCellsModule extends AnalysisModule {
    }
    
    @Override
-   public ResultRois analyze(Studio mm, Image img, Roi userRoi, JSONObject parms) throws AnalysisException {
-      ImageProcessor iProcessor = mm.data().ij().createProcessor(img);
+   public ResultRois analyze(Studio mm, Image[] imgs, Roi userRoi, JSONObject parms) throws AnalysisException {
+      ImageProcessor iProcessor = mm.data().ij().createProcessor(imgs[0]);
       Rectangle userRoiBounds = null;
       if (userRoi != null) {
          iProcessor.setRoi(userRoi);
@@ -114,8 +114,8 @@ public class GreenCellsModule extends AnalysisModule {
       }
       ImagePlus ip = (new ImagePlus("tmp", iProcessor)).duplicate();
       Calibration calibration = ip.getCalibration();
-      calibration.pixelWidth = img.getMetadata().getPixelSizeUm();
-      calibration.pixelHeight = img.getMetadata().getPixelSizeUm();
+      calibration.pixelWidth = imgs[0].getMetadata().getPixelSizeUm();
+      calibration.pixelHeight = imgs[0].getMetadata().getPixelSizeUm();
       calibration.setUnit("um");
 
       // check for edges by calculating stdev
@@ -124,7 +124,7 @@ public class GreenCellsModule extends AnalysisModule {
       final double mean = stat.mean;
       final double maxStdDev = (Double) maxStdDev_.get();
       final double maxMean = (Double) maxMeanIntensity_.get();
-      int pos = img.getCoords().getStagePosition();
+      int pos = imgs[0].getCoords().getStagePosition();
       if (stdDev > maxStdDev) {
          mm.alerts().postAlert("Skip image", JustNucleiModule.class,
                  "Std. Dev. of image at position " + pos + " (" + 
