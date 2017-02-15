@@ -86,6 +86,7 @@ import org.micromanager.internal.utils.ImageUtils;
 import org.micromanager.internal.utils.MMFrame;
 import org.micromanager.internal.utils.MMScriptException;
 import org.micromanager.internal.utils.NumberUtils;
+import org.micromanager.micronuclei.analysis.GreenCellsModule;
 
 import org.micromanager.projector.internal.ProjectorControlForm;
 
@@ -159,6 +160,7 @@ public class MicroNucleiForm extends MMFrame {
       // For now, whenever you write a new module, add it here
       analysisModules_.add(new MicroNucleiAnalysisModule());
       analysisModules_.add(new JustNucleiModule());
+      analysisModules_.add(new GreenCellsModule());
       analysisModulesNames_ = new ArrayList<String>();
       for (AnalysisModule module : analysisModules_) {
          analysisModulesNames_.add(module.getName());
