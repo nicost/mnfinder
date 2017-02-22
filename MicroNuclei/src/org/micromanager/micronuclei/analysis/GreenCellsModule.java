@@ -24,6 +24,7 @@ import ij.ImagePlus;
 import ij.gui.Roi;
 import ij.measure.Calibration;
 import ij.measure.Measurements;
+import ij.measure.ResultsTable;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
@@ -115,7 +116,15 @@ public class GreenCellsModule extends AnalysisModule {
    
    @Override
    public ResultRois analyze(Studio mm, Image[] imgs, Roi userRoi, JSONObject parms) throws AnalysisException {
-      
+        
+      if (imgs.length < 2) {
+         throw new AnalysisException ("Need at least two channels to find nuclei in green cells");
+      }
+      boolean showMasks = false;
+      try {
+         showMasks = parms.getBoolean(AnalysisModule.SHOWMASKS);
+      } catch (JSONException jex) { // do nothing
+      }
       
       // First locate Nuclei
       ImageProcessor nuclearImgProcessor = mm.data().ij().createProcessor(imgs[0]);
@@ -182,7 +191,12 @@ public class GreenCellsModule extends AnalysisModule {
       IJ.run(nuclearImgIp, "Analyze Particles...", analyzeParticlesParameters);
 
       Roi[] allNuclei = roiManager_.getRoisAsArray();
-
+      ResultsTable allNucleiTable = roiManager_.multiMeasure(nuclearImgIp);
+      if (showMasks) {
+         nuclearImgIp.show();
+      } else {
+         nuclearImgIp.close();
+      }
       
       // Now locate Cells
       ImageProcessor cellImgProcessor = mm.data().ij().createProcessor(imgs[1]);
@@ -203,7 +217,7 @@ public class GreenCellsModule extends AnalysisModule {
       IJ.run(cellImgIp, "Subtract Background...", "rolling=5 sliding");
       // Pre-filter to improve nuclear detection and slightly enlarge the masks
       IJ.run(cellImgIp, "Smooth", "");
-      IJ.run(cellImgIp, "Gaussian Blur...", "sigma=5.0");
+      IJ.run(cellImgIp, "Gaussian Blur...", "sigma=3.0");
 
       // get the cell masks 
       IJ.setAutoThreshold(nuclearImgIp, "Otsu dark");
@@ -225,6 +239,11 @@ public class GreenCellsModule extends AnalysisModule {
       IJ.run(cellImgIp, "Analyze Particles...", analyzeParticlesParameters);
       
       Roi[] allCells = roiManager_.getRoisAsArray();
+      if (showMasks) {
+         cellImgIp.show();
+      } else {
+         cellImgIp.close();
+      }
  
       
       //mm.alerts().postAlert(UINAME, JustNucleiModule.class, 
@@ -238,7 +257,7 @@ public class GreenCellsModule extends AnalysisModule {
          boolean found = false;
          Rectangle nucRect = nucleus.getBounds();
          int xCenter = nucRect.x + (int) (0.5 * nucRect.getBounds().width);
-         int yCenter = nucRect.y = (int) (0.5 * nucRect.getBounds().height);
+         int yCenter = nucRect.y + (int) (0.5 * nucRect.getBounds().height);
          for (int j = 0; j < allCells.length && !found; j++) {
             if (allCells[j].contains(xCenter, yCenter)) {
                if (userRoiBounds != null) {

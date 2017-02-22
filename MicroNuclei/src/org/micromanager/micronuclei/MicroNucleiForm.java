@@ -663,7 +663,7 @@ public class MicroNucleiForm extends MMFrame {
             }
          }
       } catch (AnalysisException ex) {
-         ij.IJ.log("Error during analysis");
+         gui_.logs().showError(ex);
       }
       gui_.alerts().postAlert(FORMNAME, MicroNucleiForm.class,
                           "Analyzed " + parms.getString(AnalysisModule.CELLCOUNT)
