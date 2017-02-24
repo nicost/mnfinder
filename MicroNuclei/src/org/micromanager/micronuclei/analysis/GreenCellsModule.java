@@ -220,7 +220,7 @@ public class GreenCellsModule extends AnalysisModule {
       IJ.run(cellImgIp, "Gaussian Blur...", "sigma=3.0");
 
       // get the cell masks 
-      IJ.setAutoThreshold(nuclearImgIp, "Otsu dark");
+      IJ.setAutoThreshold(cellImgIp, "Li dark");
       // Fill holes and watershed to split large nuclei
       IJ.run(cellImgIp, "Convert to Mask", "");
       // Use this instead of erode/dilate or Close since we can pad the edges this way
