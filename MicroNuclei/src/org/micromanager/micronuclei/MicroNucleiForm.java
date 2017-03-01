@@ -881,6 +881,16 @@ public class MicroNucleiForm extends MMFrame {
             if (rr.getHitRois() != null && rr.getHitRois().length != 0 && 
                     doZap_.isSelected()) {
                
+               // Report second imaging channel intensities
+               if (nrChannels == 2) {
+                  ImageProcessor iProcessorGFP = gui_.data().ij().createProcessor(imgs[1]);
+                  ImagePlus ipGFP = new ImagePlus("tmp", iProcessorGFP);
+                  reportIntensities(dataWriter, currentWell, siteCount, ipGFP, "GFP-Hit",
+                          rr.getHitRois());
+                  reportIntensities(dataWriter, currentWell, siteCount, ipGFP, "GFP-NoHit",
+                          rr.getNonHitRois());
+               }
+               
                String acq2 = msp.getLabel();
                gui_.logs().logMessage("Imaging cells to be zapped at site: " + acq2);
                // take the pre-zapImage (same settings as afterzap) and save it
