@@ -875,20 +875,31 @@ public class MicroNucleiForm extends MMFrame {
                imgs[1] = snapAndInsertImage(data, msp,siteCount, currentChannel); 
                currentChannel++;
             }
-            gui_.getCMMCore().setConfig(channelGroup, zapChannel_);
-            gui_.getCMMCore().waitForConfig(channelGroup, zapChannel_);
-            gui_.getCMMCore().setExposure(zapTime);
 
             // Analyze and zap
             ResultRois rr = analysisModule.analyze(gui_, imgs, null, parms);
-            ImageProcessor iProcessor = gui_.data().ij().createProcessor(imgs[1]);
-            ImagePlus ip = new ImagePlus("tmp", iProcessor);
-            reportIntensities(dataWriter, currentWell, siteCount, ip, "Pre-Hit", 
-                    rr.getHitRois());
-            reportIntensities(dataWriter, currentWell, siteCount, ip, "Pre-NoHit", 
-                    rr.getNonHitRois());
             if (rr.getHitRois() != null && rr.getHitRois().length != 0 && 
                     doZap_.isSelected()) {
+               
+               String acq2 = msp.getLabel();
+               gui_.logs().logMessage("Imaging cells to be zapped at site: " + acq2);
+               // take the pre-zapImage (same settings as afterzap) and save it
+               gui_.getCMMCore().setConfig(channelGroup, afterZapChannel_);
+               gui_.getCMMCore().waitForConfig(channelGroup, afterZapChannel_);
+               gui_.getCMMCore().setExposure(afterZapExposure);
+               Image preZapImage = snapAndInsertImage(data, msp, siteCount, currentChannel);
+               ImageProcessor iProcessor2 = gui_.data().ij().createProcessor(preZapImage);
+               ImagePlus ip = new ImagePlus("tmp", iProcessor2);
+               reportIntensities(dataWriter, currentWell, siteCount, ip, "Pre-Hit", 
+                    rr.getHitRois());
+               reportIntensities(dataWriter, currentWell, siteCount, ip, "Pre-NoHit", 
+                    rr.getNonHitRois());
+               currentChannel++;
+               
+               // now zap
+               gui_.getCMMCore().setConfig(channelGroup, zapChannel_);
+               gui_.getCMMCore().waitForConfig(channelGroup, zapChannel_);
+               gui_.getCMMCore().setExposure(zapTime);
                zap(rr.getHitRois());
                snapAndInsertImage(data, msp, siteCount, currentChannel);
                currentChannel++;
@@ -903,19 +914,17 @@ public class MicroNucleiForm extends MMFrame {
                }
                outTable.show(outTableName);
 
-               if (rr.getHitRois().length > 0) {
-                  String acq2 = msp.getLabel();
-                  gui_.logs().logMessage("Imaging zapped cells at site: " + acq2);
-                  // take the afterzapImage and save it
-                  gui_.getCMMCore().setConfig(channelGroup, afterZapChannel_);
-                  gui_.getCMMCore().waitForConfig(channelGroup, afterZapChannel_);
-                  gui_.getCMMCore().setExposure(afterZapExposure);
-                  Image postZapImage = snapAndInsertImage(data, msp,siteCount, currentChannel);
-                  ImageProcessor iProcessor2 = gui_.data().ij().createProcessor(postZapImage);
-                  ImagePlus ip2 = new ImagePlus("tmp", iProcessor2);
-                  reportIntensities(dataWriter, currentWell, siteCount, ip2, "Post-Hit", rr.getHitRois());
-                  reportIntensities(dataWriter, currentWell, siteCount, ip2, "Post-NoHit", rr.getNonHitRois());
-               }
+               gui_.logs().logMessage("Imaging zapped cells at site: " + acq2);
+               // take the afterzapImage and save it
+               gui_.getCMMCore().setConfig(channelGroup, afterZapChannel_);
+               gui_.getCMMCore().waitForConfig(channelGroup, afterZapChannel_);
+               gui_.getCMMCore().setExposure(afterZapExposure);
+               Image postZapImage = snapAndInsertImage(data, msp, siteCount, currentChannel);
+               ImageProcessor iProcessor3 = gui_.data().ij().createProcessor(postZapImage);
+               ImagePlus ip3 = new ImagePlus("tmp", iProcessor3);
+               reportIntensities(dataWriter, currentWell, siteCount, ip3, "Post-Hit", rr.getHitRois());
+               reportIntensities(dataWriter, currentWell, siteCount, ip3, "Post-NoHit", rr.getNonHitRois());
+
             }
             siteCount++;
             count++;
