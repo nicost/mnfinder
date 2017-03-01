@@ -196,6 +196,8 @@ public class MicroNucleiForm extends MMFrame {
       // make this clear to the user and update the contents of the dropdowns
       // when the channel group changes.
       
+      
+      
       acqPanel.add(myLabel(arialSmallFont_, "Nuclear Channel: "));
       channelComboBox_ = new JComboBox();
       imagingChannel_ = gui_.profile().getString(MicroNucleiForm.class, 
