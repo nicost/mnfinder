@@ -97,8 +97,8 @@ import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.PropertyException;
 import org.micromanager.micronuclei.analysisinterface.ResultRois;
-import org.micromanager.micronuclei.gui.ResultsListener;
-import org.micromanager.micronuclei.gui.PropertyGUI;
+import org.micromanager.micronuclei.internal.gui.ResultsListener;
+import org.micromanager.micronuclei.internal.gui.PropertyGUI;
 
 
 /**

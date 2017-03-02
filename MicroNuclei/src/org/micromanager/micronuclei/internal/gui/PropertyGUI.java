@@ -17,7 +17,7 @@
 //               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 
-package org.micromanager.micronuclei.gui;
+package org.micromanager.micronuclei.internal.gui;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;

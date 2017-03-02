@@ -1,5 +1,5 @@
 
-package org.micromanager.micronuclei.internal.display;
+package org.micromanager.micronuclei.internal.gui;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;

@@ -1,5 +1,5 @@
 
-package org.micromanager.micronuclei.internal.display;
+package org.micromanager.micronuclei.internal.gui;
 
 import java.awt.Color;
 import java.util.ArrayList;
