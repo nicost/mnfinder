@@ -97,6 +97,8 @@ import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.PropertyException;
 import org.micromanager.micronuclei.analysisinterface.ResultRois;
+import org.micromanager.micronuclei.internal.gui.ChannelPanel;
+import org.micromanager.micronuclei.internal.gui.ImagingChannels;
 import org.micromanager.micronuclei.internal.gui.ResultsListener;
 import org.micromanager.micronuclei.internal.gui.PropertyGUI;
 
@@ -113,17 +115,17 @@ public class MicroNucleiForm extends MMFrame {
    private final Dimension textFieldSize_;
    private final JTextField saveTextField_;
    private String imagingChannel_;
-   private final JComboBox channelComboBox_;
-   private final JTextField imagingExposureField_;
+   private  JComboBox channelComboBox_;
+   private  JTextField imagingExposureField_;
    private String secondImagingChannel_;
-   private final JTextField secondImagingExposureField_;
-   private final JComboBox secondChannelComboBox_;
+   private  JTextField secondImagingExposureField_;
+   private  JComboBox secondChannelComboBox_;
    private String zapChannel_;
-   private final JComboBox zapChannelComboBox_;
-   private final JTextField zapExposureField_;
+   private  JComboBox zapChannelComboBox_;
+   private  JTextField zapExposureField_;
    private String afterZapChannel_;
-   private final JComboBox AfterZapChannelComboBox_;
-   private final JTextField afterZapExposureField_;
+   private  JComboBox AfterZapChannelComboBox_;
+   private  JTextField afterZapExposureField_;
    private final JCheckBox doZap_;
    private final JCheckBox showMasks_;
 
@@ -196,8 +198,10 @@ public class MicroNucleiForm extends MMFrame {
       // make this clear to the user and update the contents of the dropdowns
       // when the channel group changes.
       
+      acqPanel.add(myLabel(arialSmallFont_, "Imaging Channels:"), "span 3, wrap");
+      acqPanel.add(new ChannelPanel(gui_, ImagingChannels.class), "span 3, wrap");
       
-      
+      /*
       acqPanel.add(myLabel(arialSmallFont_, "Nuclear Channel: "));
       channelComboBox_ = new JComboBox();
       imagingChannel_ = gui_.profile().getString(MicroNucleiForm.class, 
@@ -278,7 +282,7 @@ public class MicroNucleiForm extends MMFrame {
       msLabel = new JLabel("ms");
       acqPanel.add(msLabel, "wrap");
       
-      
+      */
       acqPanel.setBorder(makeTitledBorder("Acquisition Settings"));
       
       super.add(acqPanel, "span 3, center, wrap");
@@ -413,7 +417,10 @@ public class MicroNucleiForm extends MMFrame {
    
    @Override
    public void dispose() {
-      gui_.events().unregisterForEvents(this);
+      try {
+         gui_.events().unregisterForEvents(this);
+      } catch (java.lang.IllegalArgumentException iae) {}
+      /*
       gui_.profile().setString(MicroNucleiForm.class, IMAGINGEXPOSURE, 
               imagingExposureField_.getText());
       gui_.profile().setString(MicroNucleiForm.class, SECONDEXPOSURE, 
@@ -422,6 +429,7 @@ public class MicroNucleiForm extends MMFrame {
               zapExposureField_.getText());
       gui_.profile().setString(MicroNucleiForm.class, AFTERZAPEXPOSURE, 
               afterZapExposureField_.getText());
+      */
       super.dispose();
    }
    

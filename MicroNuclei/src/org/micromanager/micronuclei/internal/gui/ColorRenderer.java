@@ -17,21 +17,32 @@
 //               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 
-package org.micromanager.micronuclei.internal.data;
+package org.micromanager.micronuclei.internal.gui;
 
 import java.awt.Color;
-import java.io.Serializable;
+import java.awt.Component;
+import javax.swing.JLabel;
+import javax.swing.JTable;
+import javax.swing.table.TableCellRenderer;
 
 /**
- *
- * @author Nico
+ * Renders the color of an entry in a table
+ * Displays a JLabel with the desired background color
+ * 
+ * @author nico
  */
-public class ChannelInfo implements Serializable {
-   private static final long serialVersionUID = 8361934391238717234L;
+public class ColorRenderer extends JLabel implements TableCellRenderer {
    
-   public boolean use_ = false;
-   public String channelName_ = "";
-   public double exposureTimeMs_ = 0.0;
-   public Color displayColor_ = null;
+   public ColorRenderer () {
+      super.setOpaque(true);
+   }
 
+   @Override
+   public Component getTableCellRendererComponent(JTable table, Object value, 
+           boolean isSelected, boolean hasFocus, int row, int column) {
+      Color newColor = (Color) value;
+      super.setBackground(newColor);
+      return this;
+   }
+   
 }
