@@ -28,13 +28,13 @@ import org.micromanager.Studio;
  *
  * @author nico
  */
-public class ChannelTable extends JTable {
+public class ConvertChannelTable extends JTable {
    final private Studio studio_;
    final private ChannelEditor channelEditor_;
    final private ColorEditor colorEditor_;
-   final private ChannelPanel channelPanel_;
+   final private ConvertChannelPanel channelPanel_;
    
-   public ChannelTable(Studio studio, ChannelPanel channelPanel) {
+   public ConvertChannelTable(Studio studio, ConvertChannelPanel channelPanel) {
       studio_ = studio;
       channelEditor_ = new ChannelEditor(studio_, channelPanel);
       colorEditor_ = new ColorEditor();
@@ -44,7 +44,7 @@ public class ChannelTable extends JTable {
    
    @Override
    public TableCellRenderer getCellRenderer(int rowIndex, int columnIndex) {
-      if (columnIndex == 3) {
+      if (columnIndex == 4) {
          return new ColorRenderer();
       }
       return super.getCellRenderer(rowIndex, columnIndex);
@@ -54,9 +54,9 @@ public class ChannelTable extends JTable {
    public TableCellEditor getCellEditor(int rowIndex, int columnIndex) {
       columnIndex = convertColumnIndexToModel(columnIndex);
       switch (columnIndex) {
-         case 1:
+         case 2:
             return channelEditor_;
-         case 3:
+         case 4:
             return colorEditor_;
       }
       return super.getCellEditor(rowIndex, columnIndex); // 0 is Boolean, and 2 is Double
@@ -72,7 +72,7 @@ public class ChannelTable extends JTable {
    @Override
    public void setValueAt(Object value, int rowIndex, int columnIndex) {
       super.setValueAt(value, rowIndex, columnIndex);
-      if (columnIndex == 3) {
+      if (columnIndex == 4) {
          channelPanel_.storeChannelColor(rowIndex);
       }
       channelPanel_.storeChannelsInProfile();

@@ -4,7 +4,7 @@
 //
 // AUTHOR:       Nico Stuurman
 //
-// COPYRIGHT:    Regents of the University of California 2015
+// COPYRIGHT:    Regents of the University of California 2017
 //
 // LICENSE:      This file is distributed under the BSD license.
 //               License text is included with the source distribution.
@@ -20,12 +20,8 @@
 package org.micromanager.micronuclei.internal.gui;
 
 import java.awt.Color;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.util.List;
-import javax.swing.ImageIcon;
-import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.ScrollPaneConstants;
@@ -36,30 +32,31 @@ import org.micromanager.UserProfile;
 import org.micromanager.micronuclei.internal.data.ChannelInfo;
 
 /**
- * Generates a panel with a view on a channel table, and + and - buttons 
- * that let the user add and remove channels
- * 
- * @author Nico
+ *
+ * @author nico
  */
-public final class ChannelPanel extends JPanel implements BasePanel {
+public final class ConvertChannelPanel extends JPanel implements BasePanel {
    private static final String COL0WIDTH = "Col0Width";  
    private static final String COL1WIDTH = "Col1Width";
    private static final String COL2WIDTH = "Col2Width";
    private static final String COL3WIDTH = "Col3Width";
-   private static final String CHANNELDATA = "ChannelData";
+   private static final String COL4WIDTH = "Col3Width";
+   private static final String CONVERTCHANNELDATA = "ConvertChannelData";
    private static final String COLOR = "Color";
    
    private final UserProfile userProfile_;
    private final Class profileClass_;
-   private final ChannelTableModel channelTableModel_;
+   private final ConvertChannelTableModel channelTableModel_;
    
-   public ChannelPanel(final Studio studio, final Class profileClass) {
+   public ConvertChannelPanel(final Studio studio, final Class profileClass) {
       
       userProfile_ = studio.getUserProfile();
       profileClass_ = profileClass;
-      final ChannelTable table = new ChannelTable(studio, this);
-      channelTableModel_ = new ChannelTableModel();
-      restoreChannelsFromProfile();
+      final ConvertChannelTable table = new ConvertChannelTable(studio, this);
+      channelTableModel_ = new ConvertChannelTableModel();
+      for (int i = 0; i < ConvertChannelTableModel.NRCHANNELS; i++) {
+         updateChannelFromProfile(i);
+      }
 
       studio.events().registerForEvents(channelTableModel_);
       table.setModel(channelTableModel_);
@@ -73,45 +70,20 @@ public final class ChannelPanel extends JPanel implements BasePanel {
               ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
       
       TableColumnModel cm = table.getColumnModel();
-      cm.getColumn(0).setPreferredWidth(userProfile_.getInt(profileClass_, COL0WIDTH, 20));
-      cm.getColumn(1).setPreferredWidth(userProfile_.getInt(profileClass_, COL1WIDTH, 100));
-      cm.getColumn(2).setPreferredWidth(userProfile_.getInt(profileClass_, COL2WIDTH, 50));
+      cm.getColumn(0).setPreferredWidth(userProfile_.getInt(profileClass_, COL0WIDTH, 40));
+      cm.getColumn(1).setPreferredWidth(userProfile_.getInt(profileClass_, COL1WIDTH, 20));
+      cm.getColumn(2).setPreferredWidth(userProfile_.getInt(profileClass_, COL2WIDTH, 100));
       cm.getColumn(3).setPreferredWidth(userProfile_.getInt(profileClass_, COL3WIDTH, 50));
+      cm.getColumn(4).setPreferredWidth(userProfile_.getInt(profileClass_, COL4WIDTH, 50));
       tableScrollPane.setViewportView(table);
       super.add(tableScrollPane, "span 1 2, hmax 75, wmax 320 ");
-      
-      final JButton plusButton = new JButton("");
-      plusButton.setIcon(new ImageIcon(getClass().getResource(
-              "/org/micromanager/icons/plus.png")));
-      plusButton.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent e) {
-            channelTableModel_.addChannel(new ChannelInfo());
-            storeChannelsInProfile();
-         }
-      });
-      super.add(plusButton, "hmin 25, wrap");
-      
-      final JButton minusButton = new JButton("");
-      minusButton.setIcon(new ImageIcon(getClass().getResource(
-               "/org/micromanager/icons/minus.png")));
-      minusButton.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent e) {
-            for (int row : table.getSelectedRows()) {
-               channelTableModel_.removeChannel(row);
-               storeChannelsInProfile();
-            }
-         }
-      });
-      super.add(minusButton, "hmin 25, top, wrap");
       
    }
    
    
    public void storeChannelsInProfile() {
       try {
-         userProfile_.setObject(profileClass_, CHANNELDATA,
+         userProfile_.setObject(profileClass_, CONVERTCHANNELDATA,
                  channelTableModel_.getChannels());
       } catch (IOException ex) {
          // TODO report exception
@@ -119,12 +91,15 @@ public final class ChannelPanel extends JPanel implements BasePanel {
    }
    
    
-   public void restoreChannelsFromProfile() {
+   public void updateChannelFromProfile(int channelIndex) {
       try {
-         channelTableModel_.setChannels( (List<ChannelInfo>) 
-                 userProfile_.getObject(profileClass_, CHANNELDATA, null));
+         List<ChannelInfo> channels = (List<ChannelInfo>) 
+              userProfile_.getObject(profileClass_, CONVERTCHANNELDATA, null);
+         channelTableModel_.setChannel(channels.get(channelIndex), channelIndex);
       } catch (IOException ex) {
          // TODO Report exception
+      } catch (NullPointerException ne) {
+         // This is always thrown before the profile is populated
       }
    }
    
@@ -146,5 +121,4 @@ public final class ChannelPanel extends JPanel implements BasePanel {
          // TODO 
       }
    }
-   
 }

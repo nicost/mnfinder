@@ -40,10 +40,12 @@ public final class ChannelEditor extends AbstractCellEditor implements TableCell
 
    private final JComboBox channelSelect_;   
    private final Studio studio_;
+   private final BasePanel basePanel_;
    private String channelGroup_;
    
-   public ChannelEditor(Studio studio) {
+   public ChannelEditor(Studio studio, BasePanel basePanel) {
       studio_ = studio;
+      basePanel_ = basePanel;
       channelSelect_ = new JComboBox();
       String channelGroup = studio_.core().getChannelGroup();
       if (channelGroup != null) {
@@ -70,8 +72,9 @@ public final class ChannelEditor extends AbstractCellEditor implements TableCell
    
    @Override
    public Component getTableCellEditorComponent(JTable table, Object value,
-           boolean isSelected, int rowIndex, int colIndex) {
+           boolean isSelected, final int rowIndex, int colIndex) {
       
+      colIndex = table.convertColumnIndexToModel(colIndex);
       channelSelect_.setSelectedItem(table.getModel().getValueAt(rowIndex, colIndex));
 
       // end editing on selection change
@@ -79,6 +82,7 @@ public final class ChannelEditor extends AbstractCellEditor implements TableCell
          @Override
             public void actionPerformed(ActionEvent e) {
                fireEditingStopped();
+               basePanel_.updateColor(rowIndex);
             }
          });
 

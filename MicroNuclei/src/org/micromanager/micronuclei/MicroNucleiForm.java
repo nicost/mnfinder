@@ -98,6 +98,8 @@ import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.PropertyException;
 import org.micromanager.micronuclei.analysisinterface.ResultRois;
 import org.micromanager.micronuclei.internal.gui.ChannelPanel;
+import org.micromanager.micronuclei.internal.gui.ConversionChannels;
+import org.micromanager.micronuclei.internal.gui.ConvertChannelPanel;
 import org.micromanager.micronuclei.internal.gui.ImagingChannels;
 import org.micromanager.micronuclei.internal.gui.ResultsListener;
 import org.micromanager.micronuclei.internal.gui.PropertyGUI;
@@ -200,6 +202,9 @@ public class MicroNucleiForm extends MMFrame {
       
       acqPanel.add(myLabel(arialSmallFont_, "Imaging Channels:"), "span 3, wrap");
       acqPanel.add(new ChannelPanel(gui_, ImagingChannels.class), "span 3, wrap");
+      
+      acqPanel.add(myLabel(arialSmallFont_, "Conversion Channels:"), "span 3, wrap");
+      acqPanel.add(new ConvertChannelPanel(gui_, ConversionChannels.class), "span 3, wrap");
       
       /*
       acqPanel.add(myLabel(arialSmallFont_, "Nuclear Channel: "));
