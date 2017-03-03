@@ -289,7 +289,9 @@ public class GreenCellsModule extends AnalysisModule {
          throw new AnalysisException (jse.getMessage());
       }
       
-      return new ResultRois(allNuclei, convertRois, nonConvertRois);
+      ResultRois rrs = new ResultRois(allNuclei, convertRois, nonConvertRois);
+      rrs.reportOnImg(1);
+      return rrs;
    }
 
    @Override

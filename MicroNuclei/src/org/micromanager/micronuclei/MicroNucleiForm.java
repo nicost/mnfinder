@@ -786,13 +786,13 @@ public class MicroNucleiForm extends MMFrame {
             if (rr.getHitRois() != null && rr.getHitRois().length != 0 && 
                     doZap_.isSelected()) {
                
-               // Report second imaging channel intensities
-               if (nrChannels == 2) {
-                  ImageProcessor iProcessorGFP = gui_.data().ij().createProcessor(imgs[1]);
-                  ImagePlus ipGFP = new ImagePlus("tmp", iProcessorGFP);
-                  reportIntensities(dataWriter, currentWell, siteCount, ipGFP, "GFP-Hit",
+               // Report imaging channel intensities
+               for (int nr : rr.getImgsToBeReported()) {
+                  ImageProcessor iProcessortmp = gui_.data().ij().createProcessor(imgs[nr]);
+                  ImagePlus ipGFP = new ImagePlus("tmp", iProcessortmp);
+                  reportIntensities(dataWriter, currentWell, siteCount, ipGFP, "Hit-ch." + nr,
                           rr.getHitRois());
-                  reportIntensities(dataWriter, currentWell, siteCount, ipGFP, "GFP-NoHit",
+                  reportIntensities(dataWriter, currentWell, siteCount, ipGFP, "NoHit-ch." + nr,
                           rr.getNonHitRois());
                }
                
