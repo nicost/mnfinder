@@ -97,10 +97,9 @@ import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.PropertyException;
 import org.micromanager.micronuclei.analysisinterface.ResultRois;
+import org.micromanager.micronuclei.internal.data.ChannelInfo;
 import org.micromanager.micronuclei.internal.gui.ChannelPanel;
-import org.micromanager.micronuclei.internal.gui.ConversionChannels;
 import org.micromanager.micronuclei.internal.gui.ConvertChannelPanel;
-import org.micromanager.micronuclei.internal.gui.ImagingChannels;
 import org.micromanager.micronuclei.internal.gui.ResultsListener;
 import org.micromanager.micronuclei.internal.gui.PropertyGUI;
 
@@ -114,20 +113,9 @@ public class MicroNucleiForm extends MMFrame {
    private final Studio gui_;
    private final Font arialSmallFont_;
    private final Dimension buttonSize_;
-   private final Dimension textFieldSize_;
    private final JTextField saveTextField_;
-   private String imagingChannel_;
-   private  JComboBox channelComboBox_;
-   private  JTextField imagingExposureField_;
-   private String secondImagingChannel_;
-   private  JTextField secondImagingExposureField_;
-   private  JComboBox secondChannelComboBox_;
-   private String zapChannel_;
-   private  JComboBox zapChannelComboBox_;
-   private  JTextField zapExposureField_;
-   private String afterZapChannel_;
-   private  JComboBox AfterZapChannelComboBox_;
-   private  JTextField afterZapExposureField_;
+   private final ChannelPanel channelPanel_;
+   private final ConvertChannelPanel convertChannelPanel_;
    private final JCheckBox doZap_;
    private final JCheckBox showMasks_;
 
@@ -136,13 +124,9 @@ public class MicroNucleiForm extends MMFrame {
    private final String FORMNAME = "Analyze and Photoconvert";
    private final String SAVELOCATION = "SaveLocation";
    private final String IMAGINGCHANNEL = "ImagingChannel";
-   private final String IMAGINGEXPOSURE = "ImageinExposure";
    private final String SECONDIMAGINGCHANNEL = "SecondImagingChannel";
-   private final String SECONDEXPOSURE = "SecondImagingChanelExposure";
    private final String ZAPCHANNEL = "ZapChannel";
-   private final String ZAPEXPOSURE = "ZapExposure";
    private final String AFTERZAPCHANNEL = "AfterZapChannel";
-   private final String AFTERZAPEXPOSURE = "AfterZapExposure";
    private final String DOZAP = "DoZap";
    private final String SHOWMASKS = "ShowMasks";
    
@@ -172,7 +156,6 @@ public class MicroNucleiForm extends MMFrame {
       
       arialSmallFont_ = new Font("Arial", Font.PLAIN, 12);
       buttonSize_ = new Dimension(70, 21);
-      textFieldSize_ = new Dimension(70, 21);
 
       super.setLayout(new MigLayout("flowx, fill, insets 8"));
       super.setTitle(FORMNAME);     
@@ -201,93 +184,13 @@ public class MicroNucleiForm extends MMFrame {
       // when the channel group changes.
       
       acqPanel.add(myLabel(arialSmallFont_, "Imaging Channels:"), "span 3, wrap");
-      acqPanel.add(new ChannelPanel(gui_, ImagingChannels.class), "span 3, wrap");
+      channelPanel_ = new ChannelPanel(gui_, ChannelPanel.class);
+      acqPanel.add(channelPanel_, "span 3, wrap");
       
       acqPanel.add(myLabel(arialSmallFont_, "Conversion Channels:"), "span 3, wrap");
-      acqPanel.add(new ConvertChannelPanel(gui_, ConversionChannels.class), "span 3, wrap");
+      convertChannelPanel_ = new ConvertChannelPanel(gui_, ConvertChannelPanel.class);
+      acqPanel.add(convertChannelPanel_, "span 3, wrap");
       
-      /*
-      acqPanel.add(myLabel(arialSmallFont_, "Nuclear Channel: "));
-      channelComboBox_ = new JComboBox();
-      imagingChannel_ = gui_.profile().getString(MicroNucleiForm.class, 
-              IMAGINGCHANNEL, imagingChannel_);
-      updateChannels(channelComboBox_, imagingChannel_, false);
-      channelComboBox_.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent ae) {
-            channelActionPerformed(ae);
-         }
-      } );
-      acqPanel.add(channelComboBox_, "split 2, left");
-      
-      imagingExposureField_ = new JTextField(gui_.profile().getString(
-              MicroNucleiForm.class, IMAGINGEXPOSURE, "100.0"));
-      imagingExposureField_.setMinimumSize(textFieldSize_);
-      acqPanel.add(imagingExposureField_);
-      JLabel msLabel = new JLabel("ms");
-      acqPanel.add(msLabel, "wrap");
-      
-      
-      acqPanel.add(myLabel(arialSmallFont_, "2nd Imaging Channel: "));
-      secondChannelComboBox_ = new JComboBox();
-      secondImagingChannel_ =  gui_.profile().getString(MicroNucleiForm.class,
-              SECONDIMAGINGCHANNEL, secondImagingChannel_);
-      updateChannels(secondChannelComboBox_, secondImagingChannel_, true);
-      secondChannelComboBox_.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent ae) {
-            secondChannelActionPerformed(ae);
-         }
-      } );
-      acqPanel.add(secondChannelComboBox_, "split 2, left");
-      secondImagingExposureField_ = new JTextField(gui_.profile().getString(
-              MicroNucleiForm.class, SECONDEXPOSURE, "100.0"));
-      secondImagingExposureField_.setMinimumSize(textFieldSize_);
-      acqPanel.add(secondImagingExposureField_);
-      msLabel = new JLabel("ms");
-      acqPanel.add(msLabel, "wrap");
-      
-      
-      acqPanel.add(myLabel(arialSmallFont_, "Zap Channel: "));
-      zapChannelComboBox_ = new JComboBox();
-      zapChannel_ =  gui_.profile().getString(MicroNucleiForm.class, 
-              ZAPCHANNEL, zapChannel_);
-      updateChannels(zapChannelComboBox_, zapChannel_, false);
-      zapChannelComboBox_.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent ae) {
-            zapChannelActionPerformed(ae);
-         }
-      } );
-      acqPanel.add(zapChannelComboBox_, "split 2, left");
-      zapExposureField_ = new JTextField(gui_.profile().getString(
-              MicroNucleiForm.class, ZAPEXPOSURE, "2000.0"));
-      zapExposureField_.setMinimumSize(textFieldSize_);
-      acqPanel.add(zapExposureField_);
-      msLabel = new JLabel("ms");
-      acqPanel.add(msLabel, "wrap");
-      
-      
-      acqPanel.add(myLabel(arialSmallFont_, "After Zap Channel: "));
-      AfterZapChannelComboBox_ = new JComboBox();
-      afterZapChannel_ =  gui_.profile().getString(MicroNucleiForm.class, 
-              AFTERZAPCHANNEL, afterZapChannel_);
-      updateChannels(AfterZapChannelComboBox_, afterZapChannel_, false);
-      AfterZapChannelComboBox_.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent ae) {
-            afterZapChannelActionPerformed(ae);
-         }
-      } );
-      acqPanel.add(AfterZapChannelComboBox_, "split 2, left");
-      afterZapExposureField_ = new JTextField(gui_.profile().getString(
-              MicroNucleiForm.class, AFTERZAPEXPOSURE, "100.0"));
-      afterZapExposureField_.setMinimumSize(textFieldSize_);
-      acqPanel.add(afterZapExposureField_);
-      msLabel = new JLabel("ms");
-      acqPanel.add(msLabel, "wrap");
-      
-      */
       acqPanel.setBorder(makeTitledBorder("Acquisition Settings"));
       
       super.add(acqPanel, "span 3, center, wrap");
@@ -483,7 +386,7 @@ public class MicroNucleiForm extends MMFrame {
          gui_.profile().setString(MicroNucleiForm.class, SAVELOCATION, f.getAbsolutePath());    
       }
    }   
-   
+   /*
    private void channelActionPerformed(ActionEvent evt) {
       imagingChannel_ = (String) channelComboBox_.getSelectedItem();
       gui_.profile().setString(MicroNucleiForm.class, IMAGINGCHANNEL, imagingChannel_);
@@ -503,6 +406,7 @@ public class MicroNucleiForm extends MMFrame {
       afterZapChannel_ = (String) AfterZapChannelComboBox_.getSelectedItem();
       gui_.profile().setString(MicroNucleiForm.class, AFTERZAPCHANNEL, afterZapChannel_);
    }
+   */
          
    /**
     * Looks for a module with the given name in our list of 
@@ -754,11 +658,8 @@ public class MicroNucleiForm extends MMFrame {
 
       PositionList posList = gui_.getPositionListManager().getPositionList();
       MultiStagePosition[] positions = posList.getPositions();
+      List<ChannelInfo> channels = channelPanel_.getChannels();
       String currentWell = "";
-      int nrChannels = 1;
-      if (secondImagingChannel_.length() > 1) {
-         nrChannels = 2;
-      }
       
       ResultsTable outTable = new ResultsTable();
       String outTableName = Terms.RESULTTABLENAME;
@@ -791,39 +692,36 @@ public class MicroNucleiForm extends MMFrame {
       JSONObject parms = analysisSettings(showMasks_.isSelected());
       currentWell = "";
       
+
+      double originalExposure = gui_.getCMMCore().getExposure();
+      
       // prepare stuff needed to store data in MM
       Datastore data = null;
       DisplayWindow dw = null;
-      int realNrChannels = doZap_.isSelected() ? nrChannels + 1 : nrChannels;
-      String[] channelNames = new String[realNrChannels];
-      channelNames[0] =  imagingChannel_;
-      double imagingExposure = Double.parseDouble(imagingExposureField_.getText());
-      double secondExposure = 0.0;
-      double zapTime = 0.0;
-      double afterZapExposure = Double.parseDouble(afterZapExposureField_.getText());
-      
-      if (doZap_.isSelected()) {
-         channelNames[1] = zapChannel_;
-         zapTime = Double.parseDouble(zapExposureField_.getText());
-      }
-      if (secondImagingChannel_.length() > 1) {
-         channelNames[1] = secondImagingChannel_;
-         secondExposure = Double.parseDouble(secondImagingExposureField_.getText());
-         if (doZap_.isSelected()) {
-            channelNames[2] = zapChannel_;
-            zapTime = Double.parseDouble(zapExposureField_.getText());
+
+      int nrChannels = 0;
+      List<String> channelNames = new ArrayList<String>();
+      for (ChannelInfo ci : channelPanel_.getChannels()) {
+         if (ci.use_) {
+            channelNames.add(ci.channelName_);
+            nrChannels++;
          }
       }
-      double originalExposure = gui_.getCMMCore().getExposure();
+      for (ChannelInfo ci : convertChannelPanel_.getChannels()) {
+         if (ci.use_) {
+            channelNames.add(ci.channelName_);
+            nrChannels++;
+         }
+      }
 
       SummaryMetadata.SummaryMetadataBuilder smb = gui_.data().getSummaryMetadataBuilder();
-      smb = smb.channelNames(channelNames).
+      smb = smb.channelNames(channelNames.toArray(new String[channelNames.size()])).
               channelGroup(channelGroup).
               microManagerVersion(gui_.compat().getVersion()).
               prefix("MicroNucleiScreen").
               startDate((new Date()).toString()).
               intendedDimensions(gui_.data().getCoordsBuilder().
-                  channel(realNrChannels).
+                  channel(nrChannels).
                   z(0).
                   time(0).
                   stagePosition(nrImagesPerWell).
@@ -871,21 +769,15 @@ public class MicroNucleiForm extends MMFrame {
                  
          if (data != null) {
             int currentChannel = 0;
-            MultiStagePosition.goToPosition(msp, gui_.getCMMCore());
-            gui_.getCMMCore().waitForSystem();
-            gui_.logs().logMessage("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y);
-            gui_.getCMMCore().setConfig(channelGroup, imagingChannel_);
-            gui_.getCMMCore().waitForConfig(channelGroup, imagingChannel_);
-            gui_.getCMMCore().setExposure(imagingExposure);
             Image[] imgs = new Image[nrChannels];
-            imgs[0] = snapAndInsertImage(data, msp,siteCount, currentChannel); 
-            currentChannel++;
-
-            if (nrChannels == 2) {
-               gui_.getCMMCore().setConfig(channelGroup, secondImagingChannel_);
-               gui_.getCMMCore().waitForConfig(channelGroup, secondImagingChannel_);
-               gui_.getCMMCore().setExposure(secondExposure);
-               imgs[1] = snapAndInsertImage(data, msp,siteCount, currentChannel); 
+            MultiStagePosition.goToPosition(msp, gui_.getCMMCore());
+            for (ChannelInfo ci : channelPanel_.getChannels()) {
+               gui_.getCMMCore().waitForSystem();
+               gui_.logs().logMessage("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y);
+               gui_.getCMMCore().setConfig(channelGroup, ci.channelName_);
+               gui_.getCMMCore().waitForConfig(channelGroup, ci.channelName_);
+               gui_.getCMMCore().setExposure(ci.exposureTimeMs_);
+               imgs[currentChannel] = snapAndInsertImage(data, msp, siteCount, currentChannel); 
                currentChannel++;
             }
 

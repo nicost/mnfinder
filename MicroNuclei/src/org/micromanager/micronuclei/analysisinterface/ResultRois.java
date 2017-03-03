@@ -9,7 +9,7 @@ import ij.gui.Roi;
  * DataStructure to hold the result of the analysismodule
  * Any or all of the Roi[] can be null, it is the responsibility of the user
  * to make sure that Roi[] are actually present
- * @author Nico
+ * @author nico
  */
 public class ResultRois {
    private final Roi[] allRois_;

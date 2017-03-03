@@ -121,4 +121,8 @@ public final class ConvertChannelPanel extends JPanel implements BasePanel {
          // TODO 
       }
    }
+   
+   public List<ChannelInfo> getChannels () {
+      return channelTableModel_.getChannels();
+   }
 }

@@ -147,4 +147,8 @@ public final class ChannelPanel extends JPanel implements BasePanel {
       }
    }
    
+   public List<ChannelInfo> getChannels () {
+      return channelTableModel_.getChannels();
+   }
+   
 }
