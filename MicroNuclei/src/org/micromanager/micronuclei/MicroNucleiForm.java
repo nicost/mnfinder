@@ -100,6 +100,7 @@ import org.micromanager.micronuclei.analysisinterface.ResultRois;
 import org.micromanager.micronuclei.internal.data.ChannelInfo;
 import org.micromanager.micronuclei.internal.gui.ChannelPanel;
 import org.micromanager.micronuclei.internal.gui.ConvertChannelPanel;
+import org.micromanager.micronuclei.internal.gui.ConvertChannelTableModel;
 import org.micromanager.micronuclei.internal.gui.ResultsListener;
 import org.micromanager.micronuclei.internal.gui.PropertyGUI;
 
@@ -658,7 +659,10 @@ public class MicroNucleiForm extends MMFrame {
 
       PositionList posList = gui_.getPositionListManager().getPositionList();
       MultiStagePosition[] positions = posList.getPositions();
-      List<ChannelInfo> channels = channelPanel_.getChannels();
+      if (positions.length == 0) {
+         // TODO: get current position
+         positions = new MultiStagePosition[] {};
+      }
       String currentWell = "";
       
       ResultsTable outTable = new ResultsTable();
@@ -806,34 +810,27 @@ public class MicroNucleiForm extends MMFrame {
                   if (ci.use_) {
                      gui_.getCMMCore().waitForSystem();
                      gui_.logs().logMessage("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y);
+                     if (i == 1) { // zap channel
+                        zap(rr.getHitRois());  // send ROIs to the device
+                     }
                      gui_.getCMMCore().setConfig(channelGroup, ci.channelName_);
                      gui_.getCMMCore().waitForConfig(channelGroup, ci.channelName_);
                      gui_.getCMMCore().setExposure(ci.exposureTimeMs_);
                      imgs[currentChannel] = snapAndInsertImage(data, msp, siteCount, currentChannel);
+                     if (rr.getZapChannelsToBeReported().contains(i)) {
+                        ImageProcessor iProc = gui_.data().ij().createProcessor(imgs[currentChannel]);
+                        ImagePlus ip = new ImagePlus("tmp", iProc);
+                        reportIntensities(dataWriter, currentWell, siteCount, ip, 
+                                ConvertChannelTableModel.PURPOSES[i] + "-Hit",
+                                rr.getHitRois());
+                        reportIntensities(dataWriter, currentWell, siteCount, ip, 
+                                ConvertChannelTableModel.PURPOSES[i] + "-NoHit",
+                                rr.getNonHitRois());
+                     }
                      currentChannel++;
                   }
                }
-
-               // take the pre-zapImage (same settings as afterzap) and save it
-               gui_.getCMMCore().setConfig(channelGroup, afterZapChannel_);
-               gui_.getCMMCore().waitForConfig(channelGroup, afterZapChannel_);
-               gui_.getCMMCore().setExposure(afterZapExposure);
-               Image preZapImage = snapAndInsertImage(data, msp, siteCount, currentChannel);
-               ImageProcessor iProcessor2 = gui_.data().ij().createProcessor(preZapImage);
-               ImagePlus ip = new ImagePlus("tmp", iProcessor2);
-               reportIntensities(dataWriter, currentWell, siteCount, ip, "Pre-Hit", 
-                    rr.getHitRois());
-               reportIntensities(dataWriter, currentWell, siteCount, ip, "Pre-NoHit", 
-                    rr.getNonHitRois());
-               currentChannel++;
                
-               // now zap
-               gui_.getCMMCore().setConfig(channelGroup, zapChannel_);
-               gui_.getCMMCore().waitForConfig(channelGroup, zapChannel_);
-               gui_.getCMMCore().setExposure(zapTime);
-               zap(rr.getHitRois());
-               snapAndInsertImage(data, msp, siteCount, currentChannel);
-               currentChannel++;
                for (Roi roi : rr.getHitRois()) {
                   outTable.incrementCounter();
                   Rectangle bounds = roi.getBounds();
@@ -843,19 +840,7 @@ public class MicroNucleiForm extends MMFrame {
                   outTable.addValue(Terms.Y, y);
                   outTable.addValue(Terms.POSITION, siteCount);
                }
-               outTable.show(outTableName);
-
-               gui_.logs().logMessage("Imaging zapped cells at site: " + acq2);
-               // take the afterzapImage and save it
-               gui_.getCMMCore().setConfig(channelGroup, afterZapChannel_);
-               gui_.getCMMCore().waitForConfig(channelGroup, afterZapChannel_);
-               gui_.getCMMCore().setExposure(afterZapExposure);
-               Image postZapImage = snapAndInsertImage(data, msp, siteCount, currentChannel);
-               ImageProcessor iProcessor3 = gui_.data().ij().createProcessor(postZapImage);
-               ImagePlus ip3 = new ImagePlus("tmp", iProcessor3);
-               reportIntensities(dataWriter, currentWell, siteCount, ip3, "Post-Hit", rr.getHitRois());
-               reportIntensities(dataWriter, currentWell, siteCount, ip3, "Post-NoHit", rr.getNonHitRois());
-
+               outTable.show(outTableName);                             
             }
             siteCount++;
             count++;
@@ -900,7 +885,7 @@ public class MicroNucleiForm extends MMFrame {
          }
       }
       if (!f.delete()) {
-         // simply ignore
+         // TODO: report
       }
    }
 

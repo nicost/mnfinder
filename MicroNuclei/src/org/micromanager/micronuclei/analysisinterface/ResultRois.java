@@ -6,6 +6,7 @@ package org.micromanager.micronuclei.analysisinterface;
 import ij.gui.Roi;
 import java.util.ArrayList;
 import java.util.List;
+import org.micromanager.micronuclei.internal.gui.ConvertChannelTableModel;
 
 /**
  * DataStructure to hold the result of the analysismodule
@@ -17,7 +18,15 @@ public class ResultRois {
    private final Roi[] allRois_;
    private final Roi[] hitRois_;
    private final Roi[] nonHitRois_;
-   private final List<Integer> imgToBeReported_;
+   // Indices of channels for which intensities of ROIS should be reported to the 
+   // user.  When the index exceeds the number of channels used for imaging,
+   // it will be ignored.  "Zap" channels will not be reported based on this list
+   private final List<Integer> channelsToBeReported_;
+   // "Zap" channels will appear as the last channels in the data collection
+   // There may be up to 3 channels.  They are ordered: 0-PreZap, 1-Zap, 2-PostZap
+   // so including 0, and 2 will report Pre- and Post-Zap values (if those images
+   // were acquired by the user"
+   private final List<Integer> zapChannelsToBeReported_;
    
    /**
     *
@@ -29,7 +38,8 @@ public class ResultRois {
       allRois_ = allRois;
       hitRois_ = hitRois;
       nonHitRois_ = nonHitRois;
-      imgToBeReported_ = new ArrayList<Integer>();
+      channelsToBeReported_ = new ArrayList<Integer>();
+      zapChannelsToBeReported_ = new ArrayList<Integer>();
    }
    
    public Roi[] getAllRois() {
@@ -45,16 +55,25 @@ public class ResultRois {
    }
    
    public void reportOnImg(int imgNr) {
-      // TODO may want to check if we already have this number
-      imgToBeReported_.add(imgNr);
+      if (!channelsToBeReported_.contains(imgNr)) {
+         channelsToBeReported_.add(imgNr);
+      }
    }
    
-   public int[] getImgsToBeReported() {
-      int[] result = new int[imgToBeReported_.size()];
-      for (int i = 0; i < imgToBeReported_.size(); i++) {
-         result[i] = imgToBeReported_.get(i);
+   public void reportOnZapChannel(int zapChannel) {
+      if (zapChannel < ConvertChannelTableModel.NRCHANNELS &&
+              !zapChannelsToBeReported_.contains(zapChannel))
+      {
+         zapChannelsToBeReported_.add(zapChannel);
       }
-      return result;
+   }
+   
+   public List<Integer>getImgsToBeReported() {
+     return channelsToBeReported_;
+   }
+   
+   public List<Integer> getZapChannelsToBeReported() {
+      return zapChannelsToBeReported_;
    }
    
 }

@@ -32,14 +32,14 @@ public class ConvertChannelTable extends JTable {
    final private Studio studio_;
    final private ChannelEditor channelEditor_;
    final private ColorEditor colorEditor_;
-   final private ConvertChannelPanel channelPanel_;
+   final private ConvertChannelPanel convertChannelPanel_;
    
    public ConvertChannelTable(Studio studio, ConvertChannelPanel channelPanel) {
       studio_ = studio;
       channelEditor_ = new ChannelEditor(studio_, channelPanel);
       colorEditor_ = new ColorEditor();
       studio_.events().registerForEvents(channelEditor_);
-      channelPanel_ = channelPanel;
+      convertChannelPanel_ = channelPanel;
    }
    
    @Override
@@ -73,8 +73,8 @@ public class ConvertChannelTable extends JTable {
    public void setValueAt(Object value, int rowIndex, int columnIndex) {
       super.setValueAt(value, rowIndex, columnIndex);
       if (columnIndex == 4) {
-         channelPanel_.storeChannelColor(rowIndex);
+         convertChannelPanel_.storeChannelColor(rowIndex);
       }
-      channelPanel_.storeChannelsInProfile();
+      convertChannelPanel_.storeChannelsInProfile();
    }
 }

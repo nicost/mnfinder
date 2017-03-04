@@ -46,20 +46,20 @@ public final class ConvertChannelPanel extends JPanel implements BasePanel {
    
    private final UserProfile userProfile_;
    private final Class profileClass_;
-   private final ConvertChannelTableModel channelTableModel_;
+   private final ConvertChannelTableModel convertChannelTableModel_;
    
    public ConvertChannelPanel(final Studio studio, final Class profileClass) {
       
       userProfile_ = studio.getUserProfile();
       profileClass_ = profileClass;
       final ConvertChannelTable table = new ConvertChannelTable(studio, this);
-      channelTableModel_ = new ConvertChannelTableModel();
+      convertChannelTableModel_ = new ConvertChannelTableModel();
       for (int i = 0; i < ConvertChannelTableModel.NRCHANNELS; i++) {
          updateChannelFromProfile(i);
       }
 
-      studio.events().registerForEvents(channelTableModel_);
-      table.setModel(channelTableModel_);
+      studio.events().registerForEvents(convertChannelTableModel_);
+      table.setModel(convertChannelTableModel_);
       
       super.setLayout(new MigLayout("insets 0", "[][]", "[][]"));
       
@@ -84,7 +84,7 @@ public final class ConvertChannelPanel extends JPanel implements BasePanel {
    public void storeChannelsInProfile() {
       try {
          userProfile_.setObject(profileClass_, CONVERTCHANNELDATA,
-                 channelTableModel_.getChannels());
+                 convertChannelTableModel_.getChannels());
       } catch (IOException ex) {
          // TODO report exception
       }
@@ -95,7 +95,7 @@ public final class ConvertChannelPanel extends JPanel implements BasePanel {
       try {
          List<ChannelInfo> channels = (List<ChannelInfo>) 
               userProfile_.getObject(profileClass_, CONVERTCHANNELDATA, null);
-         channelTableModel_.setChannel(channels.get(channelIndex), channelIndex);
+         convertChannelTableModel_.setChannel(channels.get(channelIndex), channelIndex);
       } catch (IOException ex) {
          // TODO Report exception
       } catch (NullPointerException ne) {
@@ -105,7 +105,7 @@ public final class ConvertChannelPanel extends JPanel implements BasePanel {
    
    @Override
    public void updateColor(int rowIndex) {
-      ChannelInfo cInfo = channelTableModel_.getChannels().get(rowIndex);
+      ChannelInfo cInfo = convertChannelTableModel_.getChannels().get(rowIndex);
       try {
          cInfo.displayColor_ = userProfile_.getObject(profileClass_, cInfo.channelName_ + COLOR, Color.GREEN);
       } catch (IOException ex) {
@@ -114,7 +114,7 @@ public final class ConvertChannelPanel extends JPanel implements BasePanel {
    }
    
    public void storeChannelColor(int rowIndex) {
-      ChannelInfo cInfo = channelTableModel_.getChannels().get(rowIndex);
+      ChannelInfo cInfo = convertChannelTableModel_.getChannels().get(rowIndex);
       try {
          userProfile_.setObject(profileClass_, cInfo.channelName_ + COLOR, cInfo.displayColor_);
       } catch (IOException ex) {
@@ -123,6 +123,11 @@ public final class ConvertChannelPanel extends JPanel implements BasePanel {
    }
    
    public List<ChannelInfo> getChannels () {
-      return channelTableModel_.getChannels();
+      return convertChannelTableModel_.getChannels();
    }
+   
+   public String getPurpose(int rowIndex) {
+      return convertChannelTableModel_.getPurpose(rowIndex);
+   }
+   
 }

@@ -219,10 +219,12 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       
       long endTime = System.currentTimeMillis();
       ij.IJ.log("Analysis took: " + (endTime - startTime) + " millisec");
-      
-      ResultRois rr = new ResultRois(null, hits, null);
-      
-      return rr;
+            
+      ResultRois rrs = new ResultRois(null, hits, null);
+      rrs.reportOnImg(1);
+      rrs.reportOnZapChannel(0); // Pre-Zap
+      rrs.reportOnZapChannel(2);  // Post-Zap
+      return rrs;
    }
    
    

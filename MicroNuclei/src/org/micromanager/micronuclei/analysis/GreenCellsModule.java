@@ -291,6 +291,8 @@ public class GreenCellsModule extends AnalysisModule {
       
       ResultRois rrs = new ResultRois(allNuclei, convertRois, nonConvertRois);
       rrs.reportOnImg(1);
+      rrs.reportOnZapChannel(0); // Pre-Zap
+      rrs.reportOnZapChannel(2);  // Post-Zap
       return rrs;
    }
 

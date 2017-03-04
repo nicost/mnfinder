@@ -31,6 +31,7 @@ import org.micromanager.micronuclei.internal.data.ChannelInfo;
  */
 public class ConvertChannelTableModel extends AbstractTableModel {
    private static final String[] COLUMNNAMES = {"Purpose", "Use", "Channel", "Exp.", "Color"};
+   public static final String[] PURPOSES = {"Pre", "Convert", "Post"};
    public static final int NRCHANNELS = 3;
    private final List<ChannelInfo> rowData_;
    
@@ -48,6 +49,10 @@ public class ConvertChannelTableModel extends AbstractTableModel {
    
    public List<ChannelInfo> getChannels() {
       return rowData_;
+   }
+   
+   public String getPurpose(int rowIndex) {
+      return PURPOSES[rowIndex];
    }
    
    @Override
@@ -80,12 +85,7 @@ public class ConvertChannelTableModel extends AbstractTableModel {
    @Override
    public Object getValueAt(int rowIndex, int columnIndex) {
       switch (columnIndex)  {
-         case 0: 
-            switch (rowIndex) {
-               case 0: return "Pre";
-               case 1: return "Convert";
-               case 2: return "Post";
-            }
+         case 0: return PURPOSES[rowIndex];
          case 1: return rowData_.get(rowIndex).use_;
          case 2: return rowData_.get(rowIndex).channelName_;
          case 3: return rowData_.get(rowIndex).exposureTimeMs_;
