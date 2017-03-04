@@ -772,13 +772,15 @@ public class MicroNucleiForm extends MMFrame {
             Image[] imgs = new Image[nrChannels];
             MultiStagePosition.goToPosition(msp, gui_.getCMMCore());
             for (ChannelInfo ci : channelPanel_.getChannels()) {
-               gui_.getCMMCore().waitForSystem();
-               gui_.logs().logMessage("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y);
-               gui_.getCMMCore().setConfig(channelGroup, ci.channelName_);
-               gui_.getCMMCore().waitForConfig(channelGroup, ci.channelName_);
-               gui_.getCMMCore().setExposure(ci.exposureTimeMs_);
-               imgs[currentChannel] = snapAndInsertImage(data, msp, siteCount, currentChannel); 
-               currentChannel++;
+               if (ci.use_) {
+                  gui_.getCMMCore().waitForSystem();
+                  gui_.logs().logMessage("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y);
+                  gui_.getCMMCore().setConfig(channelGroup, ci.channelName_);
+                  gui_.getCMMCore().waitForConfig(channelGroup, ci.channelName_);
+                  gui_.getCMMCore().setExposure(ci.exposureTimeMs_);
+                  imgs[currentChannel] = snapAndInsertImage(data, msp, siteCount, currentChannel);
+                  currentChannel++;
+               }
             }
 
             // Analyze and zap
@@ -798,6 +800,20 @@ public class MicroNucleiForm extends MMFrame {
                
                String acq2 = msp.getLabel();
                gui_.logs().logMessage("Imaging cells to be zapped at site: " + acq2);
+               
+               for (int i = 0; i < convertChannelPanel_.getChannels().size(); i++) {
+                  ChannelInfo ci = convertChannelPanel_.getChannels().get(i);
+                  if (ci.use_) {
+                     gui_.getCMMCore().waitForSystem();
+                     gui_.logs().logMessage("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y);
+                     gui_.getCMMCore().setConfig(channelGroup, ci.channelName_);
+                     gui_.getCMMCore().waitForConfig(channelGroup, ci.channelName_);
+                     gui_.getCMMCore().setExposure(ci.exposureTimeMs_);
+                     imgs[currentChannel] = snapAndInsertImage(data, msp, siteCount, currentChannel);
+                     currentChannel++;
+                  }
+               }
+
                // take the pre-zapImage (same settings as afterzap) and save it
                gui_.getCMMCore().setConfig(channelGroup, afterZapChannel_);
                gui_.getCMMCore().waitForConfig(channelGroup, afterZapChannel_);
