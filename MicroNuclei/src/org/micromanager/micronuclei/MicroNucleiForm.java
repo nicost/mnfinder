@@ -124,10 +124,6 @@ public class MicroNucleiForm extends MMFrame {
    
    private final String FORMNAME = "Analyze and Photoconvert";
    private final String SAVELOCATION = "SaveLocation";
-   private final String IMAGINGCHANNEL = "ImagingChannel";
-   private final String SECONDIMAGINGCHANNEL = "SecondImagingChannel";
-   private final String ZAPCHANNEL = "ZapChannel";
-   private final String AFTERZAPCHANNEL = "AfterZapChannel";
    private final String DOZAP = "DoZap";
    private final String SHOWMASKS = "ShowMasks";
    
@@ -641,7 +637,9 @@ public class MicroNucleiForm extends MMFrame {
                  saveLocation + " already exists.  Overwrite?") ) {
             return;
          }
-         delete(fd);
+         if (!delete(fd)) {
+            return;
+         }
       }
       
       new File(saveLocation).mkdirs();
@@ -661,7 +659,9 @@ public class MicroNucleiForm extends MMFrame {
       MultiStagePosition[] positions = posList.getPositions();
       if (positions.length == 0) {
          // TODO: get current position
-         positions = new MultiStagePosition[] {};
+         gui_.positions().markCurrentPosition();
+         positions = posList.getPositions();
+         posList.clearAllPositions();
       }
       String currentWell = "";
       
@@ -869,6 +869,9 @@ public class MicroNucleiForm extends MMFrame {
 
       resultsWriter.close();
       dataWriter.close();
+      if (data != null) {
+         data.freeze();
+      }
       String msg = "Analyzed " + count + " images, in " + wellCount + " wells.";
       gui_.logs().logMessage(msg);
       gui_.logs().showMessage(msg);
@@ -878,15 +881,17 @@ public class MicroNucleiForm extends MMFrame {
     * Be vary careful with this function as it will follow symlinks and delete
     * everything it finds
    */
-   private void delete(File f) throws IOException {
+   private boolean delete(File f) throws IOException {
       if (f.isDirectory()) {
          for (File c : f.listFiles()) {
             delete(c);
          }
       }
       if (!f.delete()) {
-         // TODO: report
+         gui_.logs().showError("Failed to delete " + f.getName());
+         return false;
       }
+      return true;
    }
 
    private void recordWellSummary(BufferedWriter resultsWriter, String currentWell,
