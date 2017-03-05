@@ -29,9 +29,9 @@ import java.io.Serializable;
 public class ChannelInfo implements Serializable {
    private static final long serialVersionUID = 8361934391238717234L;
    
-   public boolean use_ = false;
+   public boolean use_ = true;
    public String channelName_ = "";
-   public double exposureTimeMs_ = 0.0;
+   public double exposureTimeMs_ = 100.0;
    public Color displayColor_ = null;
 
 }

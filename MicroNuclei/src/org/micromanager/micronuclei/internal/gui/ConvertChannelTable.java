@@ -72,6 +72,9 @@ public class ConvertChannelTable extends JTable {
    @Override
    public void setValueAt(Object value, int rowIndex, int columnIndex) {
       super.setValueAt(value, rowIndex, columnIndex);
+      if (columnIndex == 3) {
+         convertChannelPanel_.storeChannelExposureTime(rowIndex);
+      }
       if (columnIndex == 4) {
          convertChannelPanel_.storeChannelColor(rowIndex);
       }

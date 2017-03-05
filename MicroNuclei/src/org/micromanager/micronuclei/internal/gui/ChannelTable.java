@@ -72,6 +72,9 @@ public class ChannelTable extends JTable {
    @Override
    public void setValueAt(Object value, int rowIndex, int columnIndex) {
       super.setValueAt(value, rowIndex, columnIndex);
+      if (columnIndex == 2) {
+         channelPanel_.storeChannelExposureTime(rowIndex);
+      }
       if (columnIndex == 3) {
          channelPanel_.storeChannelColor(rowIndex);
       }

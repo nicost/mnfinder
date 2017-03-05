@@ -23,13 +23,15 @@ import com.google.common.eventbus.Subscribe;
 import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import javax.swing.AbstractCellEditor;
 import javax.swing.JComboBox;
 import javax.swing.JTable;
 import javax.swing.table.TableCellEditor;
 import mmcorej.StrVector;
 import org.micromanager.Studio;
-import org.micromanager.events.ConfigGroupChangedEvent;
+import org.micromanager.events.internal.ChannelGroupEvent;
 
 /**
  * Editor for Channel name component in Channel table
@@ -41,7 +43,6 @@ public final class ChannelEditor extends AbstractCellEditor implements TableCell
    private final JComboBox channelSelect_;   
    private final Studio studio_;
    private final BasePanel basePanel_;
-   private String channelGroup_;
    
    public ChannelEditor(Studio studio, BasePanel basePanel) {
       studio_ = studio;
@@ -50,16 +51,12 @@ public final class ChannelEditor extends AbstractCellEditor implements TableCell
       String channelGroup = studio_.core().getChannelGroup();
       if (channelGroup != null) {
          updateChannelList(channelGroup);
-         channelGroup_ = channelGroup;
       }
    }
    
    @Subscribe
-   public void onConfigGroupChanged (ConfigGroupChangedEvent cgce) {
-      if (!channelGroup_.equals(cgce.getGroupName())) {
-         channelGroup_ = cgce.getGroupName();
-         updateChannelList(channelGroup_);
-      }
+   public void onChannelGroupChanged (ChannelGroupEvent cge) {
+         updateChannelList(studio_.core().getChannelGroup());
    }
    
    public void updateChannelList (String channelGroup) {
@@ -78,16 +75,22 @@ public final class ChannelEditor extends AbstractCellEditor implements TableCell
       channelSelect_.setSelectedItem(table.getModel().getValueAt(rowIndex, colIndex));
 
       // end editing on selection change
-      channelSelect_.addActionListener(new ActionListener() {
+      for (ItemListener it : channelSelect_.getItemListeners()) {
+         channelSelect_.removeItemListener(it);
+      }
+      channelSelect_.addItemListener(new ItemListener() {
          @Override
-            public void actionPerformed(ActionEvent e) {
-               fireEditingStopped();
-               basePanel_.updateColor(rowIndex);
+            public void itemStateChanged(ItemEvent ie) {
+               if (ie.getStateChange() == ItemEvent.SELECTED) {
+                  fireEditingStopped();
+                  basePanel_.updateColor(rowIndex);
+                  basePanel_.updateExposureTime(rowIndex);
+               }
             }
          });
 
-         // Return the configured component
-         return channelSelect_;
+      // Return the configured component
+      return channelSelect_;
    }
 
    @Override
@@ -96,5 +99,4 @@ public final class ChannelEditor extends AbstractCellEditor implements TableCell
    }
 
 
-   
 }

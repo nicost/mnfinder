@@ -42,12 +42,8 @@ import org.micromanager.micronuclei.internal.data.ChannelInfo;
  * @author Nico
  */
 public final class ChannelPanel extends JPanel implements BasePanel {
-   private static final String COL0WIDTH = "Col0Width";  
-   private static final String COL1WIDTH = "Col1Width";
-   private static final String COL2WIDTH = "Col2Width";
-   private static final String COL3WIDTH = "Col3Width";
-   private static final String CHANNELDATA = "ChannelData";
-   private static final String COLOR = "Color";
+   
+   static final String CHANNELDATA = "ChannelData";
    
    private final UserProfile userProfile_;
    private final Class profileClass_;
@@ -86,7 +82,19 @@ public final class ChannelPanel extends JPanel implements BasePanel {
       plusButton.addActionListener(new ActionListener() {
          @Override
          public void actionPerformed(ActionEvent e) {
-            channelTableModel_.addChannel(new ChannelInfo());
+            ChannelInfo cInfo = new ChannelInfo();
+            if (studio.core().getChannelGroup() != null && 
+                    studio.core().getChannelGroup().length() > 0) {
+               try {
+                  String channel = studio.core().getCurrentConfigFromCache(
+                          studio.core().getChannelGroup());
+                  cInfo.channelName_ = channel;
+               } catch (Exception ex) {
+                  }
+            }
+            channelTableModel_.addChannel(cInfo);
+            updateColor(channelTableModel_.getRowCount() - 1);
+            updateExposureTime(channelTableModel_.getRowCount() - 1);
             storeChannelsInProfile();
          }
       });
@@ -111,8 +119,7 @@ public final class ChannelPanel extends JPanel implements BasePanel {
    
    public void storeChannelsInProfile() {
       try {
-         userProfile_.setObject(profileClass_, CHANNELDATA,
-                 channelTableModel_.getChannels());
+         userProfile_.setObject(profileClass_, CHANNELDATA, getChannels());
       } catch (IOException ex) {
          // TODO report exception
       }
@@ -128,11 +135,36 @@ public final class ChannelPanel extends JPanel implements BasePanel {
       }
    }
    
+    @Override
+   public void updateExposureTime(int rowIndex) {
+      ChannelInfo cInfo = channelTableModel_.getChannels().get(rowIndex);
+      try {
+         cInfo.exposureTimeMs_ = userProfile_.getObject(profileClass_, 
+                 cInfo.channelName_ + EXPOSURETIME, 100.0);
+         channelTableModel_.fireTableCellUpdated(rowIndex, 3);
+      } catch (IOException ex) {
+         // TODO
+      }
+   }
+   
+   public void storeChannelExposureTime(int rowIndex) {
+      ChannelInfo cInfo = channelTableModel_.getChannels().get(rowIndex);
+      try {
+         userProfile_.setObject(profileClass_, 
+                 cInfo.channelName_ + EXPOSURETIME, cInfo.exposureTimeMs_);
+      } catch (IOException ex) {
+         // TODO 
+      }
+   }
+   
+   
    @Override
    public void updateColor(int rowIndex) {
       ChannelInfo cInfo = channelTableModel_.getChannels().get(rowIndex);
       try {
-         cInfo.displayColor_ = userProfile_.getObject(profileClass_, cInfo.channelName_ + COLOR, Color.GREEN);
+         cInfo.displayColor_ = userProfile_.getObject(
+                 profileClass_, cInfo.channelName_ + COLOR, Color.GREEN);
+         channelTableModel_.fireTableCellUpdated(rowIndex, 3);
       } catch (IOException ex) {
          // TODO
       }
@@ -141,7 +173,8 @@ public final class ChannelPanel extends JPanel implements BasePanel {
    public void storeChannelColor(int rowIndex) {
       ChannelInfo cInfo = channelTableModel_.getChannels().get(rowIndex);
       try {
-         userProfile_.setObject(profileClass_, cInfo.channelName_ + COLOR, cInfo.displayColor_);
+         userProfile_.setObject(profileClass_, 
+                 cInfo.channelName_ + COLOR, cInfo.displayColor_);
       } catch (IOException ex) {
          // TODO 
       }

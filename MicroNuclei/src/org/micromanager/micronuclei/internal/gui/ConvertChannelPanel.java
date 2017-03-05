@@ -36,13 +36,8 @@ import org.micromanager.micronuclei.internal.data.ChannelInfo;
  * @author nico
  */
 public final class ConvertChannelPanel extends JPanel implements BasePanel {
-   private static final String COL0WIDTH = "Col0Width";  
-   private static final String COL1WIDTH = "Col1Width";
-   private static final String COL2WIDTH = "Col2Width";
-   private static final String COL3WIDTH = "Col3Width";
-   private static final String COL4WIDTH = "Col3Width";
+   
    private static final String CONVERTCHANNELDATA = "ConvertChannelData";
-   private static final String COLOR = "Color";
    
    private final UserProfile userProfile_;
    private final Class profileClass_;
@@ -104,10 +99,34 @@ public final class ConvertChannelPanel extends JPanel implements BasePanel {
    }
    
    @Override
+   public void updateExposureTime(int rowIndex) {
+      ChannelInfo cInfo = convertChannelTableModel_.getChannels().get(rowIndex);
+      try {
+         cInfo.exposureTimeMs_ = userProfile_.getObject(profileClass_, 
+                 cInfo.channelName_ + EXPOSURETIME, 100.0);
+         convertChannelTableModel_.fireTableCellUpdated(rowIndex, 3);
+      } catch (IOException ex) {
+         // TODO
+      }
+   }
+   
+   public void storeChannelExposureTime(int rowIndex) {
+      ChannelInfo cInfo = convertChannelTableModel_.getChannels().get(rowIndex);
+      try {
+         userProfile_.setObject(profileClass_, 
+                 cInfo.channelName_ + EXPOSURETIME, cInfo.exposureTimeMs_);
+      } catch (IOException ex) {
+         // TODO 
+      }
+   }
+   
+   @Override
    public void updateColor(int rowIndex) {
       ChannelInfo cInfo = convertChannelTableModel_.getChannels().get(rowIndex);
       try {
-         cInfo.displayColor_ = userProfile_.getObject(profileClass_, cInfo.channelName_ + COLOR, Color.GREEN);
+         cInfo.displayColor_ = userProfile_.getObject(profileClass_, 
+                 cInfo.channelName_ + COLOR, Color.GREEN);
+         convertChannelTableModel_.fireTableCellUpdated(rowIndex, 4);
       } catch (IOException ex) {
          // TODO
       }
