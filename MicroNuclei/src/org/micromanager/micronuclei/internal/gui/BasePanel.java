@@ -12,6 +12,7 @@ public interface BasePanel {
    static final String COL2WIDTH = "Col2Width";
    static final String COL3WIDTH = "Col3Width";
    static final String COL4WIDTH = "Col4Width";
+   
    static final String COLOR = "Color";
    static final String EXPOSURETIME = "ExposureTimeMs";
    
