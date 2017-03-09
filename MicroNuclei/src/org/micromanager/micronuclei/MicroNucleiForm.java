@@ -884,7 +884,9 @@ public class MicroNucleiForm extends MMFrame {
    private boolean delete(File f) throws IOException {
       if (f.isDirectory()) {
          for (File c : f.listFiles()) {
-            delete(c);
+            if (!delete(c) ) {
+               return false;
+            }
          }
       }
       if (!f.delete()) {
