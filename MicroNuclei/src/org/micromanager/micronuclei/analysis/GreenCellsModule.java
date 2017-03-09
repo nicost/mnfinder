@@ -25,6 +25,7 @@ import ij.gui.Roi;
 import ij.measure.Calibration;
 import ij.measure.Measurements;
 import ij.measure.ResultsTable;
+import ij.plugin.filter.Analyzer;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
@@ -60,6 +61,7 @@ public class GreenCellsModule extends AnalysisModule {
    private AnalysisProperty maxSizeN_;
    private AnalysisProperty minCellSize_;
    private AnalysisProperty maxCellSize_;
+   private AnalysisProperty minCellIntensity_;
    
    private RoiManager roiManager_;
    
@@ -92,6 +94,10 @@ public class GreenCellsModule extends AnalysisModule {
                   "<html>Maximum green cell size (&micro;m<sup>2</sup>)</html>", 
                  "<html>Largest size of putative cell in " + 
                           "&micro;m<sup>2</sup></html>",3600.0);
+         minCellIntensity_ = new AnalysisProperty(this.getClass(),
+                 "<html>Minimum mean intensity of a green cell</html>",
+                 "<html>Minimum mean intensity of a green cell</html>",
+                 3000);
          
          List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
          apl.add(maxStdDev_);
@@ -238,7 +244,27 @@ public class GreenCellsModule extends AnalysisModule {
       roiManager_.reset();
       IJ.run(cellImgIp, "Analyze Particles...", analyzeParticlesParameters);
       
-      Roi[] allCells = roiManager_.getRoisAsArray();
+      Roi[] putativeCells = roiManager_.getRoisAsArray();
+      
+      List<Roi> cellList = new ArrayList<Roi>();
+      for (Roi cell : putativeCells) {
+         cellImgProcessor.setRoi(cell);
+         IJ.run("Set Measurements...", "mean");
+         IJ.run("Measure");
+         ResultsTable rt = Analyzer.getResultsTable();
+         int counter = rt.getCounter();  //number of results
+
+         //no results, handle that error here
+         int col = rt.getColumnIndex("Mean");
+         for (int row = 0; row < counter; row++) {
+            double value = rt.getValueAsDouble(col, row); //all the Area values
+         }
+         // get Measurement
+         cellList.add(cell);
+      }
+      Roi[] allCells = cellList.toArray(putativeCells);
+     
+      
       if (showMasks) {
          cellImgIp.show();
       } else {
