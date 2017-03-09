@@ -97,7 +97,7 @@ public class GreenCellsModule extends AnalysisModule {
          minCellIntensity_ = new AnalysisProperty(this.getClass(),
                  "<html>Minimum mean intensity of a green cell</html>",
                  "<html>Minimum mean intensity of a green cell</html>",
-                 3000);
+                 3000.0);
          
          List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
          apl.add(maxStdDev_);
@@ -106,6 +106,7 @@ public class GreenCellsModule extends AnalysisModule {
          apl.add(maxSizeN_);
          apl.add(minCellSize_);
          apl.add(maxCellSize_);
+         apl.add(minCellIntensity_);
          
          setAnalysisProperties(apl);
          
@@ -246,23 +247,22 @@ public class GreenCellsModule extends AnalysisModule {
       
       Roi[] putativeCells = roiManager_.getRoisAsArray();
       
+      // Check that the putative cell's intensity is high enough
       List<Roi> cellList = new ArrayList<Roi>();
+      ResultsTable rt = Analyzer.getResultsTable();
+      rt.reset();
       for (Roi cell : putativeCells) {
          cellImgProcessor.setRoi(cell);
          IJ.run("Set Measurements...", "mean");
          IJ.run("Measure");
-         ResultsTable rt = Analyzer.getResultsTable();
-         int counter = rt.getCounter();  //number of results
-
-         //no results, handle that error here
+         int counter = rt.getCounter();
          int col = rt.getColumnIndex("Mean");
-         for (int row = 0; row < counter; row++) {
-            double value = rt.getValueAsDouble(col, row); //all the Area values
+         double value = rt.getValueAsDouble(col, counter - 1); //all the Area values
+         if (value > (Double) minCellIntensity_.get()) {
+            cellList.add(cell);
          }
-         // get Measurement
-         cellList.add(cell);
       }
-      Roi[] allCells = cellList.toArray(putativeCells);
+      Roi[] allCells = cellList.toArray(new Roi[cellList.size()]);
      
       
       if (showMasks) {
