@@ -250,21 +250,21 @@ public class GreenCellsModule extends AnalysisModule {
       //        "Found " + allNuclei.length + " nuclei");
       
       // for each nucleus, see if it belongs to a cell.
-      // if so, add it to the convert list
       List convertRoiList = new ArrayList();
       List nonConvertRoiList = new ArrayList();
+      // structure that holds all cell masks with all the nuclei that we find within that cell
+      List<CellWithNuclei> cells = new ArrayList<CellWithNuclei>();
+      for (Roi cell : allCells) {
+         cells.add(new CellWithNuclei(cell));
+      }
       for (Roi nucleus : allNuclei) {
          boolean found = false;
          Rectangle nucRect = nucleus.getBounds();
          int xCenter = nucRect.x + (int) (0.5 * nucRect.getBounds().width);
          int yCenter = nucRect.y + (int) (0.5 * nucRect.getBounds().height);
-         for (int j = 0; j < allCells.length && !found; j++) {
-            if (allCells[j].contains(xCenter, yCenter)) {
-               if (userRoiBounds != null) {
-                  Rectangle r2d = nucleus.getBounds();
-                  nucleus.setLocation(r2d.x + userRoiBounds.x, r2d.y + userRoiBounds.y);
-               }
-               convertRoiList.add(nucleus);
+         for (int j = 0; j < cells.size() && !found; j++) {
+            if (cells.get(j).cellRoi_.contains(xCenter, yCenter)) {
+               cells.get(j).nuclearRois_.add(nucleus);
                found = true;
             }
          }
@@ -276,6 +276,27 @@ public class GreenCellsModule extends AnalysisModule {
             nonConvertRoiList.add(nucleus);
          }
       }
+      // We have a list of cells, cycle through them to get the nuclei
+      for (CellWithNuclei cell : cells) {
+         Roi nucleus = null;
+         if (cell.nuclearRois_.size() == 1) {
+            nucleus = cell.nuclearRois_.get(0);
+         }  else if (cell.nuclearRois_.size() > 1) {
+            
+            /*
+            nucleus = nucleusClosestToTheCenter(cell);
+            */
+         } 
+         if (nucleus != null) {
+            if (userRoiBounds != null) {
+               Rectangle r2d = nucleus.getBounds();
+               nucleus.setLocation(r2d.x + userRoiBounds.x, r2d.y + userRoiBounds.y);
+            }
+            convertRoiList.add(nucleus);
+         }
+      }
+      
+      
       Roi[] convertRois = new Roi[convertRoiList.size()];
       convertRois = (Roi[]) convertRoiList.toArray(convertRois);
       Roi[] nonConvertRois = new Roi[nonConvertRoiList.size()];
@@ -311,4 +332,39 @@ public class GreenCellsModule extends AnalysisModule {
       return DESCRIPTION;
    }
    
+   private class CellWithNuclei {
+      public final Roi cellRoi_;
+      public final List<Roi> nuclearRois_;
+      
+      public CellWithNuclei(Roi cell) {
+         cellRoi_ = cell;
+         nuclearRois_ = new ArrayList<Roi>();
+      }
+   }
+   
+   private Roi nucleusClosestToTheCenter(final CellWithNuclei cell) {
+      // more than 1 nucleus in this cell, find the one closest to the center
+      Rectangle cellRect = cell.cellRoi_.getBounds();
+      final int xCenter = cellRect.x + (int) (0.5 * cellRect.getBounds().width);
+      final int yCenter = cellRect.y + (int) (0.5 * cellRect.getBounds().height);
+      Roi result = cell.nuclearRois_.get(0);
+      double distanceSq = distanceSq(xCenter, yCenter, result);
+      for (Roi nucleus : cell.nuclearRois_) {
+         double newDistanceSq = distanceSq(xCenter, yCenter, nucleus);
+         if (newDistanceSq < distanceSq) {
+            distanceSq = newDistanceSq;
+         }
+      }
+      
+      return result;
+   }
+   
+   private double distanceSq(int xCenter, int yCenter, Roi roi) {
+      Rectangle rect = roi.getBounds();
+      int xRect = rect.x + (int) (0.5 * rect.getBounds().width);
+      int yRect = rect.y + (int) (0.5 * rect.getBounds().height);
+      double distanceSq = (xCenter - xRect) * (xCenter - xRect) + 
+              (yCenter - yRect) * ( yCenter - yRect);
+      return distanceSq;
+   }
 }
