@@ -62,8 +62,11 @@ public class GreenCellsModule extends AnalysisModule {
    private AnalysisProperty minCellSize_;
    private AnalysisProperty maxCellSize_;
    private AnalysisProperty minCellIntensity_;
+   private AnalysisProperty ignoreCellsWithMultipleNuclei_;
    
    private RoiManager roiManager_;
+   
+   private int nrCellsWithMultipleNuclei_ = 0;
    
    public GreenCellsModule() {
       try {
@@ -98,6 +101,10 @@ public class GreenCellsModule extends AnalysisModule {
                  "<html>Minimum mean intensity of a green cell</html>",
                  "<html>Minimum mean intensity of a green cell</html>",
                  3000.0);
+         ignoreCellsWithMultipleNuclei_ = new AnalysisProperty(this.getClass(),
+                  "<html>Ignore cells with multiple nuclei</html",
+                  "<html>Ignore cells with multiple nuclei</html",
+                  true);
          
          List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
          apl.add(maxStdDev_);
@@ -107,6 +114,7 @@ public class GreenCellsModule extends AnalysisModule {
          apl.add(minCellSize_);
          apl.add(maxCellSize_);
          apl.add(minCellIntensity_);
+         apl.add(ignoreCellsWithMultipleNuclei_);
          
          setAnalysisProperties(apl);
          
@@ -198,7 +206,7 @@ public class GreenCellsModule extends AnalysisModule {
       IJ.run(nuclearImgIp, "Analyze Particles...", analyzeParticlesParameters);
 
       Roi[] allNuclei = roiManager_.getRoisAsArray();
-      ResultsTable allNucleiTable = roiManager_.multiMeasure(nuclearImgIp);
+      //ResultsTable allNucleiTable = roiManager_.multiMeasure(nuclearImgIp);
       if (showMasks) {
          nuclearImgIp.show();
       } else {
@@ -308,10 +316,12 @@ public class GreenCellsModule extends AnalysisModule {
          if (cell.nuclearRois_.size() == 1) {
             nucleus = cell.nuclearRois_.get(0);
          }  else if (cell.nuclearRois_.size() > 1) {
-            
-            /*
-            nucleus = nucleusClosestToTheCenter(cell);
-            */
+            nrCellsWithMultipleNuclei_++;
+            mm.alerts().postAlert("GreenCells", this.getClass(), "Found " + nrCellsWithMultipleNuclei_ +
+                    "cells with >1 nuclei");
+            if (! (Boolean) ignoreCellsWithMultipleNuclei_.get()) {
+               nucleus = nucleusClosestToTheCenter(cell);
+            }
          } 
          if (nucleus != null) {
             if (userRoiBounds != null) {
@@ -322,12 +332,10 @@ public class GreenCellsModule extends AnalysisModule {
          }
       }
       
-      
       Roi[] convertRois = new Roi[convertRoiList.size()];
       convertRois = (Roi[]) convertRoiList.toArray(convertRois);
       Roi[] nonConvertRois = new Roi[nonConvertRoiList.size()];
-      nonConvertRois = (Roi[]) nonConvertRoiList.toArray(nonConvertRois);
-      
+      nonConvertRois = (Roi[]) nonConvertRoiList.toArray(nonConvertRois);     
       
       try {
          parms.put(CELLCOUNT, allNuclei.length + parms.getInt(CELLCOUNT));
@@ -345,6 +353,7 @@ public class GreenCellsModule extends AnalysisModule {
 
    @Override
    public void reset() {
+      nrCellsWithMultipleNuclei_ = 0;
       // Nothing todo
    }
 
