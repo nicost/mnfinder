@@ -132,6 +132,8 @@ public final class ChannelPanel extends JPanel implements BasePanel {
                  userProfile_.getObject(profileClass_, CHANNELDATA, null));
       } catch (IOException ex) {
          // TODO Report exception
+      } catch (NullPointerException npe) {
+         // TODO report
       }
    }
    
