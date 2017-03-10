@@ -325,16 +325,7 @@ public class MicroNucleiForm extends MMFrame {
       try {
          gui_.events().unregisterForEvents(this);
       } catch (java.lang.IllegalArgumentException iae) {}
-      /*
-      gui_.profile().setString(MicroNucleiForm.class, IMAGINGEXPOSURE, 
-              imagingExposureField_.getText());
-      gui_.profile().setString(MicroNucleiForm.class, SECONDEXPOSURE, 
-              secondImagingExposureField_.getText());
-      gui_.profile().setString(MicroNucleiForm.class, ZAPEXPOSURE, 
-              zapExposureField_.getText());
-      gui_.profile().setString(MicroNucleiForm.class, AFTERZAPEXPOSURE, 
-              afterZapExposureField_.getText());
-      */
+
       super.dispose();
    }
    
@@ -383,27 +374,7 @@ public class MicroNucleiForm extends MMFrame {
          gui_.profile().setString(MicroNucleiForm.class, SAVELOCATION, f.getAbsolutePath());    
       }
    }   
-   /*
-   private void channelActionPerformed(ActionEvent evt) {
-      imagingChannel_ = (String) channelComboBox_.getSelectedItem();
-      gui_.profile().setString(MicroNucleiForm.class, IMAGINGCHANNEL, imagingChannel_);
-   }
    
-   private void secondChannelActionPerformed(ActionEvent evt) {
-      secondImagingChannel_ = (String) secondChannelComboBox_.getSelectedItem();
-      gui_.profile().setString(MicroNucleiForm.class, SECONDIMAGINGCHANNEL, secondImagingChannel_);
-   }
-   
-   private void zapChannelActionPerformed(ActionEvent evt) {
-      zapChannel_ = (String) zapChannelComboBox_.getSelectedItem();
-      gui_.profile().setString(MicroNucleiForm.class, ZAPCHANNEL, zapChannel_);
-   }
-   
-   private void afterZapChannelActionPerformed(ActionEvent evt) {
-      afterZapChannel_ = (String) AfterZapChannelComboBox_.getSelectedItem();
-      gui_.profile().setString(MicroNucleiForm.class, AFTERZAPCHANNEL, afterZapChannel_);
-   }
-   */
          
    /**
     * Looks for a module with the given name in our list of 
@@ -613,7 +584,6 @@ public class MicroNucleiForm extends MMFrame {
    }
    
    /**
-    * Analysis class, in the future we could have a choice of these
     * @param saveLocation
     * @throws IOException
     * @throws MMScriptException

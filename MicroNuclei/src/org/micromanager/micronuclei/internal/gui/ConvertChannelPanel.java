@@ -49,9 +49,7 @@ public final class ConvertChannelPanel extends JPanel implements BasePanel {
       profileClass_ = profileClass;
       final ConvertChannelTable table = new ConvertChannelTable(studio, this);
       convertChannelTableModel_ = new ConvertChannelTableModel();
-      for (int i = 0; i < ConvertChannelTableModel.NRCHANNELS; i++) {
-         updateChannelFromProfile(i);
-      }
+      updateChannelsFromProfile();
 
       studio.events().registerForEvents(convertChannelTableModel_);
       table.setModel(convertChannelTableModel_);
@@ -77,26 +75,20 @@ public final class ConvertChannelPanel extends JPanel implements BasePanel {
    
    
    public void storeChannelsInProfile() {
-      try {
-         userProfile_.setObject(profileClass_, CONVERTCHANNELDATA,
-                 convertChannelTableModel_.getChannels());
-      } catch (IOException ex) {
-         // TODO report exception
-      }
+      ChannelInfo.storeChannelsInProfile(userProfile_, this.getClass(), 
+              CONVERTCHANNELDATA, getChannels());
    }
    
-   
-   public void updateChannelFromProfile(int channelIndex) {
-      try {
-         List<ChannelInfo> channels = (List<ChannelInfo>) 
-              userProfile_.getObject(profileClass_, CONVERTCHANNELDATA, null);
-         convertChannelTableModel_.setChannel(channels.get(channelIndex), channelIndex);
-      } catch (IOException ex) {
-         // TODO Report exception
-      } catch (NullPointerException ne) {
-         // This is always thrown before the profile is populated
+   public void updateChannelsFromProfile() {
+      List<ChannelInfo> channels = ChannelInfo.restoreChannelsFromProfile(
+              userProfile_, this.getClass(), CONVERTCHANNELDATA);
+      if (channels.size() <= ConvertChannelTableModel.NRCHANNELS) {
+         for (int i = 0; i < channels.size(); i++) {
+            convertChannelTableModel_.setChannel(channels.get(i), i);
+         }
       }
    }
+
    
    @Override
    public void updateExposureTime(int rowIndex) {

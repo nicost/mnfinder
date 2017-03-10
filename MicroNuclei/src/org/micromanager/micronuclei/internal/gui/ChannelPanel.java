@@ -23,6 +23,7 @@ import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
@@ -116,25 +117,19 @@ public final class ChannelPanel extends JPanel implements BasePanel {
       
    }
    
-   
+   /**
+    * Storing the arraylist as an object led to problems, so write everything out
+    * individually
+    */
    public void storeChannelsInProfile() {
-      try {
-         userProfile_.setObject(profileClass_, CHANNELDATA, getChannels());
-      } catch (IOException ex) {
-         // TODO report exception
-      }
+      ChannelInfo.storeChannelsInProfile(userProfile_, this.getClass(), 
+              CHANNELDATA, getChannels());
    }
    
    
    public void restoreChannelsFromProfile() {
-      try {
-         channelTableModel_.setChannels( (List<ChannelInfo>) 
-                 userProfile_.getObject(profileClass_, CHANNELDATA, null));
-      } catch (IOException ex) {
-         // TODO Report exception
-      } catch (NullPointerException npe) {
-         // TODO report
-      }
+      channelTableModel_.setChannels( ChannelInfo.restoreChannelsFromProfile(
+              userProfile_, this.getClass(), CHANNELDATA) );
    }
    
     @Override
