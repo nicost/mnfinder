@@ -20,6 +20,7 @@
 package org.micromanager.micronuclei.analysisinterface;
 
 import ij.gui.Roi;
+import java.util.ArrayList;
 import java.util.List;
 import org.json.JSONObject;
 import org.micromanager.Studio;
@@ -37,7 +38,7 @@ public abstract class AnalysisModule  {
    public final static String CELLCOUNT = "CellCount";
    public final static String OBJECTCOUNT = "ObjectCount";
    
-   private List<AnalysisProperty> analysisProperties_;
+   private List<AnalysisProperty> analysisProperties_ = new ArrayList<AnalysisProperty>();
 
    /**
     * Function in which the actual analysis takes place
