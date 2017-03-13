@@ -243,6 +243,9 @@ public class MicroNucleiForm extends MMFrame {
       String moduleName = gui_.profile().getString(MicroNucleiForm.class, 
               MODULE, analysisModulesNames_.get(0));
       analysisModulesBox.setSelectedItem(moduleName);
+      if (! moduleName.equals(analysisModulesBox.getSelectedItem())) {
+         moduleName = (String) analysisModulesBox.getItemAt(0);
+      }
       AnalysisModule module = moduleFromName(moduleName);
       analysisMethodLabel.setToolTipText(module.getDescription());
       analysisModulesBox.setToolTipText(module.getDescription());
