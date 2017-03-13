@@ -259,10 +259,11 @@ public class GreenCellsModule extends AnalysisModule {
       List<Roi> cellList = new ArrayList<Roi>();
       ResultsTable rt = Analyzer.getResultsTable();
       rt.reset();
+      ImagePlus cellImgIp2 = (new ImagePlus("tmp2", cellImgProcessor));
+      IJ.run("Set Measurements...", "mean");
       for (Roi cell : putativeCells) {
-         cellImgProcessor.setRoi(cell);
-         IJ.run("Set Measurements...", "mean");
-         IJ.run("Measure");
+         cellImgIp2.setRoi(cell);
+         IJ.run(cellImgIp2, "Measure", "");
          int counter = rt.getCounter();
          int col = rt.getColumnIndex("Mean");
          double value = rt.getValueAsDouble(col, counter - 1); //all the Area values
