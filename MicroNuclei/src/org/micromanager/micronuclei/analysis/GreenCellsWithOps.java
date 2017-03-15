@@ -11,6 +11,7 @@ import ij.measure.Calibration;
 import ij.process.ImageProcessor;
 import java.awt.Rectangle;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import org.json.JSONObject;
 import org.micromanager.Studio;
@@ -22,13 +23,18 @@ import org.micromanager.micronuclei.analysisinterface.ResultRois;
 import net.imagej.ops.OpService;
 import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.algorithm.labeling.ConnectedComponents;
 import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.algorithm.neighborhood.Shape;
 import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.roi.labeling.ImgLabeling;
+import net.imglib2.roi.labeling.LabelRegion;
+import net.imglib2.roi.labeling.LabelRegions;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.ShortType;
+import net.imglib2.type.numeric.real.DoubleType;
 
 import org.json.JSONException;
 import org.micromanager.internal.utils.NumberUtils;
@@ -121,8 +127,20 @@ public class GreenCellsWithOps extends AnalysisModule {
       List<Shape> shapes = new ArrayList<Shape>();
       HyperSphereShape shape = new HyperSphereShape(1);
       shapes.add(shape);
-      IterableInterval<BitType> close = ops.morphology().close(otsu, shapes);
-              
+      RandomAccessibleInterval<BitType> closed = 
+              (RandomAccessibleInterval<BitType>) ops.morphology().close(otsu, shapes);
+      ImgLabeling labels = ops.labeling().cca(closed, ConnectedComponents.StructuringElement.FOUR_CONNECTED);
+      LabelRegions regions = new LabelRegions(labels);
+      Iterator rIterator = regions.iterator();
+      while (rIterator.hasNext()) {
+         LabelRegion region = (LabelRegion) rIterator.next();
+         // now get the size of each object....
+         DoubleType size = ops.geom().size(region);
+         System.out.println("size of object is: " + size);
+         System.out.println("center of object is: " + region.getCenterOfMass());
+         
+      }
+      
       Rectangle userRoiBounds = null;
       if (roi != null) {
          nuclearImgProcessor.setRoi(roi);
