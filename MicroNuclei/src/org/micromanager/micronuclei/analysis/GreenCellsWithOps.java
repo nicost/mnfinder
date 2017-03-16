@@ -28,6 +28,7 @@ import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.algorithm.neighborhood.Shape;
 import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.roi.Regions;
 import net.imglib2.roi.labeling.ImgLabeling;
 import net.imglib2.roi.labeling.LabelRegion;
 import net.imglib2.roi.labeling.LabelRegions;
@@ -138,7 +139,11 @@ public class GreenCellsWithOps extends AnalysisModule {
          DoubleType size = ops.geom().size(region);
          System.out.println("size of object is: " + size);
          System.out.println("center of object is: " + region.getCenterOfMass());
-         
+         IterableInterval sample = Regions.sample(region, image);
+         double roiSum = ops.stats().sum(sample).getRealDouble();
+         double roiMean = ops.stats().mean(sample).getRealDouble();
+         System.out.println("Sum of intensities is: " + roiSum);
+         System.out.println("Mean of this object is: "+ roiMean);
       }
       
       Rectangle userRoiBounds = null;
