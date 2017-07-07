@@ -99,22 +99,22 @@ public class GreenCellsWithOps extends AnalysisModule {
       // First locate Nuclei
       ImageProcessor nuclearImgProcessor = studio.data().ij().createProcessor(imgs[0]);
       Img<ShortType> image = ImageJFunctions.wrap(new ImagePlus("nuc", nuclearImgProcessor));
-      RealType mean = ops.stats().mean(image);
-      RealType stdDev = ops.stats().stdDev(image);
+      double mean = ops.stats().mean(image).getRealDouble();
+      double stdDev = ops.stats().stdDev(image).getRealDouble();
       studio.alerts().postAlert("Stats", this.getClass(), "Mean: " + mean + ", stdDev: " + stdDev);
       
       int pos = imgs[0].getCoords().getStagePosition();
-      if (stdDev.getRealDouble() > ((Double) maxStdDev_.get())) {
+      if (stdDev > ((Double) maxStdDev_.get())) {
          studio.alerts().postAlert("Skip image", JustNucleiModule.class,
                  "Std. Dev. of image at position " + pos + " (" + 
-                  NumberUtils.doubleToDisplayString(stdDev.getRealDouble()) +
+                  NumberUtils.doubleToDisplayString(stdDev) +
                   ") is higher than the limit you set: " + ((Double) maxStdDev_.get()));
          return new ResultRois(null, null, null);
       }
-      if (mean.getRealDouble() > (Double) maxMeanIntensity_.get()) {
+      if (mean > (Double) maxMeanIntensity_.get()) {
          studio.alerts().postAlert("Skip image", JustNucleiModule.class,
                  "Mean intensity of image at position " + pos + " (" + 
-                  NumberUtils.doubleToDisplayString(mean.getRealDouble()) +
+                  NumberUtils.doubleToDisplayString(mean) +
                   ") is higher than the limit you set: " + (Double) maxMeanIntensity_.get());
          return new ResultRois(null, null, null);
       }
@@ -133,17 +133,19 @@ public class GreenCellsWithOps extends AnalysisModule {
       ImgLabeling labels = ops.labeling().cca(closed, ConnectedComponents.StructuringElement.FOUR_CONNECTED);
       LabelRegions regions = new LabelRegions(labels);
       Iterator rIterator = regions.iterator();
+      int counter = 1;
       while (rIterator.hasNext()) {
          LabelRegion region = (LabelRegion) rIterator.next();
          // now get the size of each object....
          DoubleType size = ops.geom().size(region);
-         System.out.println("size of object is: " + size);
-         System.out.println("center of object is: " + region.getCenterOfMass());
+         //System.out.println("size of object is: " + size);
+         //System.out.println("center of object is: " + region.getCenterOfMass());
          IterableInterval sample = Regions.sample(region, image);
          double roiSum = ops.stats().sum(sample).getRealDouble();
          double roiMean = ops.stats().mean(sample).getRealDouble();
-         System.out.println("Sum of intensities is: " + roiSum);
-         System.out.println("Mean of this object is: "+ roiMean);
+         //System.out.println("Sum of intensities is: " + roiSum);
+         //System.out.println("Mean of this object is: "+ roiMean);
+         System.out.println(" " + counter++ + "\t" + roiMean );
       }
       
       Rectangle userRoiBounds = null;

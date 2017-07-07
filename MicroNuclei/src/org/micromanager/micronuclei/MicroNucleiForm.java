@@ -41,6 +41,8 @@ import java.awt.Rectangle;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -48,6 +50,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -120,6 +124,7 @@ public class MicroNucleiForm extends MMFrame {
    private final ConvertChannelPanel convertChannelPanel_;
    private final JCheckBox doZap_;
    private final JCheckBox showMasks_;
+   private final JCheckBox testPauseKey_;
 
    private final JCheckBox useOnTheFlyProcessorPipeline_;
    
@@ -127,6 +132,7 @@ public class MicroNucleiForm extends MMFrame {
    private final String SAVELOCATION = "SaveLocation";
    private final String DOZAP = "DoZap";
    private final String SHOWMASKS = "ShowMasks";
+   private final String TESTPAUSE = "TestPause";
    
    private final AtomicBoolean stop_ = new AtomicBoolean(false);
    
@@ -134,11 +140,13 @@ public class MicroNucleiForm extends MMFrame {
    private final List<String> analysisModulesNames_;
    private final String MODULE ="ActiveModuleName";
    
+   private final MicroNucleiForm ourForm_;
+   
    private Pipeline pipeline_;
    
    public MicroNucleiForm(final Studio gui) {
       gui_ = gui;
-      final MicroNucleiForm ourForm = this;
+      ourForm_ = this;
         
       // Hard coded analysis modules.  This should be changed to make the
       // modules disoverable at run-time      
@@ -236,7 +244,7 @@ public class MicroNucleiForm extends MMFrame {
                modulePanel.add(new PropertyGUI(ap).getJComponent(), "width 70px, wrap");
             }
             modulePanel.revalidate();
-            ourForm.pack();
+            ourForm_.pack();
          }
       });
       
@@ -278,7 +286,19 @@ public class MicroNucleiForm extends MMFrame {
               gui_.profile().setBoolean(MicroNucleiForm.class, SHOWMASKS, showMasks_.isSelected());
          }
       });
-      super.add (showMasks_, "wrap");
+      super.add (showMasks_);
+      
+      testPauseKey_ = new JCheckBox("Pause during Test");
+      testPauseKey_.setSelected(gui_.profile().getBoolean(MicroNucleiForm.class,
+              TESTPAUSE, false));
+      testPauseKey_.setFont(arialSmallFont_);
+      testPauseKey_.addActionListener(new ActionListener() {
+         @Override
+         public void actionPerformed(ActionEvent ae) {
+              gui_.profile().setBoolean(MicroNucleiForm.class, TESTPAUSE, testPauseKey_.isSelected());
+         }
+      });
+      super.add (testPauseKey_, "wrap");
       
             
       final JButton runButton = myButton(buttonSize_, arialSmallFont_, "Run");
@@ -509,6 +529,7 @@ public class MicroNucleiForm extends MMFrame {
             int nrPositions = store.getAxisLength(Coords.STAGE_POSITION); 
             int nrChannels = store.getAxisLength(Coords.CHANNEL);
             Image[] imgs = new Image[nrChannels];
+
             for (int p = 0; p < nrPositions && !stop_.get(); p++) {
                try {
                   for (int ch = 0; ch < nrChannels; ch++) {
@@ -551,6 +572,12 @@ public class MicroNucleiForm extends MMFrame {
                } catch (JSONException ex) {
                } catch (NullPointerException npe) {
                   ij.IJ.log("Null pointer exception at position : " + p);
+               }
+               if (testPauseKey_.isSelected()) {
+                  try {
+                    Thread.sleep(2500);
+                  } catch (InterruptedException ex) {
+                  }
                }
             }
          }

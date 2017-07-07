@@ -24,6 +24,7 @@ import ij.ImagePlus;
 import ij.gui.Roi;
 import ij.measure.Calibration;
 import ij.measure.Measurements;
+import ij.plugin.ImageCalculator;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
@@ -142,7 +143,7 @@ public class JustNucleiModule extends AnalysisModule {
          return new ResultRois(null, null, null);
       }
 
-
+/*
       // Even though we are flatfielding, results are much better after
       // background subtraction.  In one test, I get about 2 fold more nuclei
       // when doing this background subtraction
@@ -150,9 +151,17 @@ public class JustNucleiModule extends AnalysisModule {
       // Pre-filter to improve nuclear detection and slightly enlarge the masks
       IJ.run(ip, "Smooth", "");
       IJ.run(ip, "Gaussian Blur...", "sigma=5.0");
+*/
 
+      // complicated way to run a diffference of Gaussian - DOG       
+      ImagePlus ipGLarge = ip.duplicate();
+      IJ.run (ipGLarge, "Gaussian Blur...", "sigma=50");
+      IJ.run (ip,"Gaussian Blur...", "sigma=2"); 
+      new ImageCalculator().run("Subtract", ip, ipGLarge);
+      
       // get the nuclear masks 
-      IJ.setAutoThreshold(ip, "Otsu dark");
+      // IJ.setAutoThreshold(ip, "Otsu dark");
+      IJ.setAutoThreshold(ip, "Li dark");
       // Fill holes and watershed to split large nuclei
       IJ.run(ip, "Convert to Mask", "");
       // Use this instead of erode/dilate or Close since we can pad the edges this way
