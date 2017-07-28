@@ -58,6 +58,7 @@ public class JustNucleiModule extends AnalysisModule {
    private AnalysisProperty maxMeanIntensity_;
    private AnalysisProperty minSizeN_;
    private AnalysisProperty maxSizeN_;
+   private AnalysisProperty reportStatistics_;
    
    private RoiManager roiManager_;
    
@@ -84,6 +85,9 @@ public class JustNucleiModule extends AnalysisModule {
                   "<html>Maximum nuclear size (&micro;m<sup>2</sup>)</html>", 
                  "<html>Largest size of putative nucleus in " + 
                           "&micro;m<sup>2</sup></html>",1800.0);
+         reportStatistics_ = new AnalysisProperty(this.getClass(), 
+                 "<html>Report statistics</html",
+                 "<html>Reports size and intensity of all nuclei</html", true);
          
          List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
          apl.add(percentageOfNuclei_);
@@ -91,6 +95,7 @@ public class JustNucleiModule extends AnalysisModule {
          apl.add(maxMeanIntensity_);
          apl.add(minSizeN_);
          apl.add(maxSizeN_);
+         apl.add(reportStatistics_);
          
          setAnalysisProperties(apl);
          
@@ -158,7 +163,7 @@ public class JustNucleiModule extends AnalysisModule {
       IJ.run (ipGLarge, "Gaussian Blur...", "sigma=50");
       IJ.run (ip,"Gaussian Blur...", "sigma=2"); 
       new ImageCalculator().run("Subtract", ip, ipGLarge);
-      
+   
       // get the nuclear masks 
       // IJ.setAutoThreshold(ip, "Otsu dark");
       IJ.setAutoThreshold(ip, "Li dark");
