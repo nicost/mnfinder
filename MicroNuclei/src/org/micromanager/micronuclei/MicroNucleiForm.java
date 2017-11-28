@@ -224,6 +224,7 @@ public class MicroNucleiForm extends MMFrame {
             analysisModulesBox.setToolTipText(module.getDescription());
             modulePanel.removeAll();
             modulePanel.setBorder(makeTitledBorder(module.getName()));
+            modulePanel.setToolTipText(module.getDescription());
       
             for (AnalysisProperty ap : module.getAnalysisProperties()) {
                JLabel jl = new JLabel(ap.getName());
