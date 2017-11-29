@@ -58,6 +58,7 @@ import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.ToolTipManager;
 import javax.swing.border.TitledBorder;
 
 import mmcorej.TaggedImage;
@@ -92,6 +93,7 @@ import org.micromanager.projector.internal.ProjectorControlForm;
 
 import org.micromanager.micronuclei.analysis.JustNucleiModule;
 import org.micromanager.micronuclei.analysis.MicroNucleiAnalysisModule;
+import org.micromanager.micronuclei.analysis.NuclearSizeModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
@@ -138,7 +140,8 @@ public class MicroNucleiForm extends MMFrame {
    public MicroNucleiForm(final Studio gui) {
       gui_ = gui;
       final MicroNucleiForm ourForm = this;
-        
+      ToolTipManager.sharedInstance().setInitialDelay(2000);
+              
       // Hard coded analysis modules.  This should be changed to make the
       // modules disoverable at run-time      
       analysisModules_ = new ArrayList<AnalysisModule>();
@@ -146,6 +149,7 @@ public class MicroNucleiForm extends MMFrame {
       analysisModules_.add(new MicroNucleiAnalysisModule());
       analysisModules_.add(new JustNucleiModule());
       analysisModules_.add(new GreenCellsModule());
+      analysisModules_.add(new NuclearSizeModule());
       analysisModulesNames_ = new ArrayList<String>();
       for (AnalysisModule module : analysisModules_) {
          analysisModulesNames_.add(module.getName());
