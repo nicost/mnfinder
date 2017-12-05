@@ -22,7 +22,6 @@ import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import static org.micromanager.micronuclei.analysisinterface.AnalysisModule.CELLCOUNT;
 import static org.micromanager.micronuclei.analysisinterface.AnalysisModule.OBJECTCOUNT;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
-import org.micromanager.micronuclei.analysisinterface.PropertyException;
 import org.micromanager.micronuclei.analysisinterface.ResultRois;
 
 /**
@@ -34,69 +33,67 @@ public class NuclearSizeModule  extends AnalysisModule {
    private final String DESCRIPTION = 
            "<html>Module that selects nuclei (imaged in the first channel), <br>" +
            "based on size<br>";
-   private AnalysisProperty maxStdDev_;
-   private AnalysisProperty maxMeanIntensity_;
-   private AnalysisProperty minSizeN_;
-   private AnalysisProperty maxSizeN_;
-   private AnalysisProperty minSizeSN_;
-   private AnalysisProperty maxSizeSN_;
-   
+   private final AnalysisProperty maxStdDev_;
+   private final AnalysisProperty maxMeanIntensity_;
+   private final AnalysisProperty minSizeN_;
+   private final AnalysisProperty maxSizeN_;
+   private final AnalysisProperty minSizeSN_;
+   private final AnalysisProperty maxSizeSN_;
+
+   private EdgeDetectorSubModule edgeDetector_;
    private RoiManager roiManager_;
-   
+
    public NuclearSizeModule() {
-      try {
-         // note: the type of the value when creating the AnalysisProperty determines
-         // the allowed type, and can create problems when the user enters something
-         // different
+      // note: the type of the value when creating the AnalysisProperty determines
+      // the allowed type, and can create problems when the user enters something
+      // different
 
-         maxStdDev_ = new AnalysisProperty(this.getClass(),
-                 "Maximum Image Std. Dev.", 
-                 "<html>Std. Dev. of grayscale values of original image<br>" +
-                          "Used to exclude images with edges</html>", 12500.0);
-         maxMeanIntensity_ = new AnalysisProperty(this.getClass(),
-                 "Maximum Image Mean Int.", 
-                 "<html>If the average intensity of the image is higher<br>" + 
-                          "than this number, the image will be skipped", 20000.0);
-         minSizeN_ = new AnalysisProperty(this.getClass(),
-                  "<html>Minimum nuclear size (&micro;m<sup>2</sup>)</html>", 
-                 "<html>Smallest size of nucleus in " + 
-                          "&micro;m<sup>2</sup></html><br>" +
-                         "Used to identify nuclei", 300.0);
-         maxSizeN_ = new AnalysisProperty(this.getClass(),
-                  "<html>Maximum nuclear size (&micro;m<sup>2</sup>)</html>", 
-                 "<html>Largest size of nucleus in " + 
-                          "&micro;m<sup>2</sup></html><br> +"
-                         + "Used to identify nuclei", 1800.0);
-         minSizeSN_ = new AnalysisProperty(this.getClass(),
-                  "<html>Minimum positive size (&micro;m<sup>2</sup>)</html>", 
-                 "<html>Smallest size of selected nucleus in " + 
-                          "&micro;m<sup>2</sup></html><br>" +
-                         "Used to generate hits", 300.0);
-         maxSizeSN_ = new AnalysisProperty(this.getClass(),
-                  "<html>Maximum positive size (&micro;m<sup>2</sup>)</html>", 
-                 "<html>Largest size of nucleus in " + 
-                          "&micro;m<sup>2</sup></html><br> +"
-                         + "Used to generate hits", 1800.0);
-         
-         List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
-         apl.add(maxStdDev_);
-         apl.add(maxMeanIntensity_);
-         apl.add(minSizeN_);
-         apl.add(maxSizeN_);
-         apl.add(minSizeSN_);
-         apl.add(maxSizeSN_);
-         
-         setAnalysisProperties(apl);
-         
-         // the ImageJ roiManager	
-         roiManager_ = RoiManager.getInstance();
-         if (roiManager_ == null) {
-            roiManager_ = new RoiManager();
-         }
+      maxStdDev_ = new AnalysisProperty(this.getClass(),
+              "Maximum Image Std. Dev.",
+              "<html>Std. Dev. of grayscale values of original image<br>"
+              + "Used to exclude images with edges</html>", 12500.0);
+      maxMeanIntensity_ = new AnalysisProperty(this.getClass(),
+              "Maximum Image Mean Int.",
+              "<html>If the average intensity of the image is higher<br>"
+              + "than this number, the image will be skipped", 20000.0);
+      minSizeN_ = new AnalysisProperty(this.getClass(),
+              "<html>Minimum nuclear size (&micro;m<sup>2</sup>)</html>",
+              "<html>Smallest size of nucleus in "
+              + "&micro;m<sup>2</sup></html><br>"
+              + "Used to identify nuclei", 300.0);
+      maxSizeN_ = new AnalysisProperty(this.getClass(),
+              "<html>Maximum nuclear size (&micro;m<sup>2</sup>)</html>",
+              "<html>Largest size of nucleus in "
+              + "&micro;m<sup>2</sup></html><br> +"
+              + "Used to identify nuclei", 1800.0);
+      minSizeSN_ = new AnalysisProperty(this.getClass(),
+              "<html>Minimum positive size (&micro;m<sup>2</sup>)</html>",
+              "<html>Smallest size of selected nucleus in "
+              + "&micro;m<sup>2</sup></html><br>"
+              + "Used to generate hits", 300.0);
+      maxSizeSN_ = new AnalysisProperty(this.getClass(),
+              "<html>Maximum positive size (&micro;m<sup>2</sup>)</html>",
+              "<html>Largest size of nucleus in "
+              + "&micro;m<sup>2</sup></html><br> +"
+              + "Used to generate hits", 1800.0);
 
-      } catch (PropertyException ex) {
-         // todo: handle error}
+      List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
+
+      apl.add(maxStdDev_);
+      apl.add(maxMeanIntensity_);
+      apl.add(minSizeN_);
+      apl.add(maxSizeN_);
+      apl.add(minSizeSN_);
+      apl.add(maxSizeSN_);
+
+      setAnalysisProperties(apl);
+
+      // the ImageJ roiManager	
+      roiManager_ = RoiManager.getInstance();
+      if (roiManager_ == null) {
+         roiManager_ = new RoiManager();
       }
+
    }
 
    @Override

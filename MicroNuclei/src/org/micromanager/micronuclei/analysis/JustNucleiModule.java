@@ -16,7 +16,6 @@
 //               IN NO EVENT SHALL THE COPYRIGHT OWNER OR
 //               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES. 
-
 package org.micromanager.micronuclei.analysis;
 
 import ij.IJ;
@@ -38,7 +37,6 @@ import org.micromanager.internal.utils.NumberUtils;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
-import org.micromanager.micronuclei.analysisinterface.PropertyException;
 import org.micromanager.micronuclei.analysisinterface.ResultRois;
 
 /**
@@ -46,64 +44,61 @@ import org.micromanager.micronuclei.analysisinterface.ResultRois;
  * @author nico
  */
 public class JustNucleiModule extends AnalysisModule {
-   private final String UINAME = "Zap Some Nuclei";
-   private final String DESCRIPTION = 
-           "<html>Simple module that finds nuclei in the first channel, <br>" +
-           "and identifies a user-defined percentage of these<br>" +
-           "as hits";
-   
-   private AnalysisProperty percentageOfNuclei_;
-   private AnalysisProperty maxStdDev_;
-   private AnalysisProperty maxMeanIntensity_;
-   private AnalysisProperty minSizeN_;
-   private AnalysisProperty maxSizeN_;
-   
-   private RoiManager roiManager_;
-   
-   public JustNucleiModule() {
-      try {
-         // note: the type of the value when creating the AnalysisProperty determines
-         // the allowed type, and can create problems when the user enters something
-         // different
-         percentageOfNuclei_ = new AnalysisProperty(this.getClass(),
-                 "Percentage of nuclei to be converted", null, 10.0 );
-         maxStdDev_ = new AnalysisProperty(this.getClass(),
-                 "Maximum Std. Dev.", 
-                 "<html>Std. Dev. of grayscale values of original image<br>" +
-                          "Used to exclude images with edges</html>", 12500.0);
-         maxMeanIntensity_ = new AnalysisProperty(this.getClass(),
-                 "Maximum Mean Int.", 
-                 "<html>If the average intensity of the image is higher<br>" + 
-                          "than this number, the image will be skipped", 20000.0);
-         minSizeN_ = new AnalysisProperty(this.getClass(),
-                  "<html>Minimum nuclear size (&micro;m<sup>2</sup>)</html>", 
-                 "<html>Smallest size of putative nucleus in " + 
-                          "&micro;m<sup>2</sup></html>", 300.0);
-         maxSizeN_ = new AnalysisProperty(this.getClass(),
-                  "<html>Maximum nuclear size (&micro;m<sup>2</sup>)</html>", 
-                 "<html>Largest size of putative nucleus in " + 
-                          "&micro;m<sup>2</sup></html>",1800.0);
-         
-         List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
-         apl.add(percentageOfNuclei_);
-         apl.add(maxStdDev_);
-         apl.add(maxMeanIntensity_);
-         apl.add(minSizeN_);
-         apl.add(maxSizeN_);
-         
-         setAnalysisProperties(apl);
-         
-         // the ImageJ roiManager	
-         roiManager_ = RoiManager.getInstance();
-         if (roiManager_ == null) {
-            roiManager_ = new RoiManager();
-         }
 
-      } catch (PropertyException ex) {
-         // todo: handle error}
+   private final String UINAME = "Zap Some Nuclei";
+   private final String DESCRIPTION
+           = "<html>Simple module that finds nuclei in the first channel, <br>"
+           + "and identifies a user-defined percentage of these<br>"
+           + "as hits";
+
+   private final AnalysisProperty percentageOfNuclei_;
+   private final AnalysisProperty maxStdDev_;
+   private final AnalysisProperty maxMeanIntensity_;
+   private final AnalysisProperty minSizeN_;
+   private final AnalysisProperty maxSizeN_;
+
+   private RoiManager roiManager_;
+
+   public JustNucleiModule() {
+      // note: the type of the value when creating the AnalysisProperty determines
+      // the allowed type, and can create problems when the user enters something
+      // different
+      percentageOfNuclei_ = new AnalysisProperty(this.getClass(),
+              "Percentage of nuclei to be converted", null, 10.0);
+      maxStdDev_ = new AnalysisProperty(this.getClass(),
+              "Maximum Std. Dev.",
+              "<html>Std. Dev. of grayscale values of original image<br>"
+              + "Used to exclude images with edges</html>", 12500.0);
+      maxMeanIntensity_ = new AnalysisProperty(this.getClass(),
+              "Maximum Mean Int.",
+              "<html>If the average intensity of the image is higher<br>"
+              + "than this number, the image will be skipped", 20000.0);
+      minSizeN_ = new AnalysisProperty(this.getClass(),
+              "<html>Minimum nuclear size (&micro;m<sup>2</sup>)</html>",
+              "<html>Smallest size of putative nucleus in "
+              + "&micro;m<sup>2</sup></html>", 300.0);
+      maxSizeN_ = new AnalysisProperty(this.getClass(),
+              "<html>Maximum nuclear size (&micro;m<sup>2</sup>)</html>",
+              "<html>Largest size of putative nucleus in "
+              + "&micro;m<sup>2</sup></html>", 1800.0);
+
+      List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
+      apl.add(percentageOfNuclei_);
+      apl.add(maxStdDev_);
+      apl.add(maxMeanIntensity_);
+      apl.add(minSizeN_);
+      apl.add(maxSizeN_);
+
+      setAnalysisProperties(apl);
+
+      // the ImageJ roiManager	
+      roiManager_ = RoiManager.getInstance();
+      if (roiManager_ == null) {
+         roiManager_ = new RoiManager();
       }
+
    }
-   
+
    @Override
    public ResultRois analyze(Studio mm, Image[] imgs, Roi userRoi, JSONObject parms) throws AnalysisException {
       Image img = imgs[0];

@@ -42,7 +42,6 @@ import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import static org.micromanager.micronuclei.analysisinterface.AnalysisModule.CELLCOUNT;
 import static org.micromanager.micronuclei.analysisinterface.AnalysisModule.OBJECTCOUNT;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
-import org.micromanager.micronuclei.analysisinterface.PropertyException;
 import org.micromanager.micronuclei.analysisinterface.ResultRois;
 
 /**
@@ -55,92 +54,88 @@ public class GreenCellsModule extends AnalysisModule {
            "<html>Simple module that finds positive cells in the 2nd channel, <br>" +
            "and identifies these as hits";
 
-   private AnalysisProperty maxStdDev_;
-   private AnalysisProperty maxMeanIntensity_;
-   private AnalysisProperty minSizeN_;
-   private AnalysisProperty maxSizeN_;
-   private AnalysisProperty minCellSize_;
-   private AnalysisProperty maxCellSize_;
-   private AnalysisProperty minCellIntensity_;
-   private AnalysisProperty ignoreCellsWithMultipleNuclei_;
+   private final AnalysisProperty maxStdDev_;
+   private final AnalysisProperty maxMeanIntensity_;
+   private final AnalysisProperty minSizeN_;
+   private final AnalysisProperty maxSizeN_;
+   private final AnalysisProperty minCellSize_;
+   private final AnalysisProperty maxCellSize_;
+   private final AnalysisProperty minCellIntensity_;
+   private final AnalysisProperty ignoreCellsWithMultipleNuclei_;
    
    private RoiManager roiManager_;
    
    private int nrCellsWithMultipleNuclei_ = 0;
-   
+  
    public GreenCellsModule() {
-      try {
-         // note: the type of the value when creating the AnalysisProperty determines
-         // the allowed type, and can create problems when the user enters something
-         // different
-         maxStdDev_ = new AnalysisProperty(this.getClass(),
-                 "Maximum Std. Dev. of Nuclear image", 
-                 "<html>Std. Dev. of grayscale values of original image<br>" +
-                          "Used to exclude images with edges</html>", 12500.0);
-         maxMeanIntensity_ = new AnalysisProperty(this.getClass(),
-                 "Maximum Mean Int. of Nuclear Image", 
-                 "<html>If the average intensity of the image is higher<br>" + 
-                          "than this number, the image will be skipped", 20000.0);
-         minSizeN_ = new AnalysisProperty(this.getClass(),
-                  "<html>Minimum nuclear size (&micro;m<sup>2</sup>)</html>", 
-                 "<html>Smallest size of putative nucleus in " + 
-                          "&micro;m<sup>2</sup></html>", 300.0);
-         maxSizeN_ = new AnalysisProperty(this.getClass(),
-                  "<html>Maximum nuclear size (&micro;m<sup>2</sup>)</html>", 
-                 "<html>Largest size of putative nucleus in " + 
-                          "&micro;m<sup>2</sup></html>",1800.0);
-         minCellSize_ = new AnalysisProperty(this.getClass(),
-                  "<html>Minimum green cell size (&micro;m<sup>2</sup>)</html>", 
-                 "<html>Smallest size of putative cell in " + 
-                          "&micro;m<sup>2</sup></html>", 600.0);
-         maxCellSize_ = new AnalysisProperty(this.getClass(),
-                  "<html>Maximum green cell size (&micro;m<sup>2</sup>)</html>", 
-                 "<html>Largest size of putative cell in " + 
-                          "&micro;m<sup>2</sup></html>",3600.0);
-         minCellIntensity_ = new AnalysisProperty(this.getClass(),
-                 "<html>Minimum mean intensity of a green cell</html>",
-                 "<html>Minimum mean intensity of a green cell</html>",
-                 3000.0);
-         ignoreCellsWithMultipleNuclei_ = new AnalysisProperty(this.getClass(),
-                  "<html>Ignore cells with multiple nuclei</html",
-                  "<html>Ignore cells with multiple nuclei</html",
-                  true);
-         
-         List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
-         apl.add(maxStdDev_);
-         apl.add(maxMeanIntensity_);
-         apl.add(minSizeN_);
-         apl.add(maxSizeN_);
-         apl.add(minCellSize_);
-         apl.add(maxCellSize_);
-         apl.add(minCellIntensity_);
-         apl.add(ignoreCellsWithMultipleNuclei_);
-         
-         setAnalysisProperties(apl);
-         
-         // the ImageJ roiManager	
-         roiManager_ = RoiManager.getInstance();
-         if (roiManager_ == null) {
-            roiManager_ = new RoiManager();
-         }
+      // note: the type of the value when creating the AnalysisProperty determines
+      // the allowed type, and can create problems when the user enters something
+      // different
+      maxStdDev_ = new AnalysisProperty(this.getClass(),
+              "Maximum Std. Dev. of Nuclear image",
+              "<html>Std. Dev. of grayscale values of original image<br>"
+              + "Used to exclude images with edges</html>", 12500.0);
+      maxMeanIntensity_ = new AnalysisProperty(this.getClass(),
+              "Maximum Mean Int. of Nuclear Image",
+              "<html>If the average intensity of the image is higher<br>"
+              + "than this number, the image will be skipped", 20000.0);
+      minSizeN_ = new AnalysisProperty(this.getClass(),
+              "<html>Minimum nuclear size (&micro;m<sup>2</sup>)</html>",
+              "<html>Smallest size of putative nucleus in "
+              + "&micro;m<sup>2</sup></html>", 300.0);
+      maxSizeN_ = new AnalysisProperty(this.getClass(),
+              "<html>Maximum nuclear size (&micro;m<sup>2</sup>)</html>",
+              "<html>Largest size of putative nucleus in "
+              + "&micro;m<sup>2</sup></html>", 1800.0);
+      minCellSize_ = new AnalysisProperty(this.getClass(),
+              "<html>Minimum green cell size (&micro;m<sup>2</sup>)</html>",
+              "<html>Smallest size of putative cell in "
+              + "&micro;m<sup>2</sup></html>", 600.0);
+      maxCellSize_ = new AnalysisProperty(this.getClass(),
+              "<html>Maximum green cell size (&micro;m<sup>2</sup>)</html>",
+              "<html>Largest size of putative cell in "
+              + "&micro;m<sup>2</sup></html>", 3600.0);
+      minCellIntensity_ = new AnalysisProperty(this.getClass(),
+              "<html>Minimum mean intensity of a green cell</html>",
+              "<html>Minimum mean intensity of a green cell</html>",
+              3000.0);
+      ignoreCellsWithMultipleNuclei_ = new AnalysisProperty(this.getClass(),
+              "<html>Ignore cells with multiple nuclei</html",
+              "<html>Ignore cells with multiple nuclei</html",
+              true);
 
-      } catch (PropertyException ex) {
-         // todo: handle error}
+      List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
+      apl.add(maxStdDev_);
+      apl.add(maxMeanIntensity_);
+      apl.add(minSizeN_);
+      apl.add(maxSizeN_);
+      apl.add(minCellSize_);
+      apl.add(maxCellSize_);
+      apl.add(minCellIntensity_);
+      apl.add(ignoreCellsWithMultipleNuclei_);
+
+      setAnalysisProperties(apl);
+
+      // the ImageJ roiManager	
+      roiManager_ = RoiManager.getInstance();
+      if (roiManager_ == null) {
+         roiManager_ = new RoiManager();
       }
+
    }
-   
+
    @Override
    public ResultRois analyze(Studio mm, Image[] imgs, Roi userRoi, JSONObject parms) throws AnalysisException {
-        
+
       if (imgs.length < 2) {
-         throw new AnalysisException ("Need at least two channels to find nuclei in green cells");
+         throw new AnalysisException("Need at least two channels to find nuclei in green cells");
       }
       boolean showMasks = false;
       try {
          showMasks = parms.getBoolean(AnalysisModule.SHOWMASKS);
       } catch (JSONException jex) { // do nothing
       }
-      
+
       // First locate Nuclei
       ImageProcessor nuclearImgProcessor = mm.data().ij().createProcessor(imgs[0]);
       Rectangle userRoiBounds = null;
@@ -156,7 +151,7 @@ public class GreenCellsModule extends AnalysisModule {
       calibration.setUnit("um");
 
       // check for edges by calculating stdev
-      ImageStatistics stat = nuclearImgIp.getStatistics(Measurements.MEAN+ Measurements.STD_DEV);
+      ImageStatistics stat = nuclearImgIp.getStatistics(Measurements.MEAN + Measurements.STD_DEV);
       final double stdDev = stat.stdDev;
       final double mean = stat.mean;
       final double maxStdDev = (Double) maxStdDev_.get();
@@ -164,19 +159,18 @@ public class GreenCellsModule extends AnalysisModule {
       int pos = imgs[0].getCoords().getStagePosition();
       if (stdDev > maxStdDev) {
          mm.alerts().postAlert("Skip image", JustNucleiModule.class,
-                 "Std. Dev. of image at position " + pos + " (" + 
-                  NumberUtils.doubleToDisplayString(stdDev) +
-                  ") is higher than the limit you set: " + maxStdDev);
+                 "Std. Dev. of image at position " + pos + " ("
+                 + NumberUtils.doubleToDisplayString(stdDev)
+                 + ") is higher than the limit you set: " + maxStdDev);
          return new ResultRois(null, null, null);
       }
       if (mean > maxMean) {
          mm.alerts().postAlert("Skip image", JustNucleiModule.class,
-                 "Mean intensity of image at position " + pos + " (" + 
-                  NumberUtils.doubleToDisplayString(mean) +
-                  ") is higher than the limit you set: " + maxMean);
+                 "Mean intensity of image at position " + pos + " ("
+                 + NumberUtils.doubleToDisplayString(mean)
+                 + ") is higher than the limit you set: " + maxMean);
          return new ResultRois(null, null, null);
       }
-
 
       // Even though we are flatfielding, results are much better after
       // background subtraction.  In one test, I get about 2 fold more nuclei

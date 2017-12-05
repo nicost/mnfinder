@@ -43,19 +43,21 @@ public class AnalysisProperty<T> {
     *                Will be displayed as a tooltip.  Can be set to null if 
     *                irrelevant.
     * @param t variable that will be get or set.  Type should be Integer, Double,
-    * String, or Boolean
-    * @throws PropertyException Exception thrown when the type of the provided variable
-    * is not one of Integer, Double, String, or Boolean
+    * String, or Boolean.  This should be enforced by the compiler, but I 
+    * don't know how to do that.
     */
-   public AnalysisProperty(Class caller, String name, String tooltip, T t) throws PropertyException {
+   public AnalysisProperty(Class caller, String name, String tooltip, T t)  {
       prefs_ = Preferences.userNodeForPackage(caller);
       name_ = name;
       tooltip_ = tooltip;
-      if (!  ( (t instanceof Integer ) || (t  instanceof Double) ||
+      if (  ( (t instanceof Integer ) || (t  instanceof Double) ||
               (t instanceof String) || (t instanceof Boolean)  ) ) {
-         throw new PropertyException("This type is not supported");
+         t_ = getValueFromPrefs(t);
+      } else {
+         // this is an error that should be caught by the compiled, 
+         // but I don't know how to do that
       }
-      t_ = getValueFromPrefs(t);
+      
    }
    
    public void set(T t) {
