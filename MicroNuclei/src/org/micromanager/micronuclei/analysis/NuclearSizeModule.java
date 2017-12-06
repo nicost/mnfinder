@@ -40,7 +40,7 @@ public class NuclearSizeModule  extends AnalysisModule {
    private final AnalysisProperty minSizeSN_;
    private final AnalysisProperty maxSizeSN_;
 
-   private EdgeDetectorSubModule edgeDetector_;
+   private final EdgeDetectorSubModule edgeDetector_;
    private RoiManager roiManager_;
 
    public NuclearSizeModule() {
@@ -76,9 +76,14 @@ public class NuclearSizeModule  extends AnalysisModule {
               "<html>Largest size of nucleus in "
               + "&micro;m<sup>2</sup></html><br> +"
               + "Used to generate hits", 1800.0);
+      
+      edgeDetector_ = new EdgeDetectorSubModule();
 
       List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
-
+      for (AnalysisProperty ap : edgeDetector_.getAnalysisProperties()) {
+         apl.add(ap);
+      }
+      
       apl.add(maxStdDev_);
       apl.add(maxMeanIntensity_);
       apl.add(minSizeN_);
@@ -99,8 +104,13 @@ public class NuclearSizeModule  extends AnalysisModule {
    @Override
    public ResultRois analyze(Studio mm, Image[] imgs, Roi roi, JSONObject parms) 
            throws AnalysisException {
+      Roi restrictToThisRoi = edgeDetector_.analyze(mm, imgs);
+      
       Image img = imgs[0];
       ImageProcessor iProcessor = mm.data().ij().createProcessor(img);
+      if (restrictToThisRoi != null) {
+         iProcessor.setRoi(restrictToThisRoi);
+      }
       Rectangle userRoiBounds = null;
       if (roi != null) {
          iProcessor.setRoi(roi);
