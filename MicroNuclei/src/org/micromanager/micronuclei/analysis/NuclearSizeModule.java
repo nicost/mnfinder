@@ -108,9 +108,7 @@ public class NuclearSizeModule  extends AnalysisModule {
       
       Image img = imgs[0];
       ImageProcessor iProcessor = mm.data().ij().createProcessor(img);
-      if (restrictToThisRoi != null) {
-         iProcessor.setRoi(restrictToThisRoi);
-      }
+
       Rectangle userRoiBounds = null;
       if (roi != null) {
          iProcessor.setRoi(roi);
@@ -118,10 +116,15 @@ public class NuclearSizeModule  extends AnalysisModule {
          userRoiBounds = roi.getBounds();
       }
       ImagePlus ip = (new ImagePlus("tmp", iProcessor)).duplicate();
+
       Calibration calibration = ip.getCalibration();
       calibration.pixelWidth = img.getMetadata().getPixelSizeUm();
       calibration.pixelHeight = img.getMetadata().getPixelSizeUm();
       calibration.setUnit("um");
+      
+      if (restrictToThisRoi != null) {
+         ip.setRoi(restrictToThisRoi);
+      }
 
       // check for edges by calculating stdev
       ImageStatistics stat = ip.getStatistics(Measurements.MEAN+ Measurements.STD_DEV);
