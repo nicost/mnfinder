@@ -32,6 +32,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
+import java.io.IOException;
 import java.util.List;
 import org.micromanager.data.Coords;
 import org.micromanager.data.Coords.CoordsBuilder;
@@ -114,10 +115,14 @@ public class ResultsListener implements KeyListener, MouseListener{
       int row = tp_.getSelectionStart();
       if (row >= 0 && row < tp_.getLineCount()) {
          if (dw_ != null) {
-            List<Image> displayedImages = dw_.getDisplayedImages();
-            CoordsBuilder cb = displayedImages.get(0).getCoords().copy();
-            Coords c = cb.stagePosition((int) res_.getValue(Terms.POSITION, row)).build();
-            dw_.setDisplayedImageTo(c);
+            try {
+               List<Image> displayedImages = dw_.getDisplayedImages();
+               CoordsBuilder cb = displayedImages.get(0).getCoords().copy();
+               Coords c = cb.stagePosition((int) res_.getValue(Terms.POSITION, row)).build();
+               dw_.setDisplayPosition(c);
+            } catch (IOException ex) {
+               // TODO: Log error
+            }
          }
          if (siPlus_.getWindow() != null) {
             if (siPlus_ != IJ.getImage()) {

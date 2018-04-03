@@ -22,8 +22,6 @@ package org.micromanager.micronuclei.internal.gui;
 import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
@@ -33,8 +31,8 @@ import javax.swing.ScrollPaneConstants;
 import javax.swing.table.TableColumnModel;
 import net.miginfocom.swing.MigLayout;
 import org.micromanager.Studio;
-import org.micromanager.UserProfile;
 import org.micromanager.micronuclei.internal.data.ChannelInfo;
+import org.micromanager.propertymap.MutablePropertyMapView;
 
 /**
  * Generates a panel with a view on a channel table, and + and - buttons 
@@ -45,15 +43,13 @@ import org.micromanager.micronuclei.internal.data.ChannelInfo;
 public final class ChannelPanel extends JPanel implements BasePanel {
    
    static final String CHANNELDATA = "ChannelData";
-   
-   private final UserProfile userProfile_;
-   private final Class profileClass_;
+
+   private final MutablePropertyMapView settings_;
    private final ChannelTableModel channelTableModel_;
    
    public ChannelPanel(final Studio studio, final Class profileClass) {
       
-      userProfile_ = studio.getUserProfile();
-      profileClass_ = profileClass;
+      settings_ = studio.getUserProfile().getSettings(profileClass);
       final ChannelTable table = new ChannelTable(studio, this);
       channelTableModel_ = new ChannelTableModel();
       restoreChannelsFromProfile();
@@ -70,10 +66,10 @@ public final class ChannelPanel extends JPanel implements BasePanel {
               ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
       
       TableColumnModel cm = table.getColumnModel();
-      cm.getColumn(0).setPreferredWidth(userProfile_.getInt(profileClass_, COL0WIDTH, 20));
-      cm.getColumn(1).setPreferredWidth(userProfile_.getInt(profileClass_, COL1WIDTH, 100));
-      cm.getColumn(2).setPreferredWidth(userProfile_.getInt(profileClass_, COL2WIDTH, 50));
-      cm.getColumn(3).setPreferredWidth(userProfile_.getInt(profileClass_, COL3WIDTH, 50));
+      cm.getColumn(0).setPreferredWidth(settings_.getInteger(COL0WIDTH, 20));
+      cm.getColumn(1).setPreferredWidth(settings_.getInteger(COL1WIDTH, 100));
+      cm.getColumn(2).setPreferredWidth(settings_.getInteger(COL2WIDTH, 50));
+      cm.getColumn(3).setPreferredWidth(settings_.getInteger(COL3WIDTH, 50));
       tableScrollPane.setViewportView(table);
       super.add(tableScrollPane, "span 1 2, hmax 75, wmax 320 ");
       
@@ -122,62 +118,47 @@ public final class ChannelPanel extends JPanel implements BasePanel {
     * individually
     */
    public void storeChannelsInProfile() {
-      ChannelInfo.storeChannelsInProfile(userProfile_, this.getClass(), 
-              CHANNELDATA, getChannels());
+      ChannelInfo.storeChannelsInProfile(settings_, CHANNELDATA, getChannels());
    }
    
    
    public void restoreChannelsFromProfile() {
       channelTableModel_.setChannels( ChannelInfo.restoreChannelsFromProfile(
-              userProfile_, this.getClass(), CHANNELDATA) );
+              settings_, CHANNELDATA) );
    }
-   
-    @Override
+
+   @Override
    public void updateExposureTime(int rowIndex) {
       ChannelInfo cInfo = channelTableModel_.getChannels().get(rowIndex);
-      try {
-         cInfo.exposureTimeMs_ = userProfile_.getObject(profileClass_, 
-                 cInfo.channelName_ + EXPOSURETIME, 100.0);
-         channelTableModel_.fireTableCellUpdated(rowIndex, 3);
-      } catch (IOException ex) {
-         // TODO
-      }
+      cInfo.exposureTimeMs_ = settings_.getDouble(
+              cInfo.channelName_ + EXPOSURETIME, 100.0);
+      channelTableModel_.fireTableCellUpdated(rowIndex, 3);
    }
    
    public void storeChannelExposureTime(int rowIndex) {
       ChannelInfo cInfo = channelTableModel_.getChannels().get(rowIndex);
-      try {
-         userProfile_.setObject(profileClass_, 
+         settings_.putDouble( 
                  cInfo.channelName_ + EXPOSURETIME, cInfo.exposureTimeMs_);
-      } catch (IOException ex) {
-         // TODO 
-      }
    }
    
    
    @Override
    public void updateColor(int rowIndex) {
       ChannelInfo cInfo = channelTableModel_.getChannels().get(rowIndex);
-      try {
-         cInfo.displayColor_ = userProfile_.getObject(
-                 profileClass_, cInfo.channelName_ + COLOR, Color.GREEN);
-         channelTableModel_.fireTableCellUpdated(rowIndex, 3);
-      } catch (IOException ex) {
-         // TODO
-      }
+      cInfo.displayColor_ = settings_.getColor(cInfo.channelName_ + COLOR,
+              Color.GREEN);
+      channelTableModel_.fireTableCellUpdated(rowIndex, 3);
    }
-   
+
    public void storeChannelColor(int rowIndex) {
       ChannelInfo cInfo = channelTableModel_.getChannels().get(rowIndex);
-      try {
-         userProfile_.setObject(profileClass_, 
-                 cInfo.channelName_ + COLOR, cInfo.displayColor_);
-      } catch (IOException ex) {
-         // TODO 
-      }
+
+      settings_.putColor(
+              cInfo.channelName_ + COLOR, cInfo.displayColor_);
+
    }
-   
-   public List<ChannelInfo> getChannels () {
+
+   public List<ChannelInfo> getChannels() {
       return channelTableModel_.getChannels();
    }
    

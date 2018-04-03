@@ -30,6 +30,7 @@ import net.miginfocom.swing.MigLayout;
 import org.micromanager.Studio;
 import org.micromanager.UserProfile;
 import org.micromanager.micronuclei.internal.data.ChannelInfo;
+import org.micromanager.propertymap.MutablePropertyMapView;
 
 /**
  *
@@ -39,14 +40,12 @@ public final class ConvertChannelPanel extends JPanel implements BasePanel {
    
    private static final String CONVERTCHANNELDATA = "ConvertChannelData";
    
-   private final UserProfile userProfile_;
-   private final Class profileClass_;
+   private final  MutablePropertyMapView settings_;
    private final ConvertChannelTableModel convertChannelTableModel_;
    
    public ConvertChannelPanel(final Studio studio, final Class profileClass) {
       
-      userProfile_ = studio.getUserProfile();
-      profileClass_ = profileClass;
+      settings_ = studio.getUserProfile().getSettings(profileClass);
       final ConvertChannelTable table = new ConvertChannelTable(studio, this);
       convertChannelTableModel_ = new ConvertChannelTableModel();
       updateChannelsFromProfile();
@@ -63,11 +62,11 @@ public final class ConvertChannelPanel extends JPanel implements BasePanel {
               ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
       
       TableColumnModel cm = table.getColumnModel();
-      cm.getColumn(0).setPreferredWidth(userProfile_.getInt(profileClass_, COL0WIDTH, 40));
-      cm.getColumn(1).setPreferredWidth(userProfile_.getInt(profileClass_, COL1WIDTH, 20));
-      cm.getColumn(2).setPreferredWidth(userProfile_.getInt(profileClass_, COL2WIDTH, 100));
-      cm.getColumn(3).setPreferredWidth(userProfile_.getInt(profileClass_, COL3WIDTH, 50));
-      cm.getColumn(4).setPreferredWidth(userProfile_.getInt(profileClass_, COL4WIDTH, 50));
+      cm.getColumn(0).setPreferredWidth(settings_.getInteger(COL0WIDTH, 40));
+      cm.getColumn(1).setPreferredWidth(settings_.getInteger(COL1WIDTH, 20));
+      cm.getColumn(2).setPreferredWidth(settings_.getInteger(COL2WIDTH, 100));
+      cm.getColumn(3).setPreferredWidth(settings_.getInteger(COL3WIDTH, 50));
+      cm.getColumn(4).setPreferredWidth(settings_.getInteger(COL4WIDTH, 50));
       tableScrollPane.setViewportView(table);
       super.add(tableScrollPane, "span 1 2, hmax 75, wmax 320 ");
       
@@ -75,13 +74,13 @@ public final class ConvertChannelPanel extends JPanel implements BasePanel {
    
    
    public void storeChannelsInProfile() {
-      ChannelInfo.storeChannelsInProfile(userProfile_, this.getClass(), 
+      ChannelInfo.storeChannelsInProfile(settings_, 
               CONVERTCHANNELDATA, getChannels());
    }
    
    public void updateChannelsFromProfile() {
       List<ChannelInfo> channels = ChannelInfo.restoreChannelsFromProfile(
-              userProfile_, this.getClass(), CONVERTCHANNELDATA);
+              settings_, CONVERTCHANNELDATA);
       if (channels.size() <= ConvertChannelTableModel.NRCHANNELS) {
          for (int i = 0; i < channels.size(); i++) {
             convertChannelTableModel_.setChannel(channels.get(i), i);
@@ -93,44 +92,28 @@ public final class ConvertChannelPanel extends JPanel implements BasePanel {
    @Override
    public void updateExposureTime(int rowIndex) {
       ChannelInfo cInfo = convertChannelTableModel_.getChannels().get(rowIndex);
-      try {
-         cInfo.exposureTimeMs_ = userProfile_.getObject(profileClass_, 
-                 cInfo.channelName_ + EXPOSURETIME, 100.0);
-         convertChannelTableModel_.fireTableCellUpdated(rowIndex, 3);
-      } catch (IOException ex) {
-         // TODO
-      }
+      cInfo.exposureTimeMs_ = settings_.getDouble(
+              cInfo.channelName_ + EXPOSURETIME, 100.0);
+      convertChannelTableModel_.fireTableCellUpdated(rowIndex, 3);
    }
-   
+
    public void storeChannelExposureTime(int rowIndex) {
       ChannelInfo cInfo = convertChannelTableModel_.getChannels().get(rowIndex);
-      try {
-         userProfile_.setObject(profileClass_, 
-                 cInfo.channelName_ + EXPOSURETIME, cInfo.exposureTimeMs_);
-      } catch (IOException ex) {
-         // TODO 
-      }
+      settings_.putDouble(
+              cInfo.channelName_ + EXPOSURETIME, cInfo.exposureTimeMs_);
    }
-   
+
    @Override
    public void updateColor(int rowIndex) {
       ChannelInfo cInfo = convertChannelTableModel_.getChannels().get(rowIndex);
-      try {
-         cInfo.displayColor_ = userProfile_.getObject(profileClass_, 
-                 cInfo.channelName_ + COLOR, Color.GREEN);
-         convertChannelTableModel_.fireTableCellUpdated(rowIndex, 4);
-      } catch (IOException ex) {
-         // TODO
-      }
+      cInfo.displayColor_ = settings_.getColor(
+              cInfo.channelName_ + COLOR, Color.GREEN);
+      convertChannelTableModel_.fireTableCellUpdated(rowIndex, 4);
    }
-   
+
    public void storeChannelColor(int rowIndex) {
       ChannelInfo cInfo = convertChannelTableModel_.getChannels().get(rowIndex);
-      try {
-         userProfile_.setObject(profileClass_, cInfo.channelName_ + COLOR, cInfo.displayColor_);
-      } catch (IOException ex) {
-         // TODO 
-      }
+      settings_.putColor(cInfo.channelName_ + COLOR, cInfo.displayColor_);
    }
    
    public List<ChannelInfo> getChannels () {

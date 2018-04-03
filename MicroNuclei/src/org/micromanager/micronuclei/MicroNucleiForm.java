@@ -71,13 +71,19 @@ import org.json.JSONObject;
 import org.micromanager.MultiStagePosition;
 import org.micromanager.PositionList;
 import org.micromanager.PropertyMap;
+import org.micromanager.PropertyMaps;
 import org.micromanager.Studio;
+import org.micromanager.data.Coordinates;
 import org.micromanager.data.Coords;
+import org.micromanager.data.Coords.CoordsBuilder;
+import org.micromanager.data.DataProvider;
 import org.micromanager.data.Datastore;
 import org.micromanager.data.Image;
 import org.micromanager.data.Metadata;
 import org.micromanager.data.Pipeline;
 import org.micromanager.data.SummaryMetadata;
+import org.micromanager.data.internal.DefaultImage;
+import org.micromanager.data.internal.DefaultMetadata;
 import org.micromanager.display.DisplayWindow;
 import org.micromanager.events.ShutdownCommencingEvent;
 import org.micromanager.internal.MMStudio;
@@ -478,10 +484,13 @@ public class MicroNucleiForm extends MMFrame {
          if (dw == null || ip != dw.getImagePlus()) {
             // ImageJ window.  Forget everything about MM windows:
             dw = null;
-            TaggedImage tImg = ImageUtils.makeTaggedImage(ip.getProcessor());
-            tImg.tags.put("PixelSizeUm", ip.getCalibration().pixelWidth);
+            Metadata.Builder mb = gui_.data().getMetadataBuilder();
+            mb.pixelSizeUm(ip.getCalibration().pixelWidth);
+            CoordsBuilder cb = Coordinates.builder();
+            cb.channel(0).stagePosition(0).time(0).z(0);
             Image[] imgs = new Image[1];
-            imgs[0] = gui_.data().convertTaggedImage(tImg);
+            imgs[0] = new DefaultImage(ip.getProcessor().getPixels(), ip.getWidth(),
+                    ip.getHeight(), ip.getBytesPerPixel(), 1, cb.build(), mb.build());
             ResultRois rr = analysisModule.analyze(gui_, imgs, ip.getRoi(), parms);
             RoiManager.getInstance2().reset();
             for (Roi roi : rr.getHitRois()) {
@@ -497,64 +506,67 @@ public class MicroNucleiForm extends MMFrame {
             if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
                RoiManager.getInstance2().runCommand("Show All");
             }
-            
 
          } else { // MM display
-            Datastore store = dw.getDatastore();
+            DataProvider store = dw.getDataProvider();
             Roi userRoi = dw.getImagePlus().getRoi();
             if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
                RoiManager.getInstance().runCommand("Show All");
                dw.getImagePlus().setRoi(userRoi);
             }
-            
-            Coords.CoordsBuilder builder = store.getAnyImage().getCoords().copy();
-            builder.channel(0);
-            int nrPositions = store.getAxisLength(Coords.STAGE_POSITION); 
-            int nrChannels = store.getAxisLength(Coords.CHANNEL);
-            Image[] imgs = new Image[nrChannels];
-            for (int p = 0; p < nrPositions && !stop_.get(); p++) {
-               try {
-                  for (int ch = 0; ch < nrChannels; ch++) {
-                     Coords coords = builder.stagePosition(p).channel(ch).build();
-                     imgs[ch] = store.getImage(coords);
-                  }
-                  if (imgs[0] != null) {
-                     dw.setDisplayedImageTo( builder.stagePosition(p).channel(0).build());
-                     ResultRois rr = analysisModule.analyze(gui_, imgs, userRoi, parms);
-                     if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
-                        RoiManager.getInstance().reset();
-                     }
-                     if (rr != null) {
-                        Roi[] hitRois = rr.getHitRois();
-                        if (hitRois != null) {
-                           for (Roi roi : rr.getHitRois()) {
-                              outTable.incrementCounter();
-                              Rectangle bounds = roi.getBounds();
-                              int x = bounds.x + (int) (0.5 * bounds.width);
-                              int y = bounds.y + (int) (0.5 * bounds.height);
-                              outTable.addValue(Terms.X, x);
-                              outTable.addValue(Terms.Y, y);
-                              outTable.addValue(Terms.POSITION, p);
-                              if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
-                                 RoiManager.getInstance().addRoi(roi);
-                              }
-                           }
-                           outTable.show(outTableName);
 
-                           if (rr.getAllRois() != null) {
-                              gui_.alerts().postAlert(FORMNAME, MicroNucleiForm.class,
-                                      "Analyzed " + rr.getAllRois().length
-                                      + " objects, found " + rr.getHitRois().length
-                                      + " objects to be photo-converted at position " + p);
+            try {
+               Coords.CoordsBuilder builder = store.getAnyImage().getCoords().copyBuilder();
+               builder.channel(0);
+               int nrPositions = store.getAxisLength(Coords.STAGE_POSITION);
+               int nrChannels = store.getAxisLength(Coords.CHANNEL);
+               Image[] imgs = new Image[nrChannels];
+               for (int p = 0; p < nrPositions && !stop_.get(); p++) {
+                  try {
+                     for (int ch = 0; ch < nrChannels; ch++) {
+                        Coords coords = builder.stagePosition(p).channel(ch).build();
+                        imgs[ch] = store.getImage(coords);
+                     }
+                     if (imgs[0] != null) {
+                        dw.setDisplayedImageTo(builder.stagePosition(p).channel(0).build());
+                        ResultRois rr = analysisModule.analyze(gui_, imgs, userRoi, parms);
+                        if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
+                           RoiManager.getInstance().reset();
+                        }
+                        if (rr != null) {
+                           Roi[] hitRois = rr.getHitRois();
+                           if (hitRois != null) {
+                              for (Roi roi : rr.getHitRois()) {
+                                 outTable.incrementCounter();
+                                 Rectangle bounds = roi.getBounds();
+                                 int x = bounds.x + (int) (0.5 * bounds.width);
+                                 int y = bounds.y + (int) (0.5 * bounds.height);
+                                 outTable.addValue(Terms.X, x);
+                                 outTable.addValue(Terms.Y, y);
+                                 outTable.addValue(Terms.POSITION, p);
+                                 if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
+                                    RoiManager.getInstance().addRoi(roi);
+                                 }
+                              }
+                              outTable.show(outTableName);
+
+                              if (rr.getAllRois() != null) {
+                                 gui_.alerts().postAlert(FORMNAME, MicroNucleiForm.class,
+                                         "Analyzed " + rr.getAllRois().length
+                                         + " objects, found " + rr.getHitRois().length
+                                         + " objects to be photo-converted at position " + p);
+                              }
                            }
                         }
                      }
-                  }
 
-               } catch (JSONException ex) {
-               } catch (NullPointerException npe) {
-                  ij.IJ.log("Null pointer exception at position : " + p);
+                  } catch (JSONException ex) {
+                  } catch (NullPointerException npe) {
+                     ij.IJ.log("Null pointer exception at position : " + p);
+                  }
                }
+            } catch (IOException ioe) {
+               gui_.logs().showError(ioe);
             }
          }
       } catch (AnalysisException ex) {
@@ -696,20 +708,20 @@ public class MicroNucleiForm extends MMFrame {
          }
       }
 
-      SummaryMetadata.SummaryMetadataBuilder smb = gui_.data().getSummaryMetadataBuilder();
+      PropertyMap.Builder pmb = PropertyMaps.builder();
+      pmb.putString("MM-Version", gui_.compat().getVersion());
+      SummaryMetadata.Builder smb = gui_.data().getSummaryMetadataBuilder();
       smb = smb.channelNames(channelNames.toArray(new String[channelNames.size()])).
               channelGroup(channelGroup).
-              microManagerVersion(gui_.compat().getVersion()).
+              userData(pmb.build()).
               prefix("MicroNucleiScreen").
               startDate((new Date()).toString()).
-              intendedDimensions(gui_.data().getCoordsBuilder().
+              intendedDimensions(Coordinates.builder().
                   channel(nrChannels).
                   z(0).
-                  time(0).
+                  t(0).
                   stagePosition(nrImagesPerWell).
               build() );
-
-      PropertyMap.PropertyMapBuilder pmb = gui_.data().getPropertyMapBuilder();
 
       for (MultiStagePosition msp : positions) {
          if (stop_.get()) {
