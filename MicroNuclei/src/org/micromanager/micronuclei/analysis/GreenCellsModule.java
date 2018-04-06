@@ -63,6 +63,7 @@ public class GreenCellsModule extends AnalysisModule {
    private final AnalysisProperty minCellIntensity_;
    private final AnalysisProperty ignoreCellsWithMultipleNuclei_;
    
+   private final EdgeDetectorSubModule edgeDetector_;
    private RoiManager roiManager_;
    
    private int nrCellsWithMultipleNuclei_ = 0;
@@ -104,7 +105,13 @@ public class GreenCellsModule extends AnalysisModule {
               "<html>Ignore cells with multiple nuclei</html",
               true);
 
+      edgeDetector_ = new EdgeDetectorSubModule();
+
       List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
+      for (AnalysisProperty ap : edgeDetector_.getAnalysisProperties()) {
+         apl.add(ap);
+      }
+      
       apl.add(maxStdDev_);
       apl.add(maxMeanIntensity_);
       apl.add(minSizeN_);
@@ -135,6 +142,7 @@ public class GreenCellsModule extends AnalysisModule {
          showMasks = parms.getBoolean(AnalysisModule.SHOWMASKS);
       } catch (JSONException jex) { // do nothing
       }
+      Roi restrictToThisRoi = edgeDetector_.analyze(mm, imgs);      
 
       // First locate Nuclei
       ImageProcessor nuclearImgProcessor = mm.data().ij().createProcessor(imgs[0]);
@@ -149,7 +157,16 @@ public class GreenCellsModule extends AnalysisModule {
       calibration.pixelWidth = imgs[0].getMetadata().getPixelSizeUm();
       calibration.pixelHeight = imgs[0].getMetadata().getPixelSizeUm();
       calibration.setUnit("um");
-
+      
+      if (restrictToThisRoi != null) {
+         nuclearImgIp.setRoi(restrictToThisRoi);
+         //IJ.run("setBackgroundColor(0, 0, 0)");
+         // this will set the pixels outside of the ROI to the backgroundcolor
+         // The automatic thresholding will not look at these pixels 
+         // (it only analyzes within the ROI)
+         IJ.run(nuclearImgIp, "Clear Outside", "");
+      }
+      
       // check for edges by calculating stdev
       ImageStatistics stat = nuclearImgIp.getStatistics(Measurements.MEAN + Measurements.STD_DEV);
       final double stdDev = stat.stdDev;
@@ -220,6 +237,15 @@ public class GreenCellsModule extends AnalysisModule {
       calibration.pixelHeight = imgs[0].getMetadata().getPixelSizeUm();
       calibration.setUnit("um");
      
+      if (restrictToThisRoi != null) {
+         cellImgIp.setRoi(restrictToThisRoi);
+         //IJ.run("setBackgroundColor(0, 0, 0)");
+         // this will set the pixels outside of the ROI to the backgroundcolor
+         // The automatic thresholding will not look at these pixels 
+         // (it only analyzes within the ROI)
+         IJ.run(cellImgIp, "Clear Outside", "");
+      }
+      
       // Even though we are flatfielding, results are much better after
       // background subtraction.  In one test, I get about 2 fold more nuclei
       // when doing this background subtraction
