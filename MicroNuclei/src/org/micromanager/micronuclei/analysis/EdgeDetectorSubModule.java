@@ -24,7 +24,8 @@ import org.micromanager.micronuclei.analysisinterface.AnalysisSubModule;
  */
 public class EdgeDetectorSubModule extends AnalysisSubModule {  
    private final AnalysisProperty edgeDetectionChannel_;
-   private final AnalysisProperty edgeMinMean_;;
+   private final AnalysisProperty edgeMinMean_;
+   private final AnalysisProperty edgeNrPixelDilation_;
    
    public EdgeDetectorSubModule() {
 
@@ -34,9 +35,13 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
       edgeMinMean_ = new AnalysisProperty(this.getClass(), 
               "Min. Mean Int. of edge",
                       "<html>Minimum intensity to accept given area as an edge</html>", 20000.0);
+      edgeNrPixelDilation_ = new AnalysisProperty(this.getClass(), 
+              "Expand edge with # of pixels",
+                      "<html>Nr of pixels to expand the edge with</html>", 36);
       List<AnalysisProperty> aps = new ArrayList<AnalysisProperty>();
       aps.add(edgeDetectionChannel_);
       aps.add(edgeMinMean_);
+      aps.add(edgeNrPixelDilation_);
       super.setAnalysisProperties(aps);
       
    }
@@ -67,10 +72,12 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
               ip.getHeight() * calibration.pixelHeight;
       
       IJ.setAutoThreshold(ip, "Huang dark");
-      // Fill holes and watershed to split large nuclei
+      // Fill holes
       IJ.run(ip, "Convert to Mask", "");
       IJ.run(ip, "Options...", "iterations=1 count=1 black edm=Overwrite do=Close");
       IJ.run(ip, "Options...", "iterations=1 count=1 black edm=Overwrite do=Fill Holes");
+      // Expand the edge a bit to avoid weird things next to the edge
+      IJ.run(ip, "Options...", "iterations=" + (Integer) edgeNrPixelDilation_.get() + " count=1 black edm=Overwrite do=Dilate");
       
       // Run particle analysis....
       // get the largest selection, 
@@ -98,7 +105,7 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
             ip.setRoi(candidates[0]);
             IJ.run (ip, "Make Inverse", "");
             roi = ip.getRoi();
-            // ip.show();
+            //ip.show();
          }
       }  else { // either 0 or more than 1 roi...   well, that is a conundrum...
          return null;
