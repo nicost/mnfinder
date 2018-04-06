@@ -20,7 +20,6 @@
 package org.micromanager.micronuclei.internal.gui;
 
 import java.awt.Color;
-import java.io.IOException;
 import java.util.List;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -28,7 +27,6 @@ import javax.swing.ScrollPaneConstants;
 import javax.swing.table.TableColumnModel;
 import net.miginfocom.swing.MigLayout;
 import org.micromanager.Studio;
-import org.micromanager.UserProfile;
 import org.micromanager.micronuclei.internal.data.ChannelInfo;
 import org.micromanager.propertymap.MutablePropertyMapView;
 

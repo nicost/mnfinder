@@ -124,6 +124,11 @@ public class NuclearSizeModule  extends AnalysisModule {
       
       if (restrictToThisRoi != null) {
          ip.setRoi(restrictToThisRoi);
+         //IJ.run("setBackgroundColor(0, 0, 0)");
+         // this will set the pixels outside of the ROI to the backgroundcolor
+         // The automatic thresholding will not look at these pixels 
+         // (it only analyzes within the ROI)
+         IJ.run(ip, "Clear Outside", "");
       }
 
       // check for edges by calculating stdev

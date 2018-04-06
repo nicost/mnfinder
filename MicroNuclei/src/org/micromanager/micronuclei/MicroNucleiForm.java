@@ -61,8 +61,6 @@ import javax.swing.JTextField;
 import javax.swing.ToolTipManager;
 import javax.swing.border.TitledBorder;
 
-import mmcorej.TaggedImage;
-
 import net.miginfocom.swing.MigLayout;
 
 import org.json.JSONException;
@@ -83,13 +81,11 @@ import org.micromanager.data.Metadata;
 import org.micromanager.data.Pipeline;
 import org.micromanager.data.SummaryMetadata;
 import org.micromanager.data.internal.DefaultImage;
-import org.micromanager.data.internal.DefaultMetadata;
 import org.micromanager.display.DisplayWindow;
 import org.micromanager.events.ShutdownCommencingEvent;
 import org.micromanager.internal.MMStudio;
 
 import org.micromanager.internal.utils.FileDialogs;
-import org.micromanager.internal.utils.ImageUtils;
 import org.micromanager.internal.utils.MMFrame;
 import org.micromanager.internal.utils.MMScriptException;
 import org.micromanager.internal.utils.NumberUtils;
@@ -455,19 +451,14 @@ public class MicroNucleiForm extends MMFrame {
     * @throws org.micromanager.micronuclei.analysisinterface.PropertyException 
     */
    public void runTest() throws MMScriptException, JSONException, PropertyException {
-      ImagePlus ip;
-      try {
-         ip = IJ.getImage();
-      } catch (Exception ex) {
-         return;
-      }
-      
+
       AnalysisModule analysisModule = moduleFromName(gui_.profile().getString(MicroNucleiForm.class, 
               MODULE, ""));
       if (analysisModule == null) {
          throw new MMScriptException("AnalysisModule not found");
       }
       
+      ImagePlus ip = null;
       ResultsTable outTable = new ResultsTable();
       String outTableName = Terms.RESULTTABLENAME;
       Window oldOutTable = WindowManager.getWindow(outTableName);
@@ -481,9 +472,15 @@ public class MicroNucleiForm extends MMFrame {
       DisplayWindow dw = gui_.displays().getCurrentWindow();
 
       try {
-         if (dw == null || ip != dw.getImagePlus()) {
+         if (dw == null) {
             // ImageJ window.  Forget everything about MM windows:
             dw = null;
+            try {
+               ip = IJ.getImage();
+            } catch (Exception ex) {
+               return;
+            }
+
             Metadata.Builder mb = gui_.data().getMetadataBuilder();
             mb.pixelSizeUm(ip.getCalibration().pixelWidth);
             CoordsBuilder cb = Coordinates.builder();
@@ -510,6 +507,7 @@ public class MicroNucleiForm extends MMFrame {
          } else { // MM display
             DataProvider store = dw.getDataProvider();
             Roi userRoi = dw.getImagePlus().getRoi();
+            ip = dw.getImagePlus();
             if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
                RoiManager.getInstance().runCommand("Show All");
                dw.getImagePlus().setRoi(userRoi);

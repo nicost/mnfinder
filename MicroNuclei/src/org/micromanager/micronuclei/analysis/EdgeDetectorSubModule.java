@@ -24,14 +24,19 @@ import org.micromanager.micronuclei.analysisinterface.AnalysisSubModule;
  */
 public class EdgeDetectorSubModule extends AnalysisSubModule {  
    private final AnalysisProperty edgeDetectionChannel_;
+   private final AnalysisProperty edgeMinMean_;;
    
    public EdgeDetectorSubModule() {
 
       edgeDetectionChannel_ = new AnalysisProperty(this.getClass(), 
-              "Nr. of Channel for plate edge Detection",
-                      "<html>Channel used to detect edge of the plate", 1);
+              "Channel # for plate edge Detection",
+                      "<html>Channel used to detect edge of the plate</html>", 1);
+      edgeMinMean_ = new AnalysisProperty(this.getClass(), 
+              "Min. Mean Int. of edge",
+                      "<html>Minimum intensity to accept given area as an edge</html>", 20000.0);
       List<AnalysisProperty> aps = new ArrayList<AnalysisProperty>();
       aps.add(edgeDetectionChannel_);
+      aps.add(edgeMinMean_);
       super.setAnalysisProperties(aps);
       
    }
@@ -44,7 +49,8 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
          roiManager = new RoiManager();
       }
       
-      int channelNr = (Integer) edgeDetectionChannel_.get();
+      // "translate" from 1-based user display to 0-based channel storage
+      int channelNr = (Integer) edgeDetectionChannel_.get() - 1;
       if (imgs.length < channelNr || channelNr < 0) {
          // TODO: report problem back to the user
          return null;
@@ -88,7 +94,7 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
          rt.updateResults();
          double val = rt.getValue("Mean", 0);
          // arbitrary cutoff to make sure this is a real edge
-         if (val > 20000) {
+         if (val > (Double) edgeMinMean_.get() ) {
             ip.setRoi(candidates[0]);
             IJ.run (ip, "Make Inverse", "");
             roi = ip.getRoi();
