@@ -48,6 +48,8 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
    
    @Override
    public Roi analyze(Studio mm, Image[] imgs) throws AnalysisException {
+      IJ.setBackgroundColor(0,0,0); 
+      IJ.setForegroundColor(255,255,255);
       Roi roi = null;
       RoiManager roiManager = RoiManager.getInstance();
       if (roiManager == null) {
@@ -105,7 +107,7 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
             ip.setRoi(candidates[0]);
             IJ.run (ip, "Make Inverse", "");
             roi = ip.getRoi();
-            //ip.show();
+            // ip.show();
          }
       }  else { // either 0 or more than 1 roi...   well, that is a conundrum...
          return null;

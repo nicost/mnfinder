@@ -165,6 +165,7 @@ public class GreenCellsModule extends AnalysisModule {
          // The automatic thresholding will not look at these pixels 
          // (it only analyzes within the ROI)
          IJ.run(nuclearImgIp, "Clear Outside", "");
+         // nuclearImgIp.show();
       }
       
       // check for edges by calculating stdev
