@@ -81,6 +81,8 @@ import org.micromanager.data.Metadata;
 import org.micromanager.data.Pipeline;
 import org.micromanager.data.SummaryMetadata;
 import org.micromanager.data.internal.DefaultImage;
+import org.micromanager.display.ChannelDisplaySettings;
+import org.micromanager.display.DisplaySettings;
 import org.micromanager.display.DisplayWindow;
 import org.micromanager.events.ShutdownCommencingEvent;
 import org.micromanager.internal.MMStudio;
@@ -607,7 +609,9 @@ public class MicroNucleiForm extends MMFrame {
     * @throws MMScriptException
     * @throws Exception 
     */
-   public void runAnalysisAndZapping(String saveLocation) throws IOException, MMScriptException, Exception {
+   public void runAnalysisAndZapping(String saveLocation) throws IOException, 
+           MMScriptException, Exception 
+   {
       
       String analysisModuleName = gui_.profile().getString(MicroNucleiForm.class, 
               MODULE, "");
@@ -646,7 +650,6 @@ public class MicroNucleiForm extends MMFrame {
       PositionList posList = gui_.getPositionListManager().getPositionList();
       MultiStagePosition[] positions = posList.getPositions();
       if (positions.length == 0) {
-         // TODO: get current position
          gui_.positions().markCurrentPosition();
          positions = posList.getPositions();
          posList.clearAllPositions();
@@ -673,8 +676,9 @@ public class MicroNucleiForm extends MMFrame {
             currentWell = well;
             wellCount++;
             nrImagesPerWell = 1;
-         } else
+         } else {
             nrImagesPerWell++;
+         }
       }
       gui_.logs().logMessage("Images per well: " + nrImagesPerWell);
       
@@ -742,12 +746,23 @@ public class MicroNucleiForm extends MMFrame {
             }
             currentWell = well;
             siteCount = 0;
-
             
             data = gui_.data().createMultipageTIFFDatastore(saveLocation + 
                     File.separator + well, true, false);
             data.setSummaryMetadata(smb.build());
             dw = gui_.displays().createDisplay(data);
+            DisplaySettings.Builder dsb = gui_.displays().getStandardDisplaySettings().copyBuilder();
+            ChannelDisplaySettings.Builder cdb = 
+                       gui_.displays().channelDisplaySettingsBuilder();
+            int chCounter = 0;
+            for (ChannelInfo ci : channelPanel_.getChannels()) {
+               if (ci.use_) {
+                  cdb.color(ci.displayColor_);
+                  dsb.channel(chCounter, cdb.build());
+                  chCounter++;
+               }
+            }
+            dw.setDisplaySettings(dsb.build());
             gui_.displays().manage(data);
             if (useOnTheFlyProcessorPipeline_.isSelected()) {
                // Create a blocking pipeline
@@ -1000,8 +1015,9 @@ public class MicroNucleiForm extends MMFrame {
         
    private void reportIntensities(BufferedWriter theFile, String well, 
            int posCounter, ImagePlus ip, String label, Roi[] rois) {
-   if (rois == null)
-         return;
+   if (rois == null) {
+      return;
+   }
 	for (int i = 0; i < rois.length; i++) {
 		ip.setRoi(rois[i]);
       ImageStatistics stats = ip.getStatistics(ImagePlus.CENTROID + ImagePlus.MEAN + ImagePlus.INTEGRATED_DENSITY + ImagePlus.AREA);
