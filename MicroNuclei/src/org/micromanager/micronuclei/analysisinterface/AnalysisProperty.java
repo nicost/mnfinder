@@ -54,7 +54,7 @@ public class AnalysisProperty<T> {
               (t instanceof String) || (t instanceof Boolean)  ) ) {
          t_ = getValueFromPrefs(t);
       } else {
-         // this is an error that should be caught by the compiled, 
+         // this is an error that should be caught by the compiler, 
          // but I don't know how to do that
       }
       
