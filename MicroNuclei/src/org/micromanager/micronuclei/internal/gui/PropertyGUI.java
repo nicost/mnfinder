@@ -22,6 +22,7 @@ package org.micromanager.micronuclei.internal.gui;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JFormattedTextField;
 import javax.swing.event.DocumentEvent;
@@ -53,49 +54,61 @@ public class PropertyGUI {
             }
          });
       } else {
-         final DefaultFormatter df = new DefaultFormatter();
-         df.setOverwriteMode(false);
-         final JFormattedTextField textField = new JFormattedTextField(df);
-         jc_ = textField;
-         if ((prop.get() instanceof Double) || (prop.get() instanceof Integer)) {
-            if (prop.get() instanceof Double) {
-               textField.setValue(((Double) prop.get()).toString());
-            } else if (prop.get() instanceof Integer) {
-               textField.setValue(((Integer) prop.get()).toString());
+         if (prop_.getAllowedValues() == null) {
+            final DefaultFormatter df = new DefaultFormatter();
+            df.setOverwriteMode(false);
+            final JFormattedTextField textField = new JFormattedTextField(df);
+            jc_ = textField;
+            if ((prop.get() instanceof Double) || (prop.get() instanceof Integer)) {
+               if (prop.get() instanceof Double) {
+                  textField.setValue(((Double) prop.get()).toString());
+               } else if (prop.get() instanceof Integer) {
+                  textField.setValue(((Integer) prop.get()).toString());
+               }
+               textField.setColumns(4);
+               textField.addActionListener(new ActionListener() {
+                  @Override
+                  public void actionPerformed(ActionEvent e) {
+                     parse(textField);
+                  }
+               });
+               textField.getDocument().addDocumentListener(new DocumentListener() {
+
+                  @Override
+                  public void insertUpdate(DocumentEvent de) {
+                     parse(textField);
+                  }
+
+                  @Override
+                  public void removeUpdate(DocumentEvent de) {
+                     parse(textField);
+                  }
+
+                  @Override
+                  public void changedUpdate(DocumentEvent de) {
+                     parse(textField);
+                  }
+               });
             }
-            textField.setColumns(4);
-            textField.addActionListener(new ActionListener() {
+         } else {
+            final JComboBox jcb = new JComboBox(prop_.getAllowedValues());
+            jcb.setSelectedItem(prop_.get());
+            jcb.addActionListener(new ActionListener() {
                @Override
                public void actionPerformed(ActionEvent e) {
-                  parse(textField);
+                  prop_.set(jcb.getSelectedItem());
                }
             });
-            textField.getDocument().addDocumentListener(new DocumentListener() {
-
-               @Override
-               public void insertUpdate(DocumentEvent de) {
-                  parse(textField);
-               }
-
-               @Override
-               public void removeUpdate(DocumentEvent de) {
-                  parse(textField);
-               }
-
-               @Override
-               public void changedUpdate(DocumentEvent de) {
-                  parse(textField);
-               }
-            });
+            jc_ = jcb;
          }
       }
       jc_.setToolTipText(prop.getTooltip());
    }
-   
+
    public JComponent getJComponent() {
       return jc_;
    }
-   
+
    private void parse(JFormattedTextField textField) {
       try {
          if (prop_.get() instanceof Double) {
@@ -109,5 +122,5 @@ public class PropertyGUI {
          // ignore
       }
    }
-   
+
 }

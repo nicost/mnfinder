@@ -30,6 +30,7 @@ public class AnalysisProperty<T> {
    private final String name_;
    private final String tooltip_;
    private T t_;
+   private T[] allowedValues_;
    private final Preferences prefs_;
    
    /**
@@ -43,16 +44,20 @@ public class AnalysisProperty<T> {
     *                Will be displayed as a tooltip.  Can be set to null if 
     *                irrelevant.
     * @param t variable that will be get or set.  Type should be Integer, Double,
-    * String, or Boolean.  This should be enforced by the compiler, but I 
-    * don't know how to do that.
+    *          String, or Boolean.  This should be enforced by the compiler, but I 
+    *          don't know how to do that.
+    * @param vals Optional Array of same type as t.  If set, UI will display a
+    *             dropdown menu, and allowed values of t will be restricted to 
+    *             those in vals
     */
-   public AnalysisProperty(Class caller, String name, String tooltip, T t)  {
+   public AnalysisProperty(Class caller, String name, String tooltip, T t, T[] vals)  {
       prefs_ = Preferences.userNodeForPackage(caller);
       name_ = name;
       tooltip_ = tooltip;
       if (  ( (t instanceof Integer ) || (t  instanceof Double) ||
               (t instanceof String) || (t instanceof Boolean)  ) ) {
          t_ = getValueFromPrefs(t);
+         allowedValues_ = vals;
       } else {
          // this is an error that should be caught by the compiler, 
          // but I don't know how to do that
@@ -68,6 +73,11 @@ public class AnalysisProperty<T> {
    public T get() {
       return t_;
    }
+   
+   public T[] getAllowedValues() {
+      return allowedValues_;
+   }
+           
    
    public String getName() {
       return name_;

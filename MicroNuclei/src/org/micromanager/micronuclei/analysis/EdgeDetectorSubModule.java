@@ -31,14 +31,21 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
 
       edgeDetectionChannel_ = new AnalysisProperty(this.getClass(), 
               "Channel # for plate edge Detection",
-                      "<html>Channel used to detect edge of the plate</html>", 1);
+              "<html>Channel used to detect edge of the plate</html>", 
+              1, 
+              null);
       edgeMinMean_ = new AnalysisProperty(this.getClass(), 
               "Min. Mean Int. of edge",
-                      "<html>Minimum intensity to accept given area as an edge</html>", 20000.0);
+              "<html>Minimum intensity to accept given area as an edge</html>", 
+              20000.0, 
+              null);
       edgeNrPixelDilation_ = new AnalysisProperty(this.getClass(), 
               "Expand edge with # of pixels",
-                      "<html>Nr of pixels to expand the edge with</html>", 36);
+              "<html>Nr of pixels to expand the edge with</html>", 
+              36,
+              null);
       List<AnalysisProperty> aps = new ArrayList<AnalysisProperty>();
+      
       aps.add(edgeDetectionChannel_);
       aps.add(edgeMinMean_);
       aps.add(edgeNrPixelDilation_);

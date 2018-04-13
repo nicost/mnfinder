@@ -51,31 +51,31 @@ public class NuclearSizeModule  extends AnalysisModule {
       maxStdDev_ = new AnalysisProperty(this.getClass(),
               "Maximum Image Std. Dev.",
               "<html>Std. Dev. of grayscale values of original image<br>"
-              + "Used to exclude images with edges</html>", 12500.0);
+              + "Used to exclude images with edges</html>", 12500.0, null);
       maxMeanIntensity_ = new AnalysisProperty(this.getClass(),
               "Maximum Image Mean Int.",
               "<html>If the average intensity of the image is higher<br>"
-              + "than this number, the image will be skipped", 20000.0);
+              + "than this number, the image will be skipped", 20000.0, null);
       minSizeN_ = new AnalysisProperty(this.getClass(),
               "<html>Minimum nuclear size (&micro;m<sup>2</sup>)</html>",
               "<html>Smallest size of nucleus in "
               + "&micro;m<sup>2</sup></html><br>"
-              + "Used to identify nuclei", 300.0);
+              + "Used to identify nuclei", 300.0, null);
       maxSizeN_ = new AnalysisProperty(this.getClass(),
               "<html>Maximum nuclear size (&micro;m<sup>2</sup>)</html>",
               "<html>Largest size of nucleus in "
               + "&micro;m<sup>2</sup></html><br> +"
-              + "Used to identify nuclei", 1800.0);
+              + "Used to identify nuclei", 1800.0, null);
       minSizeSN_ = new AnalysisProperty(this.getClass(),
               "<html>Minimum positive size (&micro;m<sup>2</sup>)</html>",
               "<html>Smallest size of selected nucleus in "
               + "&micro;m<sup>2</sup></html><br>"
-              + "Used to generate hits", 300.0);
+              + "Used to generate hits", 300.0, null);
       maxSizeSN_ = new AnalysisProperty(this.getClass(),
               "<html>Maximum positive size (&micro;m<sup>2</sup>)</html>",
               "<html>Largest size of nucleus in "
               + "&micro;m<sup>2</sup></html><br> +"
-              + "Used to generate hits", 1800.0);
+              + "Used to generate hits", 1800.0, null);
       
       edgeDetector_ = new EdgeDetectorSubModule();
 

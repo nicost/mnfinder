@@ -76,38 +76,43 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       maxStdDev_ = new AnalysisProperty(this.getClass(),
               "Maximum Std. Dev.",
               "<html>Std. Dev. of grayscale values of original image<br>"
-              + "Used to exclude images with edges</html>", 12500.0);
+              + "Used to exclude images with edges</html>", 12500.0, null);
       maxMeanIntensity_ = new AnalysisProperty(this.getClass(),
               "Maximum Mean Int.",
               "<html>If the average intensity of the image is higher<br>"
-              + "than this number, the image will be skipped", 20000.0);
+              + "than this number, the image will be skipped", 20000.0, null);
       minSizeMN_ = new AnalysisProperty(this.getClass(),
               "<html>Minimum micronuclear size (&micro;m<sup>2</sup>)</html>",
-              null, 20.0);
+              null, 20.0, null);
       maxSizeMN_ = new AnalysisProperty(this.getClass(),
               "<html>Maximum micronuclear size (&micro;m<sup>2</sup>)</html>",
-              null, 800.0);
+              null, 800.0, null);
       minSizeN_ = new AnalysisProperty(this.getClass(),
-              "<html>Minimum nuclear size (&micro;m<sup>2</sup>)</html>", null, 80.0);
+              "<html>Minimum nuclear size (&micro;m<sup>2</sup>)</html>", null, 
+              80.0, null);
       maxSizeN_ = new AnalysisProperty(this.getClass(),
-              "<html>Maximum nuclear size (&micro;m<sup>2</sup>)</html>", null, 800.0);
+              "<html>Maximum nuclear size (&micro;m<sup>2</sup>)</html>", null, 
+              800.0, null);
       maxDistance_ = new AnalysisProperty(this.getClass(),
               "<html>Maximum distance (&micro;m)</html>",
-              " <html>Maximum distance (&micro;m)</html> between center of micronucleu and center of nucleus", 25.0);
+              " <html>Maximum distance (&micro;m)</html> between center of micronucleu and center of nucleus", 
+              25.0, null);
       minNMNPerNucleus_ = new AnalysisProperty(this.getClass(),
               "Minimum number of micronuclei",
-              "Minimum number of micronuclei per \"nucleus\"", 3);
+              "Minimum number of micronuclei per \"nucleus\"", 3, null);
       minEdgeDistance_ = new AnalysisProperty(this.getClass(),
               "<html>Minimum distance from the edge (&micro;m<sup>2</sup>)</html>",
-              null, 10.0);
+              null, 10.0, null);
       maxNumberOfNuclei_ = new AnalysisProperty(this.getClass(),
               "Maximum number of nuclei per image",
-              "Do not include images that have more than this number of nuclei", 250);
+              "Do not include images that have more than this number of nuclei", 
+              250, null);
       maxNumberOfZaps_ = new AnalysisProperty(this.getClass(),
-              "Skip image if more than this number should be zapped", null, 15);
+              "Skip image if more than this number should be zapped", null, 15, null);
       checkInSmallerImage_ = new AnalysisProperty(this.getClass(),
               "Check again in subregion", "When checked, will re-analyze the image, only looking \n"
-              + "at a local, small area.  This can improve accuracy at the cost of speed", true);
+              + "at a local, small area.  This can improve accuracy at the cost of speed", 
+              true, null);
       List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
       apl.add(maxStdDev_);
       apl.add(maxMeanIntensity_);

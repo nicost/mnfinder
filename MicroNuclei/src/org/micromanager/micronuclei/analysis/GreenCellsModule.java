@@ -62,6 +62,7 @@ public class GreenCellsModule extends AnalysisModule {
    private final AnalysisProperty maxCellSize_;
    private final AnalysisProperty minCellIntensity_;
    private final AnalysisProperty ignoreCellsWithMultipleNuclei_;
+   private final AnalysisProperty segmentationMethod_;
    
    private final EdgeDetectorSubModule edgeDetector_;
    private RoiManager roiManager_;
@@ -75,35 +76,55 @@ public class GreenCellsModule extends AnalysisModule {
       maxStdDev_ = new AnalysisProperty(this.getClass(),
               "Maximum Std. Dev. of Nuclear image",
               "<html>Std. Dev. of grayscale values of original image<br>"
-              + "Used to exclude images with edges</html>", 12500.0);
+              + "Used to exclude images with edges</html>", 
+              12500.0,
+              null);
       maxMeanIntensity_ = new AnalysisProperty(this.getClass(),
               "Maximum Mean Int. of Nuclear Image",
               "<html>If the average intensity of the image is higher<br>"
-              + "than this number, the image will be skipped", 20000.0);
+              + "than this number, the image will be skipped", 
+              20000.0, 
+              null);
       minSizeN_ = new AnalysisProperty(this.getClass(),
               "<html>Minimum nuclear size (&micro;m<sup>2</sup>)</html>",
               "<html>Smallest size of putative nucleus in "
-              + "&micro;m<sup>2</sup></html>", 300.0);
+              + "&micro;m<sup>2</sup></html>", 
+              300.0, 
+              null);
       maxSizeN_ = new AnalysisProperty(this.getClass(),
               "<html>Maximum nuclear size (&micro;m<sup>2</sup>)</html>",
               "<html>Largest size of putative nucleus in "
-              + "&micro;m<sup>2</sup></html>", 1800.0);
+              + "&micro;m<sup>2</sup></html>", 
+              1800.0, 
+              null);
       minCellSize_ = new AnalysisProperty(this.getClass(),
               "<html>Minimum green cell size (&micro;m<sup>2</sup>)</html>",
               "<html>Smallest size of putative cell in "
-              + "&micro;m<sup>2</sup></html>", 600.0);
+              + "&micro;m<sup>2</sup></html>", 
+              600.0, 
+              null);
       maxCellSize_ = new AnalysisProperty(this.getClass(),
               "<html>Maximum green cell size (&micro;m<sup>2</sup>)</html>",
               "<html>Largest size of putative cell in "
-              + "&micro;m<sup>2</sup></html>", 3600.0);
+              + "&micro;m<sup>2</sup></html>", 
+              3600.0, 
+              null);
       minCellIntensity_ = new AnalysisProperty(this.getClass(),
               "<html>Minimum mean intensity of a green cell</html>",
               "<html>Minimum mean intensity of a green cell</html>",
-              3000.0);
+              3000.0, 
+              null);
       ignoreCellsWithMultipleNuclei_ = new AnalysisProperty(this.getClass(),
               "<html>Ignore cells with multiple nuclei</html",
               "<html>Ignore cells with multiple nuclei</html",
-              true);
+              true,
+              null);
+      String[] segMeths = {"Li", "Huang", "Otsu"};
+      segmentationMethod_ = new AnalysisProperty(this.getClass(), 
+               "<html>Segementation method</html>",
+              "<html>Segementation method for Green Cells.",
+              "Huang",
+               segMeths);
 
       edgeDetector_ = new EdgeDetectorSubModule();
 
@@ -119,6 +140,7 @@ public class GreenCellsModule extends AnalysisModule {
       apl.add(minCellSize_);
       apl.add(maxCellSize_);
       apl.add(minCellIntensity_);
+      apl.add(segmentationMethod_);
       apl.add(ignoreCellsWithMultipleNuclei_);
 
       setAnalysisProperties(apl);
@@ -257,7 +279,7 @@ public class GreenCellsModule extends AnalysisModule {
 
       // get the cell masks 
       // Options here are Huang (sensitive), Li (medium), and Otsu (least sensitive)
-      IJ.setAutoThreshold(cellImgIp, "Huang dark");
+      IJ.setAutoThreshold(cellImgIp, (String) segmentationMethod_.get() + " dark");
       // Fill holes and watershed to split large nuclei
       IJ.run(cellImgIp, "Convert to Mask", "");
       // Use this instead of erode/dilate or Close since we can pad the edges this way
