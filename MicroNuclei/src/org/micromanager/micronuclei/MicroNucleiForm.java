@@ -107,7 +107,6 @@ import org.micromanager.micronuclei.analysisinterface.ResultRois;
 import org.micromanager.micronuclei.internal.data.ChannelInfo;
 import org.micromanager.micronuclei.internal.gui.ChannelPanel;
 import org.micromanager.micronuclei.internal.gui.ConvertChannelPanel;
-import org.micromanager.micronuclei.internal.gui.ConvertChannelTableModel;
 import org.micromanager.micronuclei.internal.gui.ResultsListener;
 import org.micromanager.micronuclei.internal.gui.PropertyGUI;
 import org.micromanager.propertymap.MutablePropertyMapView;
@@ -268,36 +267,7 @@ public class MicroNucleiForm extends MMFrame {
       analysisPanel.add(analysisModulesBox);
       analysisPanel.add(addModuleButton, "wrap");
       analysisPanel.add(removeModuleButton, "skip 1, wrap");
-      
-    /*  
-      final JSpinner nrAnalysisModulesSpinner = new JSpinner(new SpinnerNumberModel(
-              modulesInUse.size(), 1, analysisModules_.size(), 1));
-      nrAnalysisModulesSpinner.addChangeListener(new ChangeListener() {
-         @Override
-         public void stateChanged(ChangeEvent e) {
-            int nr = (Integer) nrAnalysisModulesSpinner.getValue();
-            while (nr > modulesInUse.size()) {
-               boolean moduleAdded = false;
-               for (int i = 0; i < analysisModules_.size() && !moduleAdded; i++) {
-                  AnalysisModule module = analysisModules_.get(i);
-                  String newModule = module.getName();
-                  if (!modulesInUse.contains(newModule)) {
-                     modulesInUse.add(newModule);
-                     JPanel panel =  makeModulePanel(new JPanel(new MigLayout(
-              "flowx, fill, insets 8")),  module);
-                     modulesPane.addTab(newModule, panel);                     
-                     ourForm.pack();
-                     moduleAdded = true;
-                  }
-               }               
-            }
-            while (nr < modulesInUse.size()) {
-               modulesInUse.remove(modulesInUse.size() - 1);
-               modulesPane.removeTabAt(modulesInUse.size() - 1);
-            }
-         }
-      });
-      */
+    
       for (int i = 0; i < analysisModules_.size(); i++) {
          AnalysisModule module = analysisModules_.get(i);
          String newModule = module.getName();
@@ -308,55 +278,7 @@ public class MicroNucleiForm extends MMFrame {
             modulesPane.addTab(newModule, panel);
          }
       }
-      
-      //analysisPanel.add(new JLabel("Nr of Analysis Modules"));
-      //analysisPanel.add(nrAnalysisModulesSpinner, "wrap");
-      
-      /*
-      final JPanel modulePanel = new JPanel(new MigLayout(
-              "flowx, fill, insets 8"));
-      final JComboBox analysisModulesBox = new JComboBox (analysisModulesNames_.toArray()); 
-      final JLabel analysisMethodLabel = new JLabel("Analysis Method:");
-      analysisModulesBox.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent e) {
-            AnalysisModule module = moduleFromName(
-                    (String) analysisModulesBox.getSelectedItem());
-            settings_.putString(MODULE, module.getName());
-            analysisMethodLabel.setToolTipText(module.getDescription());
-            analysisModulesBox.setToolTipText(module.getDescription());
-            modulePanel.removeAll();
-            modulePanel.setBorder(makeTitledBorder(module.getName()));
-            modulePanel.setToolTipText(module.getDescription());
-            modulePanel.add(analysisModulesBox, "center, wrap");
-      
-            for (AnalysisProperty ap : module.getAnalysisProperties()) {
-               JLabel jl = new JLabel(ap.getName());
-               if (ap.getTooltip() != null) {
-                  jl.setToolTipText(ap.getTooltip());
-               }
-               modulePanel.add(jl);
-               modulePanel.add(new PropertyGUI(ap).getJComponent(), "width 70px, wrap");
-            }
-            modulePanel.revalidate();
-            ourForm.pack();
-         }
-      });
-      
-      
-      String moduleName = settings_.getString(MODULE, 
-              analysisModulesNames_.get(0));
-      analysisModulesBox.setSelectedItem(moduleName);
-      if (! moduleName.equals(analysisModulesBox.getSelectedItem())) {
-         moduleName = (String) analysisModulesBox.getItemAt(0);
-      }
-      AnalysisModule module = moduleFromName(moduleName);
-      analysisMethodLabel.setToolTipText(module.getDescription());
-      analysisModulesBox.setToolTipText(module.getDescription());
-
-      analysisPanel.add(analysisMethodLabel);
-      */
-            
+                      
       super.add(analysisPanel, "span 3, center, wrap");
       super.add(modulesPane, "span 3, center, wrap");
       
