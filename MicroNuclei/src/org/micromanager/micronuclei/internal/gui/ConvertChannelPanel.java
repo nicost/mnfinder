@@ -79,13 +79,23 @@ public final class ConvertChannelPanel extends JPanel implements BasePanel {
    public void updateChannelsFromProfile() {
       List<ChannelInfo> channels = ChannelInfo.restoreChannelsFromProfile(
               settings_, CONVERTCHANNELDATA);
+      /*
       if (channels.size() <= ConvertChannelTableModel.NRCHANNELS) {
          for (int i = 0; i < channels.size(); i++) {
             convertChannelTableModel_.setChannel(channels.get(i), i);
          }
       }
+      */
+   }
+   
+   public void addConvertChannel() {
+      ChannelInfo newConvertChannel = new ChannelInfo();
+      convertChannelTableModel_.addConvertChannel(newConvertChannel);
    }
 
+   public void removeConvertChannel() {
+      convertChannelTableModel_.removeConvertChannel();
+   }
    
    @Override
    public void updateExposureTime(int rowIndex) {

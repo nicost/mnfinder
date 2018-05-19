@@ -57,6 +57,7 @@ import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
 import javax.swing.ToolTipManager;
 import javax.swing.border.TitledBorder;
@@ -109,6 +110,7 @@ import org.micromanager.micronuclei.internal.gui.ConvertChannelPanel;
 import org.micromanager.micronuclei.internal.gui.ConvertChannelTableModel;
 import org.micromanager.micronuclei.internal.gui.ResultsListener;
 import org.micromanager.micronuclei.internal.gui.PropertyGUI;
+import org.micromanager.propertymap.MutablePropertyMapView;
 
 
 /**
@@ -118,6 +120,7 @@ import org.micromanager.micronuclei.internal.gui.PropertyGUI;
 public class MicroNucleiForm extends MMFrame {
    
    private final Studio gui_;
+   private final MutablePropertyMapView settings_;
    private final Font arialSmallFont_;
    private final Dimension buttonSize_;
    private final JTextField saveTextField_;
@@ -138,6 +141,7 @@ public class MicroNucleiForm extends MMFrame {
    private final List<AnalysisModule> analysisModules_;
    private final List<String> analysisModulesNames_;
    private final String MODULE ="ActiveModuleName";
+   private final String MODULELIST = "ActiveModuleList";
    
    private Pipeline pipeline_;
    
@@ -145,6 +149,7 @@ public class MicroNucleiForm extends MMFrame {
       gui_ = gui;
       final MicroNucleiForm ourForm = this;
       ToolTipManager.sharedInstance().setInitialDelay(2000);
+      settings_ = gui_.profile().getSettings(MicroNucleiForm.class);
               
       // Hard coded analysis modules.  This should be changed to make the
       // modules disoverable at run-time      
@@ -171,7 +176,7 @@ public class MicroNucleiForm extends MMFrame {
       acqPanel.add(myLabel(arialSmallFont_,"Save here:"));
       
       saveTextField_ = new JTextField();
-      saveTextField_.setText(gui_.profile().getString(MicroNucleiForm.class, SAVELOCATION, ""));
+      saveTextField_.setText(settings_.getString(SAVELOCATION, ""));
       saveTextField_.setMinimumSize(new Dimension(200, 12));
       acqPanel.add(saveTextField_);
       
@@ -200,6 +205,8 @@ public class MicroNucleiForm extends MMFrame {
       
       super.add(acqPanel, "span 3, center, wrap");
       
+      
+     
             
       JPanel analysisPanel = new JPanel(new MigLayout(
               "flowx, fill, insets 8"));
@@ -218,6 +225,94 @@ public class MicroNucleiForm extends MMFrame {
       });
       analysisPanel.add(useOnTheFlyProcessorPipeline_, "span 2, center, wrap");
       
+      final JTabbedPane modulesPane = new JTabbedPane();
+      final List<String> modulesInUse = settings_.getStringList(
+              MODULELIST, analysisModules_.get(0).getName());
+      
+      final JComboBox analysisModulesBox = new JComboBox (unUsedModules(
+              analysisModules_, modulesInUse).toArray()); 
+      final JButton addModuleButton = new JButton ("Add");
+      addModuleButton.addActionListener(new ActionListener(){
+         @Override
+         public void actionPerformed(ActionEvent e) {
+            String moduleName = (String) analysisModulesBox.getSelectedItem();
+            boolean found = false;
+            for (int i = 0; i < analysisModules_.size() && !found; i++) {
+               if (analysisModules_.get(i).getName().equals(moduleName)) {
+                  found = true;
+                  modulesInUse.add(moduleName);
+                  JPanel panel =  makeModulePanel(new JPanel(new MigLayout(
+              "flowx, fill, insets 8")),  analysisModules_.get(i));
+                  modulesPane.addTab(moduleName, panel); 
+                  analysisModulesBox.removeItem(moduleName);
+                  convertChannelPanel_.addConvertChannel();     
+                  ourForm.pack();
+               }
+            }
+         }
+      });
+      
+      final JButton removeModuleButton = new JButton("Remove");
+      removeModuleButton.addActionListener(new ActionListener(){
+         @Override
+         public void actionPerformed(ActionEvent e) {
+            String moduleName = modulesPane.getTitleAt(modulesPane.getTabCount() - 1);
+            modulesPane.remove(modulesPane.getTabCount() - 1);
+            modulesInUse.remove(moduleName);
+            analysisModulesBox.addItem(moduleName);
+            convertChannelPanel_.removeConvertChannel();
+            ourForm.pack();
+         }
+      });
+      
+      analysisPanel.add(analysisModulesBox);
+      analysisPanel.add(addModuleButton, "wrap");
+      analysisPanel.add(removeModuleButton, "skip 1, wrap");
+      
+    /*  
+      final JSpinner nrAnalysisModulesSpinner = new JSpinner(new SpinnerNumberModel(
+              modulesInUse.size(), 1, analysisModules_.size(), 1));
+      nrAnalysisModulesSpinner.addChangeListener(new ChangeListener() {
+         @Override
+         public void stateChanged(ChangeEvent e) {
+            int nr = (Integer) nrAnalysisModulesSpinner.getValue();
+            while (nr > modulesInUse.size()) {
+               boolean moduleAdded = false;
+               for (int i = 0; i < analysisModules_.size() && !moduleAdded; i++) {
+                  AnalysisModule module = analysisModules_.get(i);
+                  String newModule = module.getName();
+                  if (!modulesInUse.contains(newModule)) {
+                     modulesInUse.add(newModule);
+                     JPanel panel =  makeModulePanel(new JPanel(new MigLayout(
+              "flowx, fill, insets 8")),  module);
+                     modulesPane.addTab(newModule, panel);                     
+                     ourForm.pack();
+                     moduleAdded = true;
+                  }
+               }               
+            }
+            while (nr < modulesInUse.size()) {
+               modulesInUse.remove(modulesInUse.size() - 1);
+               modulesPane.removeTabAt(modulesInUse.size() - 1);
+            }
+         }
+      });
+      */
+      for (int i = 0; i < analysisModules_.size(); i++) {
+         AnalysisModule module = analysisModules_.get(i);
+         String newModule = module.getName();
+         if (modulesInUse.contains(newModule)) {
+            JPanel panel = makeModulePanel(new JPanel(new MigLayout(
+                    "flowx, fill, insets 8")), module);
+            convertChannelPanel_.addConvertChannel();   
+            modulesPane.addTab(newModule, panel);
+         }
+      }
+      
+      //analysisPanel.add(new JLabel("Nr of Analysis Modules"));
+      //analysisPanel.add(nrAnalysisModulesSpinner, "wrap");
+      
+      /*
       final JPanel modulePanel = new JPanel(new MigLayout(
               "flowx, fill, insets 8"));
       final JComboBox analysisModulesBox = new JComboBox (analysisModulesNames_.toArray()); 
@@ -227,12 +322,13 @@ public class MicroNucleiForm extends MMFrame {
          public void actionPerformed(ActionEvent e) {
             AnalysisModule module = moduleFromName(
                     (String) analysisModulesBox.getSelectedItem());
-            gui_.profile().setString(MicroNucleiForm.class, MODULE, module.getName());
+            settings_.putString(MODULE, module.getName());
             analysisMethodLabel.setToolTipText(module.getDescription());
             analysisModulesBox.setToolTipText(module.getDescription());
             modulePanel.removeAll();
             modulePanel.setBorder(makeTitledBorder(module.getName()));
             modulePanel.setToolTipText(module.getDescription());
+            modulePanel.add(analysisModulesBox, "center, wrap");
       
             for (AnalysisProperty ap : module.getAnalysisProperties()) {
                JLabel jl = new JLabel(ap.getName());
@@ -247,8 +343,9 @@ public class MicroNucleiForm extends MMFrame {
          }
       });
       
-      String moduleName = gui_.profile().getString(MicroNucleiForm.class, 
-              MODULE, analysisModulesNames_.get(0));
+      
+      String moduleName = settings_.getString(MODULE, 
+              analysisModulesNames_.get(0));
       analysisModulesBox.setSelectedItem(moduleName);
       if (! moduleName.equals(analysisModulesBox.getSelectedItem())) {
          moduleName = (String) analysisModulesBox.getItemAt(0);
@@ -258,31 +355,30 @@ public class MicroNucleiForm extends MMFrame {
       analysisModulesBox.setToolTipText(module.getDescription());
 
       analysisPanel.add(analysisMethodLabel);
-      analysisPanel.add(analysisModulesBox, "center, wrap");
+      */
             
       super.add(analysisPanel, "span 3, center, wrap");
-      super.add(modulePanel, "span 3, center, wrap");
+      super.add(modulesPane, "span 3, center, wrap");
       
       
       doZap_ = new JCheckBox("Zap");
-      doZap_.setSelected(gui_.profile().getBoolean(MicroNucleiForm.class, DOZAP, false));
+      doZap_.setSelected(settings_.getBoolean(DOZAP, false));
       doZap_.setFont(arialSmallFont_);
       doZap_.addActionListener(new ActionListener() {
          @Override
          public void actionPerformed(ActionEvent ae) {
-              gui_.profile().setBoolean(MicroNucleiForm.class, DOZAP, doZap_.isSelected());
+              settings_.putBoolean(DOZAP, doZap_.isSelected());
          }
       });
       super.add (doZap_);
       
       showMasks_  = new JCheckBox("Show Masks");
-      showMasks_.setSelected (gui_.profile().getBoolean(MicroNucleiForm.class, 
-              SHOWMASKS, false));
+      showMasks_.setSelected (settings_.getBoolean(SHOWMASKS, false));
       showMasks_.setFont(arialSmallFont_);
       showMasks_.addActionListener(new ActionListener() {
          @Override
          public void actionPerformed(ActionEvent ae) {
-              gui_.profile().setBoolean(MicroNucleiForm.class, SHOWMASKS, showMasks_.isSelected());
+              settings_.putBoolean(SHOWMASKS, showMasks_.isSelected());
          }
       });
       super.add (showMasks_, "wrap");
@@ -341,6 +437,37 @@ public class MicroNucleiForm extends MMFrame {
       super.dispose();
    }
    
+   private List<String> unUsedModules(List<AnalysisModule> analysisModules, 
+           List<String> modulesInUse) {
+      List<String> unUsedModules = new ArrayList<String>();
+      for (AnalysisModule module : analysisModules) {
+         if (!modulesInUse.contains(module.getName())) {
+            unUsedModules.add(module.getName());
+         }
+      }
+      
+      return unUsedModules;
+   }
+
+   private JPanel makeModulePanel(JPanel modulePanel, AnalysisModule module) {
+      modulePanel.removeAll();
+      modulePanel.setBorder(makeTitledBorder(module.getName()));
+      modulePanel.setToolTipText(module.getDescription());
+      // modulePanel.add(analysisModulesBox, "center, wrap");
+
+      for (AnalysisProperty ap : module.getAnalysisProperties()) {
+         JLabel jl = new JLabel(ap.getName());
+         if (ap.getTooltip() != null) {
+            jl.setToolTipText(ap.getTooltip());
+         }
+         modulePanel.add(jl);
+         modulePanel.add(new PropertyGUI(ap).getJComponent(), "width 70px, wrap");
+      }
+      modulePanel.revalidate();
+      
+      return modulePanel;
+   }
+
    private JButton myButton(Dimension buttonSize, Font font, String text) {
       JButton button = new JButton();
       button.setPreferredSize(buttonSize);
@@ -383,7 +510,7 @@ public class MicroNucleiForm extends MMFrame {
               saveTextField_.getText(), true, "") );
       if (f != null) {
          saveTextField_.setText(f.getAbsolutePath());
-         gui_.profile().setString(MicroNucleiForm.class, SAVELOCATION, f.getAbsolutePath());    
+         settings_.putString(SAVELOCATION, f.getAbsolutePath());    
       }
    }   
    
@@ -824,10 +951,10 @@ public class MicroNucleiForm extends MMFrame {
                         ImageProcessor iProc = gui_.data().ij().createProcessor(imgs[currentChannel]);
                         ImagePlus ip = new ImagePlus("tmp", iProc);
                         reportIntensities(dataWriter, currentWell, siteCount, ip, 
-                                ConvertChannelTableModel.PURPOSES[i] + "-Hit",
+                                convertChannelPanel_.getPurpose(i) + "-Hit",
                                 rr.getHitRois());
                         reportIntensities(dataWriter, currentWell, siteCount, ip, 
-                                ConvertChannelTableModel.PURPOSES[i] + "-NoHit",
+                                convertChannelPanel_.getPurpose(i) + "-NoHit",
                                 rr.getNonHitRois());
                      }
                      currentChannel++;

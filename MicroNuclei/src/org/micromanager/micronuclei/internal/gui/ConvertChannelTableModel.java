@@ -31,15 +31,28 @@ import org.micromanager.micronuclei.internal.data.ChannelInfo;
  */
 public class ConvertChannelTableModel extends AbstractTableModel {
    private static final String[] COLUMNNAMES = {"Purpose", "Use", "Channel", "Exp.", "Color"};
-   public static final String[] PURPOSES = {"Pre", "Convert", "Post"};
-   public static final int NRCHANNELS = 3;
+   public List<String> purposeList_;
    private final List<ChannelInfo> rowData_;
    
    public ConvertChannelTableModel() {
-      rowData_ = new ArrayList<ChannelInfo>(NRCHANNELS);
-      for (int i = 0; i < NRCHANNELS; i++) {
-         rowData_.add(new ChannelInfo());
-      }
+      purposeList_ = new ArrayList<String>(10);
+      purposeList_.add("Pre");
+      purposeList_.add("Post");
+      rowData_ = new ArrayList<ChannelInfo>(purposeList_.size());
+      rowData_.add(new ChannelInfo());
+      rowData_.add(new ChannelInfo());
+   }
+   
+   public void addConvertChannel(ChannelInfo channelInfo) {
+      purposeList_.add(purposeList_.size() - 1, "Convert-" + (purposeList_.size() - 1));
+      rowData_.add(rowData_.size() - 2, channelInfo);
+      super.fireTableRowsDeleted(rowData_.size() - 2, rowData_.size() -2);
+   }
+   
+   public void removeConvertChannel() {
+      purposeList_.remove(purposeList_.size() - 2);
+      rowData_.remove(rowData_.size() - 2);
+      super.fireTableRowsDeleted(rowData_.size() - 2, rowData_.size() -2);
    }
    
    public void setChannel(ChannelInfo channelInfo, int index) {
@@ -52,7 +65,7 @@ public class ConvertChannelTableModel extends AbstractTableModel {
    }
    
    public String getPurpose(int rowIndex) {
-      return PURPOSES[rowIndex];
+      return purposeList_.get(rowIndex);
    }
    
    @Override
@@ -85,7 +98,7 @@ public class ConvertChannelTableModel extends AbstractTableModel {
    @Override
    public Object getValueAt(int rowIndex, int columnIndex) {
       switch (columnIndex)  {
-         case 0: return PURPOSES[rowIndex];
+         case 0: return purposeList_.get(rowIndex);
          case 1: return rowData_.get(rowIndex).use_;
          case 2: return rowData_.get(rowIndex).channelName_;
          case 3: return rowData_.get(rowIndex).exposureTimeMs_;

@@ -61,8 +61,7 @@ public class ResultRois {
    }
    
    public void reportOnZapChannel(int zapChannel) {
-      if (zapChannel < ConvertChannelTableModel.NRCHANNELS &&
-              !zapChannelsToBeReported_.contains(zapChannel))
+      if (!zapChannelsToBeReported_.contains(zapChannel))
       {
          zapChannelsToBeReported_.add(zapChannel);
       }
