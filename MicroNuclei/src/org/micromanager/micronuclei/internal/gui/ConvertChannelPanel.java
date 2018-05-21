@@ -20,6 +20,7 @@
 package org.micromanager.micronuclei.internal.gui;
 
 import java.awt.Color;
+import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -28,6 +29,7 @@ import javax.swing.table.TableColumnModel;
 import net.miginfocom.swing.MigLayout;
 import org.micromanager.Studio;
 import org.micromanager.micronuclei.internal.data.ChannelInfo;
+import org.micromanager.micronuclei.internal.data.ChannelInfoSettings;
 import org.micromanager.propertymap.MutablePropertyMapView;
 
 /**
@@ -37,16 +39,37 @@ import org.micromanager.propertymap.MutablePropertyMapView;
 public final class ConvertChannelPanel extends JPanel implements BasePanel {
    
    private static final String CONVERTCHANNELDATA = "ConvertChannelData";
+   private static final String PRE = "Pre";
+   private static final String POST = "Post";
    
    private final  MutablePropertyMapView settings_;
    private final ConvertChannelTableModel convertChannelTableModel_;
+   private final ChannelInfoSettings channelInfoSettings_;
    
    public ConvertChannelPanel(final Studio studio, final Class profileClass) {
       
       settings_ = studio.getUserProfile().getSettings(profileClass);
       final ConvertChannelTable table = new ConvertChannelTable(studio, this);
       convertChannelTableModel_ = new ConvertChannelTableModel();
-      updateChannelsFromProfile();
+      channelInfoSettings_ = new ChannelInfoSettings(settings_);
+      List<ChannelInfo> channelList = 
+              channelInfoSettings_.retrieveChannels(CONVERTCHANNELDATA);
+      if (channelList.size() > 0) {
+         if (!channelList.get(0).purpose_.equals(PRE)) {
+            channelList = new ArrayList<ChannelInfo>();
+         } else if (!channelList.get(channelList.size()-1).purpose_.equals(POST)) {
+            channelList = new ArrayList<ChannelInfo>();
+         }
+      } 
+      if (channelList.isEmpty() ) {
+         ChannelInfo pre = new ChannelInfo();
+         pre.purpose_ = "Pre";
+         channelList.add(pre);
+         ChannelInfo post = new ChannelInfo();
+         post.purpose_ = "Post";
+         channelList.add(post);
+      }
+      convertChannelTableModel_.putChannels(channelList);
 
       studio.events().registerForEvents(convertChannelTableModel_);
       table.setModel(convertChannelTableModel_);
@@ -70,24 +93,10 @@ public final class ConvertChannelPanel extends JPanel implements BasePanel {
       
    }
    
-   
    public void storeChannelsInProfile() {
-      ChannelInfo.storeChannelsInProfile(settings_, 
-              CONVERTCHANNELDATA, getChannels());
+      channelInfoSettings_.storeChannels(CONVERTCHANNELDATA, getChannels());
    }
-   
-   public void updateChannelsFromProfile() {
-      List<ChannelInfo> channels = ChannelInfo.restoreChannelsFromProfile(
-              settings_, CONVERTCHANNELDATA);
-      /*
-      if (channels.size() <= ConvertChannelTableModel.NRCHANNELS) {
-         for (int i = 0; i < channels.size(); i++) {
-            convertChannelTableModel_.setChannel(channels.get(i), i);
-         }
-      }
-      */
-   }
-   
+     
    public void addConvertChannel() {
       ChannelInfo newConvertChannel = new ChannelInfo();
       convertChannelTableModel_.addConvertChannel(newConvertChannel);
@@ -129,7 +138,7 @@ public final class ConvertChannelPanel extends JPanel implements BasePanel {
    }
    
    public String getPurpose(int rowIndex) {
-      return convertChannelTableModel_.getPurpose(rowIndex);
+      return (String) convertChannelTableModel_.getValueAt(rowIndex, 0);
    }
    
 }

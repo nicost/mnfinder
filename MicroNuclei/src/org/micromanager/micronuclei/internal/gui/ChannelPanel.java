@@ -32,6 +32,7 @@ import javax.swing.table.TableColumnModel;
 import net.miginfocom.swing.MigLayout;
 import org.micromanager.Studio;
 import org.micromanager.micronuclei.internal.data.ChannelInfo;
+import org.micromanager.micronuclei.internal.data.ChannelInfoSettings;
 import org.micromanager.propertymap.MutablePropertyMapView;
 
 /**
@@ -46,14 +47,17 @@ public final class ChannelPanel extends JPanel implements BasePanel {
 
    private final MutablePropertyMapView settings_;
    private final ChannelTableModel channelTableModel_;
+   private final ChannelInfoSettings channelInfoSettings_;
    
    public ChannelPanel(final Studio studio, final Class profileClass) {
       
       settings_ = studio.getUserProfile().getSettings(profileClass);
       final ChannelTable table = new ChannelTable(studio, this);
       channelTableModel_ = new ChannelTableModel();
-      restoreChannelsFromProfile();
-
+      channelInfoSettings_ = new ChannelInfoSettings(settings_);
+      channelTableModel_.setChannels(
+              channelInfoSettings_.retrieveChannels(CHANNELDATA));
+     
       studio.events().registerForEvents(channelTableModel_);
       table.setModel(channelTableModel_);
       
@@ -112,20 +116,11 @@ public final class ChannelPanel extends JPanel implements BasePanel {
       super.add(minusButton, "hmin 25, top, wrap");
       
    }
-   
-   /**
-    * Storing the arraylist as an object led to problems, so write everything out
-    * individually
-    */
+ 
    public void storeChannelsInProfile() {
-      ChannelInfo.storeChannelsInProfile(settings_, CHANNELDATA, getChannels());
+      channelInfoSettings_.storeChannels(CHANNELDATA, getChannels());
    }
    
-   
-   public void restoreChannelsFromProfile() {
-      channelTableModel_.setChannels( ChannelInfo.restoreChannelsFromProfile(
-              settings_, CHANNELDATA) );
-   }
 
    @Override
    public void updateExposureTime(int rowIndex) {

@@ -31,41 +31,37 @@ import org.micromanager.micronuclei.internal.data.ChannelInfo;
  */
 public class ConvertChannelTableModel extends AbstractTableModel {
    private static final String[] COLUMNNAMES = {"Purpose", "Use", "Channel", "Exp.", "Color"};
-   public List<String> purposeList_;
-   private final List<ChannelInfo> rowData_;
+   private List<ChannelInfo> rowData_;
    
    public ConvertChannelTableModel() {
-      purposeList_ = new ArrayList<String>(10);
-      purposeList_.add("Pre");
-      purposeList_.add("Post");
-      rowData_ = new ArrayList<ChannelInfo>(purposeList_.size());
-      rowData_.add(new ChannelInfo());
-      rowData_.add(new ChannelInfo());
+      rowData_ = new ArrayList<ChannelInfo>(5);
+   }
+   
+   public void putChannels(List<ChannelInfo> cl) {
+      rowData_ = cl;
    }
    
    public void addConvertChannel(ChannelInfo channelInfo) {
-      purposeList_.add(purposeList_.size() - 1, "Convert-" + (purposeList_.size() - 1));
-      rowData_.add(rowData_.size() - 2, channelInfo);
-      super.fireTableRowsDeleted(rowData_.size() - 2, rowData_.size() -2);
+      channelInfo.purpose_ = "Convert-" + (rowData_.size() - 1);
+      rowData_.add(rowData_.size() - 1, channelInfo);
    }
    
    public void removeConvertChannel() {
-      purposeList_.remove(purposeList_.size() - 2);
       rowData_.remove(rowData_.size() - 2);
       super.fireTableRowsDeleted(rowData_.size() - 2, rowData_.size() -2);
    }
    
    public void setChannel(ChannelInfo channelInfo, int index) {
-      rowData_.set(index, channelInfo);
+      if (index == rowData_.size()) {
+         rowData_.add(channelInfo);
+      } else if (index < rowData_.size()) {
+         rowData_.set(index, channelInfo);
+      }
       super.fireTableRowsInserted(rowData_.size(), rowData_.size());
    }
    
    public List<ChannelInfo> getChannels() {
       return rowData_;
-   }
-   
-   public String getPurpose(int rowIndex) {
-      return purposeList_.get(rowIndex);
    }
    
    @Override
@@ -98,7 +94,7 @@ public class ConvertChannelTableModel extends AbstractTableModel {
    @Override
    public Object getValueAt(int rowIndex, int columnIndex) {
       switch (columnIndex)  {
-         case 0: return purposeList_.get(rowIndex);
+         case 0: return rowData_.get(rowIndex).purpose_;
          case 1: return rowData_.get(rowIndex).use_;
          case 2: return rowData_.get(rowIndex).channelName_;
          case 3: return rowData_.get(rowIndex).exposureTimeMs_;

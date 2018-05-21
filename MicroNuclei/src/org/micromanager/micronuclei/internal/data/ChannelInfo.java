@@ -20,26 +20,54 @@
 package org.micromanager.micronuclei.internal.data;
 
 import java.awt.Color;
-import java.util.ArrayList;
-import java.util.List;
-import org.micromanager.propertymap.MutablePropertyMapView;
+import org.micromanager.PropertyMap;
+import org.micromanager.PropertyMaps;
 
 /**
  *
  * @author Nico
  */
 public class ChannelInfo  {
+   public final static String PURPOSEKEY = "Purpose";
    public final static String USEKEY = "Use";
    public final static String CHANNELNAMEKEY = "ChannelName";
-   public final static String EXOSURETIMEKEY = "ExposureTime";
-   public final static String  DISPLAYCOLOR = "DisplayColor";
+   public final static String EXPOSURETIMEKEY = "ExposureTime";
+   public final static String DISPLAYCOLOR = "DisplayColor";
    
    
+   public String purpose_ = "";
    public boolean use_ = true;
    public String channelName_ = "";
    public double exposureTimeMs_ = 100.0;
    public Color displayColor_ = null;
    
+   public PropertyMap toPropertyMap() {
+      PropertyMap.Builder builder = PropertyMaps.builder();
+      return builder.putString(PURPOSEKEY, purpose_).
+              putBoolean(USEKEY, use_). 
+              putString(CHANNELNAMEKEY, channelName_). 
+              putDouble(EXPOSURETIMEKEY, exposureTimeMs_). 
+              putColor(DISPLAYCOLOR, displayColor_).build();
+   }
+   
+   public ChannelInfo() {};
+   
+   public ChannelInfo(PropertyMap pm) {
+      if (pm.containsString(PURPOSEKEY)) { 
+         purpose_ = pm.getString(PURPOSEKEY, purpose_);
+      }
+      if (pm.containsBoolean(USEKEY)) { use_ = pm.getBoolean(USEKEY, use_); }
+      if (pm.containsString(CHANNELNAMEKEY)) {
+         channelName_ = pm.getString(CHANNELNAMEKEY, channelName_);
+      }
+      if (pm.containsDouble(EXPOSURETIMEKEY)) {
+         exposureTimeMs_ = pm.getDouble(EXPOSURETIMEKEY, exposureTimeMs_);
+      }
+      if (pm.containsColor(DISPLAYCOLOR)) {
+         displayColor_ = pm.getColor(DISPLAYCOLOR, displayColor_);
+      }
+      
+   }
    
    
     /**
@@ -48,15 +76,15 @@ public class ChannelInfo  {
     * @param settings   PropertyMap to safe channels to
     * @param key       Yet another key to key the data
     * @param channels  List of channeInfos to be stored in Prefs
-    */
+    *
    public static void storeChannelsInProfile(MutablePropertyMapView settings, 
            final String key, List<ChannelInfo> channels) {
       for (int i = 0; i < channels.size(); i++) {
-         settings.putBoolean(key + i + ChannelInfo.USEKEY, 
+         settings.putBoolean(key  + ChannelInfo.USEKEY, 
                  channels.get(i).use_);
          settings.putString(key + i + ChannelInfo.CHANNELNAMEKEY, 
                  channels.get(i).channelName_);
-        settings.putDouble(key + i + ChannelInfo.EXOSURETIMEKEY, 
+        settings.putDouble(key + i + ChannelInfo.EXPOSURETIMEKEY, 
                 channels.get(i).exposureTimeMs_);
          if (channels.get(i).displayColor_ != null) {
             settings.putInteger(key + i + ChannelInfo.DISPLAYCOLOR, 
@@ -65,16 +93,18 @@ public class ChannelInfo  {
       }
       settings.putInteger(key + "nr", channels.size());
    }
+   */
    
    /**
     * restore Channel List from Preferences
     * @param settings   MutablePropertyMapView to read data from
     * @param key        String key to add to Class Key
     * @return           List of ChannelInfo
-    */
+    *
    public static List<ChannelInfo> restoreChannelsFromProfile(
            MutablePropertyMapView settings, 
            final String key) {
+      
       int nrChannels = settings.getInteger(key + "nr", 0);
       List<ChannelInfo> channelList= new ArrayList<ChannelInfo>(nrChannels);
       for (int i = 0; i < nrChannels; i++) {
@@ -83,12 +113,13 @@ public class ChannelInfo  {
          ci.channelName_ = settings.getString(
                  key + i + ChannelInfo.CHANNELNAMEKEY, "");
          ci.exposureTimeMs_ = settings.getDouble(
-                 key + i + ChannelInfo.EXOSURETIMEKEY, 100.0);
+                 key + i + ChannelInfo.EXPOSURETIMEKEY, 100.0);
          ci.displayColor_ = new Color( settings.getInteger(
                  key + i + ChannelInfo.DISPLAYCOLOR, 0) );
          channelList.add(ci);
       }
       return channelList;
    }
+   */
 
 }
