@@ -174,7 +174,8 @@ public class GreenCellsModule extends AnalysisModule {
          nuclearImgProcessor = nuclearImgProcessor.crop();
          userRoiBounds = userRoi.getBounds();
       }
-      ImagePlus nuclearImgIp = (new ImagePlus("tmp", nuclearImgProcessor)).duplicate();
+      ImagePlus nuclearImgIp = (new ImagePlus(UINAME + "-" + "nuclear mask", 
+              nuclearImgProcessor.duplicate()));
       Calibration calibration = nuclearImgIp.getCalibration();
       calibration.pixelWidth = imgs[0].getMetadata().getPixelSizeUm();
       calibration.pixelHeight = imgs[0].getMetadata().getPixelSizeUm();
@@ -254,7 +255,7 @@ public class GreenCellsModule extends AnalysisModule {
          cellImgProcessor = nuclearImgProcessor.crop();
          userRoiBounds = userRoi.getBounds();
       }
-      ImagePlus cellImgIp = (new ImagePlus("tmp", cellImgProcessor)).duplicate();
+      ImagePlus cellImgIp = (new ImagePlus(UINAME + "-" + "cell mask", cellImgProcessor.duplicate()));
       calibration = cellImgIp.getCalibration();
       calibration.pixelWidth = imgs[0].getMetadata().getPixelSizeUm();
       calibration.pixelHeight = imgs[0].getMetadata().getPixelSizeUm();

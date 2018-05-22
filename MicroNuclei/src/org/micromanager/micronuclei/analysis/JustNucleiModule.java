@@ -109,7 +109,7 @@ public class JustNucleiModule extends AnalysisModule {
          iProcessor = iProcessor.crop();
          userRoiBounds = userRoi.getBounds();
       }
-      ImagePlus ip = (new ImagePlus("tmp", iProcessor)).duplicate();
+      ImagePlus ip = (new ImagePlus(UINAME, iProcessor.duplicate()));
       Calibration calibration = ip.getCalibration();
       calibration.pixelWidth = img.getMetadata().getPixelSizeUm();
       calibration.pixelHeight = img.getMetadata().getPixelSizeUm();

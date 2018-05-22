@@ -226,7 +226,7 @@ public class MicroNucleiForm extends MMFrame {
       
       final JTabbedPane modulesPane = new JTabbedPane();
       final List<String> modulesInUse = settings_.getStringList(
-              MODULELIST, analysisModules_.get(0).getName());
+              MODULELIST, "");
       
       final JComboBox analysisModulesBox = new JComboBox (unUsedModules(
               analysisModules_, modulesInUse).toArray()); 
@@ -240,6 +240,7 @@ public class MicroNucleiForm extends MMFrame {
                if (analysisModules_.get(i).getName().equals(moduleName)) {
                   found = true;
                   modulesInUse.add(moduleName);
+                  settings_.putStringList(MODULELIST, modulesInUse);
                   JPanel panel =  makeModulePanel(new JPanel(new MigLayout(
               "flowx, fill, insets 8")),  analysisModules_.get(i));
                   modulesPane.addTab(moduleName, panel); 
@@ -258,6 +259,7 @@ public class MicroNucleiForm extends MMFrame {
             String moduleName = modulesPane.getTitleAt(modulesPane.getTabCount() - 1);
             modulesPane.remove(modulesPane.getTabCount() - 1);
             modulesInUse.remove(moduleName);
+            settings_.putStringList(MODULELIST, modulesInUse);
             analysisModulesBox.addItem(moduleName);
             convertChannelPanel_.removeConvertChannel();
             ourForm.pack();
@@ -375,7 +377,6 @@ public class MicroNucleiForm extends MMFrame {
       modulePanel.removeAll();
       modulePanel.setBorder(makeTitledBorder(module.getName()));
       modulePanel.setToolTipText(module.getDescription());
-      // modulePanel.add(analysisModulesBox, "center, wrap");
 
       for (AnalysisProperty ap : module.getAnalysisProperties()) {
          JLabel jl = new JLabel(ap.getName());
@@ -438,18 +439,22 @@ public class MicroNucleiForm extends MMFrame {
    
          
    /**
-    * Looks for a module with the given name in our list of 
+    * Looks for modules with the given names in our list of 
     * analysisModules
+    * Maintains the same order as the input list of names
     * @param name - desired name of analysis module
     * @return the first AnalysisModule with this name or null if not found
     */
-   private AnalysisModule moduleFromName(String name) {
-      for (AnalysisModule am : analysisModules_) {
-         if (am.getName().equals(name)) {
-            return am;
+   private List<AnalysisModule> modulesFromNames(List<String> names) {
+      List<AnalysisModule> lam = new ArrayList<AnalysisModule>();
+      for (String name : names) {
+         for (AnalysisModule am : analysisModules_) {
+            if (am.getName().equals(name)) {
+               lam.add(am);
+            }
          }
       }
-      return null;
+      return lam;
    }
    
    private class RunAll implements Runnable {
@@ -489,167 +494,171 @@ public class MicroNucleiForm extends MMFrame {
          t.start();
       }
    }
-   
+
    /**
-    * Runs the selected analysis test on the currently selected image
-    * If this is a Micro-Manager window, the code will be run on all positions
-    * otherwise only on the current image
-    * Results will be shown in an ImageJ ResultsTable which has graphical feedback
-    * to the original image
-    * 
+    * Runs the selected analysis test on the currently selected image If this is
+    * a Micro-Manager window, the code will be run on all positions otherwise
+    * only on the current image Results will be shown in an ImageJ ResultsTable
+    * which has graphical feedback to the original image
+    *
     * @throws MMScriptException
-    * @throws JSONException 
-    * @throws org.micromanager.micronuclei.analysisinterface.PropertyException 
+    * @throws JSONException
+    * @throws org.micromanager.micronuclei.analysisinterface.PropertyException
     */
    public void runTest() throws MMScriptException, JSONException, PropertyException {
 
-      AnalysisModule analysisModule = moduleFromName(gui_.profile().getString(MicroNucleiForm.class, 
-              MODULE, ""));
-      if (analysisModule == null) {
-         throw new MMScriptException("AnalysisModule not found");
-      }
-      
-      ImagePlus ip = null;
-      ResultsTable outTable = new ResultsTable();
-      String outTableName = Terms.RESULTTABLENAME;
-      Window oldOutTable = WindowManager.getWindow(outTableName);
-      if (oldOutTable != null) {
-         WindowManager.removeWindow(oldOutTable);
-         oldOutTable.dispose();
+      final List<String> modulesInUse = settings_.getStringList(
+              MODULELIST, "");
+      final List<AnalysisModule> analysisModules = modulesFromNames(modulesInUse);
+
+      if (analysisModules.isEmpty()) {
+         throw new MMScriptException("No AnalysisModule used");
       }
 
-      JSONObject parms = analysisSettings(showMasks_.isSelected());
+      for (AnalysisModule analysisModule : analysisModules) {
 
-      DisplayWindow dw = gui_.displays().getCurrentWindow();
+         ImagePlus ip = null;
+         ResultsTable outTable = new ResultsTable();
+         String outTableName = analysisModule.getName() + "-" + Terms.RESULTTABLENAME;
+         Window oldOutTable = WindowManager.getWindow(outTableName);
+         if (oldOutTable != null) {
+            WindowManager.removeWindow(oldOutTable);
+            oldOutTable.dispose();
+         }
 
-      try {
-         if (dw == null) {
-            // ImageJ window.  Forget everything about MM windows:
-            dw = null;
-            try {
-               ip = IJ.getImage();
-            } catch (Exception ex) {
-               return;
-            }
+         JSONObject parms = analysisSettings(showMasks_.isSelected());
 
-            Metadata.Builder mb = gui_.data().getMetadataBuilder();
-            mb.pixelSizeUm(ip.getCalibration().pixelWidth);
-            CoordsBuilder cb = Coordinates.builder();
-            cb.channel(0).stagePosition(0).time(0).z(0);
-            Image[] imgs = new Image[1];
-            imgs[0] = new DefaultImage(ip.getProcessor().getPixels(), ip.getWidth(),
-                    ip.getHeight(), ip.getBytesPerPixel(), 1, cb.build(), mb.build());
-            ResultRois rr = analysisModule.analyze(gui_, imgs, ip.getRoi(), parms);
-            RoiManager.getInstance2().reset();
-            for (Roi roi : rr.getHitRois()) {
-               outTable.incrementCounter();
-               Rectangle bounds = roi.getBounds();
-               int x = bounds.x + (int) (0.5 * bounds.width);
-               int y = bounds.y + (int) (0.5 * bounds.height);
-               outTable.addValue(Terms.X, x);
-               outTable.addValue(Terms.Y, y);
-               outTable.show(outTableName);
-               RoiManager.getInstance2().addRoi(roi);
-            }
-            if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
-               RoiManager.getInstance2().runCommand("Show All");
-            }
+         DisplayWindow dw = gui_.displays().getCurrentWindow();
 
-         } else { // MM display
-            DataProvider store = dw.getDataProvider();
-            Roi userRoi = dw.getImagePlus().getRoi();
-            ip = dw.getImagePlus();
-            if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
-               RoiManager.getInstance().runCommand("Show All");
-               dw.getImagePlus().setRoi(userRoi);
-            }
+         try {
+            if (dw == null) {
+               // ImageJ window.  Forget everything about MM windows:
+               dw = null;
+               try {
+                  ip = IJ.getImage();
+               } catch (Exception ex) {
+                  return;
+               }
 
-            try {
-               Coords.CoordsBuilder builder = store.getAnyImage().getCoords().copyBuilder();
-               builder.channel(0);
-               int nrPositions = store.getAxisLength(Coords.STAGE_POSITION);
-               int nrChannels = store.getAxisLength(Coords.CHANNEL);
-               Image[] imgs = new Image[nrChannels];
-               for (int p = 0; p < nrPositions && !stop_.get(); p++) {
-                  try {
-                     for (int ch = 0; ch < nrChannels; ch++) {
-                        Coords coords = builder.stagePosition(p).channel(ch).build();
-                        imgs[ch] = store.getImage(coords);
-                     }
-                     if (imgs[0] != null) {
-                        dw.setDisplayedImageTo(builder.stagePosition(p).channel(0).build());
-                        ResultRois rr = analysisModule.analyze(gui_, imgs, userRoi, parms);
-                        if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
-                           RoiManager.getInstance().reset();
+               Metadata.Builder mb = gui_.data().getMetadataBuilder();
+               mb.pixelSizeUm(ip.getCalibration().pixelWidth);
+               CoordsBuilder cb = Coordinates.builder();
+               cb.channel(0).stagePosition(0).time(0).z(0);
+               Image[] imgs = new Image[1];
+               imgs[0] = new DefaultImage(ip.getProcessor().getPixels(), ip.getWidth(),
+                       ip.getHeight(), ip.getBytesPerPixel(), 1, cb.build(), mb.build());
+               ResultRois rr = analysisModule.analyze(gui_, imgs, ip.getRoi(), parms);
+               RoiManager.getInstance2().reset();
+               for (Roi roi : rr.getHitRois()) {
+                  outTable.incrementCounter();
+                  Rectangle bounds = roi.getBounds();
+                  int x = bounds.x + (int) (0.5 * bounds.width);
+                  int y = bounds.y + (int) (0.5 * bounds.height);
+                  outTable.addValue(Terms.X, x);
+                  outTable.addValue(Terms.Y, y);
+                  outTable.show(outTableName);
+                  RoiManager.getInstance2().addRoi(roi);
+               }
+               if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
+                  RoiManager.getInstance2().runCommand("Show All");
+               }
+
+            } else { // MM display
+               DataProvider store = dw.getDataProvider();
+               Roi userRoi = dw.getImagePlus().getRoi();
+               ip = dw.getImagePlus();
+               /*
+               if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
+                  RoiManager.getInstance().runCommand("Show All");
+                  dw.getImagePlus().setRoi(userRoi);
+               }
+               */
+
+               try {
+                  Coords.CoordsBuilder builder = store.getAnyImage().getCoords().copyBuilder();
+                  builder.channel(0);
+                  int nrPositions = store.getAxisLength(Coords.STAGE_POSITION);
+                  int nrChannels = store.getAxisLength(Coords.CHANNEL);
+                  Image[] imgs = new Image[nrChannels];
+                  for (int p = 0; p < nrPositions && !stop_.get(); p++) {
+                     try {
+                        for (int ch = 0; ch < nrChannels; ch++) {
+                           Coords coords = builder.stagePosition(p).channel(ch).build();
+                           imgs[ch] = store.getImage(coords);
                         }
-                        if (rr != null) {
-                           Roi[] hitRois = rr.getHitRois();
-                           if (hitRois != null) {
-                              for (Roi roi : rr.getHitRois()) {
-                                 outTable.incrementCounter();
-                                 Rectangle bounds = roi.getBounds();
-                                 int x = bounds.x + (int) (0.5 * bounds.width);
-                                 int y = bounds.y + (int) (0.5 * bounds.height);
-                                 outTable.addValue(Terms.X, x);
-                                 outTable.addValue(Terms.Y, y);
-                                 outTable.addValue(Terms.POSITION, p);
-                                 if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
-                                    RoiManager.getInstance().addRoi(roi);
+                        if (imgs[0] != null) {
+                           dw.setDisplayedImageTo(builder.stagePosition(p).channel(0).build());
+                           ResultRois rr = analysisModule.analyze(gui_, imgs, userRoi, parms);
+                           if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
+                              RoiManager.getInstance().reset();
+                           }
+                           if (rr != null) {
+                              Roi[] hitRois = rr.getHitRois();
+                              if (hitRois != null) {
+                                 for (Roi roi : rr.getHitRois()) {
+                                    outTable.incrementCounter();
+                                    Rectangle bounds = roi.getBounds();
+                                    int x = bounds.x + (int) (0.5 * bounds.width);
+                                    int y = bounds.y + (int) (0.5 * bounds.height);
+                                    outTable.addValue(Terms.X, x);
+                                    outTable.addValue(Terms.Y, y);
+                                    outTable.addValue(Terms.POSITION, p);
+                                    if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
+                                       RoiManager.getInstance().addRoi(roi);
+                                    }
                                  }
-                              }
-                              outTable.show(outTableName);
+                                 outTable.show(outTableName);
 
-                              if (rr.getAllRois() != null) {
-                                 gui_.alerts().postAlert(FORMNAME, MicroNucleiForm.class,
-                                         "Analyzed " + rr.getAllRois().length
-                                         + " objects, found " + rr.getHitRois().length
-                                         + " objects to be photo-converted at position " + p);
+                                 if (rr.getAllRois() != null) {
+                                    gui_.alerts().postAlert(FORMNAME, MicroNucleiForm.class,
+                                            "Analyzed " + rr.getAllRois().length
+                                            + " objects, found " + rr.getHitRois().length
+                                            + " objects to be photo-converted at position " + p);
+                                 }
                               }
                            }
                         }
+
+                     } catch (JSONException ex) {
+                     } catch (NullPointerException npe) {
+                        ij.IJ.log("Null pointer exception at position : " + p);
                      }
-
-                  } catch (JSONException ex) {
-                  } catch (NullPointerException npe) {
-                     ij.IJ.log("Null pointer exception at position : " + p);
                   }
+               } catch (IOException ioe) {
+                  gui_.logs().showError(ioe);
                }
-            } catch (IOException ioe) {
-               gui_.logs().showError(ioe);
             }
+         } catch (AnalysisException ex) {
+            gui_.logs().showError(ex);
          }
-      } catch (AnalysisException ex) {
-         gui_.logs().showError(ex);
-      }
-      gui_.alerts().postAlert(FORMNAME, MicroNucleiForm.class,
-                          "Analyzed " + parms.getString(AnalysisModule.CELLCOUNT)
-                          + " objects, found " + parms.getString(AnalysisModule.OBJECTCOUNT)
-                          + " objects to be photo-converted");
+         gui_.alerts().postAlert(FORMNAME, MicroNucleiForm.class,
+                 "Analyzed " + parms.getString(AnalysisModule.CELLCOUNT)
+                 + " objects, found " + parms.getString(AnalysisModule.OBJECTCOUNT)
+                 + " objects to be photo-converted");
 
-      // we have the ROIs, the rest is just reporting
-        
-      // add listeners to our ResultsTable that let user click on row and go 
-      // to cell that was found
-      TextPanel tp;
-      TextWindow win;
-      Window frame = WindowManager.getWindow(outTableName);
-      if (frame != null && frame instanceof TextWindow) {
-         win = (TextWindow) frame;
-         tp = win.getTextPanel();
+         // we have the ROIs, the rest is just reporting
+         // add listeners to our ResultsTable that let user click on row and go 
+         // to cell that was found
+         TextPanel tp;
+         TextWindow win;
+         Window frame = WindowManager.getWindow(outTableName);
+         if (frame != null && frame instanceof TextWindow) {
+            win = (TextWindow) frame;
+            tp = win.getTextPanel();
 
-         ResultsListener myk = new ResultsListener(ip, dw, outTable, win);
-         tp.addKeyListener(myk);
-         tp.addMouseListener(myk);
-         frame.toFront();
-         frame.setVisible(true);
+            ResultsListener myk = new ResultsListener(ip, dw, outTable, win);
+            tp.addKeyListener(myk);
+            tp.addMouseListener(myk);
+            frame.toFront();
+            frame.setVisible(true);
+         }
+
+         gui_.alerts().postAlert(FORMNAME, MicroNucleiForm.class,
+                 "Analyzed " + parms.getString(AnalysisModule.CELLCOUNT)
+                 + " objects, found " + parms.getString(AnalysisModule.OBJECTCOUNT)
+                 + " objects to be photo-converted");
+
       }
-      
-      gui_.alerts().postAlert(FORMNAME, MicroNucleiForm.class, 
-             "Analyzed " + parms.getString(AnalysisModule.CELLCOUNT) + 
-              " objects, found " + parms.getString(AnalysisModule.OBJECTCOUNT) +
-                      " objects to be photo-converted" );
-      
-      
    }
    
    /**
@@ -661,28 +670,29 @@ public class MicroNucleiForm extends MMFrame {
    public void runAnalysisAndZapping(String saveLocation) throws IOException, 
            MMScriptException, Exception 
    {
-      
-      String analysisModuleName = gui_.profile().getString(MicroNucleiForm.class, 
-              MODULE, "");
-      AnalysisModule analysisModule = moduleFromName(analysisModuleName);
-      if (analysisModule == null) {
-         throw new MMScriptException(analysisModuleName + "was not found");
+
+      final List<String> modulesInUse = settings_.getStringList(
+              MODULELIST, "");
+      final List<AnalysisModule> analysisModules = modulesFromNames(modulesInUse);
+
+      if (analysisModules.isEmpty()) {
+         throw new MMScriptException("No AnalysisModule used");
       }
-          
+
       String channelGroup = gui_.getCMMCore().getChannelGroup();
-      
+
       //TODO: error checking for file IO!
       File fd = new File(saveLocation);
       if (fd.exists()) {
-         if (! IJ.showMessageWithCancel("Save location already exists.", 
-                 saveLocation + " already exists.  Overwrite?") ) {
+         if (!IJ.showMessageWithCancel("Save location already exists.",
+                 saveLocation + " already exists.  Overwrite?")) {
             return;
          }
          if (!delete(fd)) {
             return;
          }
       }
-      
+
       new File(saveLocation).mkdirs();
       File summaryFile = new File(saveLocation + File.separator + "summary.txt");
       summaryFile.createNewFile();
@@ -692,8 +702,8 @@ public class MicroNucleiForm extends MMFrame {
       File dataFile = new File(saveLocation + File.separator + "data.txt");
       dataFile.createNewFile();
       BufferedWriter dataWriter = new BufferedWriter(new FileWriter(dataFile));
-      dataWriter.write ("Well" + "\t" + "Site" + "\t" + "ID" + "\t" + "Pre-Post-Status" + "\t" + 
-              "X" + "\t" + "Y" + "\t" + "Mean" + "\t" + "Area");
+      dataWriter.write("Well" + "\t" + "Site" + "\t" + "ID" + "\t" + "Pre-Post-Status" + "\t"
+              + "X" + "\t" + "Y" + "\t" + "Mean" + "\t" + "Area");
       dataWriter.newLine();
 
       PositionList posList = gui_.getPositionListManager().getPositionList();
@@ -704,7 +714,7 @@ public class MicroNucleiForm extends MMFrame {
          posList.clearAllPositions();
       }
       String currentWell = "";
-      
+
       ResultsTable outTable = new ResultsTable();
       String outTableName = Terms.RESULTTABLENAME;
       Window oldOutTable = WindowManager.getWindow(outTableName);
@@ -712,10 +722,10 @@ public class MicroNucleiForm extends MMFrame {
          WindowManager.removeWindow(oldOutTable);
          oldOutTable.dispose();
       }
-      
+
       int nrImagesPerWell = 0;
       int wellCount = 0;
-      
+
       // figure out how many sites per well there are, we actually get that number 
       // from the last well
       for (MultiStagePosition msp : positions) {
@@ -730,16 +740,15 @@ public class MicroNucleiForm extends MMFrame {
          }
       }
       gui_.logs().logMessage("Images per well: " + nrImagesPerWell);
-      
+
       // start cycling through the sites and group everything by well
       int count = 0;
       int siteCount = 0;
       JSONObject parms = analysisSettings(showMasks_.isSelected());
       currentWell = "";
-      
 
       double originalExposure = gui_.getCMMCore().getExposure();
-      
+
       // prepare stuff needed to store data in MM
       Datastore data = null;
       DisplayWindow dw = null;
@@ -768,11 +777,11 @@ public class MicroNucleiForm extends MMFrame {
               prefix("MicroNucleiScreen").
               startDate((new Date()).toString()).
               intendedDimensions(Coordinates.builder().
-                  channel(nrChannels).
-                  z(0).
-                  t(0).
-                  stagePosition(nrImagesPerWell).
-              build() );
+                      channel(nrChannels).
+                      z(0).
+                      t(0).
+                      stagePosition(nrImagesPerWell).
+                      build());
 
       for (MultiStagePosition msp : positions) {
          if (stop_.get()) {
@@ -795,14 +804,14 @@ public class MicroNucleiForm extends MMFrame {
             }
             currentWell = well;
             siteCount = 0;
-            
-            data = gui_.data().createMultipageTIFFDatastore(saveLocation + 
-                    File.separator + well, true, false);
+
+            data = gui_.data().createMultipageTIFFDatastore(saveLocation
+                    + File.separator + well, true, false);
             data.setSummaryMetadata(smb.build());
             dw = gui_.displays().createDisplay(data);
             DisplaySettings.Builder dsb = gui_.displays().getStandardDisplaySettings().copyBuilder();
-            ChannelDisplaySettings.Builder cdb = 
-                       gui_.displays().channelDisplaySettingsBuilder();
+            ChannelDisplaySettings.Builder cdb
+                    = gui_.displays().channelDisplaySettingsBuilder();
             int chCounter = 0;
             for (ChannelInfo ci : channelPanel_.getChannels()) {
                if (ci.use_) {
@@ -817,12 +826,14 @@ public class MicroNucleiForm extends MMFrame {
                // Create a blocking pipeline
                pipeline_ = gui_.data().copyApplicationPipeline(data, true);
             }
-            analysisModule.reset();
+            for (AnalysisModule analysisModule : analysisModules) {
+               analysisModule.reset();
+            }
             // reset cell and object counters
             parms.put(AnalysisModule.CELLCOUNT, 0);
             parms.put(AnalysisModule.OBJECTCOUNT, 0);
          }
-                 
+
          if (data != null) {
             int currentChannel = 0;
             Image[] imgs = new Image[nrChannels];
@@ -838,66 +849,96 @@ public class MicroNucleiForm extends MMFrame {
                   currentChannel++;
                }
             }
+            int nrImagingChannels = currentChannel;
 
             // Analyze and zap
-            ResultRois rr = analysisModule.analyze(gui_, imgs, null, parms);
-            if (rr.getHitRois() != null && rr.getHitRois().length != 0 && 
-                    doZap_.isSelected()) {
-               
-               // Report imaging channel intensities
-               for (int nr : rr.getImgsToBeReported()) {
-                  ImageProcessor iProcessortmp = gui_.data().ij().createProcessor(imgs[nr]);
-                  ImagePlus ipGFP = new ImagePlus("tmp", iProcessortmp);
-                  reportIntensities(dataWriter, currentWell, siteCount, ipGFP, "Hit-ch." + nr,
-                          rr.getHitRois());
-                  reportIntensities(dataWriter, currentWell, siteCount, ipGFP, "NoHit-ch." + nr,
-                          rr.getNonHitRois());
+            boolean zapThem = false;
+            List<ResultRois> resultRoiList = new ArrayList<ResultRois>();
+            for (int amNr = 0; amNr < analysisModules.size(); amNr++) {
+               AnalysisModule analysisModule = analysisModules.get(amNr);
+               ResultRois rr = analysisModule.analyze(gui_, imgs, null, parms);
+               resultRoiList.add(rr);
+               if (rr.getHitRois() != null && rr.getHitRois().length != 0
+                       && doZap_.isSelected()) {
+                  zapThem = true;
+
+                  // Report imaging channel intensities
+                  for (int nr : rr.getImgsToBeReported()) {
+                     ImageProcessor iProcessortmp = gui_.data().ij().createProcessor(imgs[nr]);
+                     ImagePlus ipGFP = new ImagePlus("tmp", iProcessortmp);
+                     reportIntensities(dataWriter, currentWell, siteCount, ipGFP, "Hit-ch." + nr,
+                             rr.getHitRois());
+                     reportIntensities(dataWriter, currentWell, siteCount, ipGFP, "NoHit-ch." + nr,
+                             rr.getNonHitRois());
+                  }
                }
-               
+            }
+
+            if (zapThem) {
+
                String acq2 = msp.getLabel();
                gui_.logs().logMessage("Imaging cells to be zapped at site: " + acq2);
-               
+
+               int offset = 0;
                for (int i = 0; i < convertChannelPanel_.getChannels().size(); i++) {
                   ChannelInfo ci = convertChannelPanel_.getChannels().get(i);
                   if (ci.use_) {
                      gui_.getCMMCore().waitForSystem();
                      gui_.logs().logMessage("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y);
-                     if (i == 1) { // zap channel
+                     if (ci.purpose_.equals(ConvertChannelPanel.PRE)) {
+                        offset += 1;
+                     }
+                     if (!ci.purpose_.equals(ConvertChannelPanel.PRE)
+                             && !ci.purpose_.equals(ConvertChannelPanel.POST)) { // zap channel
+                        ResultRois rr = resultRoiList.get(i - offset);
+
                         zap(rr.getHitRois());  // send ROIs to the device
                      }
                      gui_.getCMMCore().setConfig(channelGroup, ci.channelName_);
                      gui_.getCMMCore().waitForConfig(channelGroup, ci.channelName_);
                      gui_.getCMMCore().setExposure(ci.exposureTimeMs_);
                      imgs[currentChannel] = snapAndInsertImage(data, msp, siteCount, currentChannel);
-                     if (rr.getZapChannelsToBeReported().contains(i)) {
-                        ImageProcessor iProc = gui_.data().ij().createProcessor(imgs[currentChannel]);
-                        ImagePlus ip = new ImagePlus("tmp", iProc);
-                        reportIntensities(dataWriter, currentWell, siteCount, ip, 
-                                convertChannelPanel_.getPurpose(i) + "-Hit",
-                                rr.getHitRois());
-                        reportIntensities(dataWriter, currentWell, siteCount, ip, 
-                                convertChannelPanel_.getPurpose(i) + "-NoHit",
-                                rr.getNonHitRois());
-                     }
+
                      currentChannel++;
                   }
                }
-               
-               for (Roi roi : rr.getHitRois()) {
-                  outTable.incrementCounter();
-                  Rectangle bounds = roi.getBounds();
-                  int x = bounds.x + (int) (0.5 * bounds.width);
-                  int y = bounds.y + (int) (0.5 * bounds.height);
-                  outTable.addValue(Terms.X, x);
-                  outTable.addValue(Terms.Y, y);
-                  outTable.addValue(Terms.POSITION, siteCount);
+
+               // Reporting section
+               for (ResultRois rr : resultRoiList) {
+                  // list Rois in outTable
+                  for (Roi roi : rr.getHitRois()) {
+                     outTable.incrementCounter();
+                     Rectangle bounds = roi.getBounds();
+                     int x = bounds.x + (int) (0.5 * bounds.width);
+                     int y = bounds.y + (int) (0.5 * bounds.height);
+                     outTable.addValue(Terms.X, x);
+                     outTable.addValue(Terms.Y, y);
+                     outTable.addValue(Terms.POSITION, siteCount);
+                  }
+                  for (int i = 0; i < convertChannelPanel_.getChannels().size(); i++) {
+
+                     if (rr.getZapChannelsToBeReported().contains(i)) {
+                        ImageProcessor iProc = gui_.data().ij().createProcessor(
+                                imgs[i + nrImagingChannels]);
+                        ImagePlus ip = new ImagePlus("tmp", iProc);
+                        reportIntensities(dataWriter, currentWell, siteCount, ip,
+                                convertChannelPanel_.getPurpose(i) + "-Hit",
+                                rr.getHitRois());
+                        reportIntensities(dataWriter, currentWell, siteCount, ip,
+                                convertChannelPanel_.getPurpose(i) + "-NoHit",
+                                rr.getNonHitRois());
+                     }
+                  }
+
+                  outTable.show(outTableName);
+
                }
-               outTable.show(outTableName);                             
+               siteCount++;
+               count++;
             }
-            siteCount++;
-            count++;
          }
       }
+      
       gui_.getCMMCore().setExposure(originalExposure);
 
       // add listeners to our ResultsTable that let user click on row and go 
@@ -929,14 +970,15 @@ public class MicroNucleiForm extends MMFrame {
       gui_.logs().showMessage(msg);
    }
 
-   /**
-    * Be vary careful with this function as it will follow symlinks and delete
-    * everything it finds
-   */
+
+      /**
+       * Be vary careful with this function as it will follow symlinks and
+       * delete everything it finds
+       */
    private boolean delete(File f) throws IOException {
       if (f.isDirectory()) {
          for (File c : f.listFiles()) {
-            if (!delete(c) ) {
+            if (!delete(c)) {
                return false;
             }
          }
@@ -961,19 +1003,20 @@ public class MicroNucleiForm extends MMFrame {
 
    /**
     * Snaps an image and insert it into the given datastore
+    *
     * @param data - datastore into which to insert images
     * @param siteCount - Position Nr to be used to insert into store
     * @param msp - Current Multistageposition
     * @param channelNr - Channel Nr to be used to insert into store.
-    * @throws Exception 
+    * @throws Exception
     */
    private Image snapAndInsertImage(Datastore data, MultiStagePosition msp,
-            int siteCount, int channelNr) throws Exception {
+           int siteCount, int channelNr) throws Exception {
       List<Image> snap = gui_.acquisitions().snap();
-      Coords coord = gui_.data().createCoords("t=0,p=" + siteCount + 
-              ",c=" + channelNr + ",z=0");
+      Coords coord = gui_.data().createCoords("t=0,p=" + siteCount
+              + ",c=" + channelNr + ",z=0");
       Image img = snap.get(0).copyAtCoords(coord);
-     
+
       Metadata md = img.getMetadata();
       Metadata.MetadataBuilder mdb = md.copy();
       PropertyMap ud = md.getUserData();
@@ -983,15 +1026,15 @@ public class MicroNucleiForm extends MMFrame {
       md = mdb.positionName(msp.getLabel()).userData(ud).build();
       img = img.copyWith(coord, md);
 
-       if (pipeline_ != null) {
+      if (pipeline_ != null) {
          pipeline_.insertImage(img);
       } else {
          data.putImage(img);
-       }
-      
+      }
+
       return data.getImage(coord);
    }
-   
+
    /**
     * Generates an initialized JSONObject to be used to communicate analysis
     * settings
@@ -1034,7 +1077,7 @@ public class MicroNucleiForm extends MMFrame {
       pcf.getDevice().waitForDevice();
       pcf.runRois();
       pcf.getDevice().waitForDevice();
-      
+
       /*  The following was written for a Galvo conversion system
       pcf.setNrRepetitions(5);
       for (i = 0; i < rois.length; i++) {

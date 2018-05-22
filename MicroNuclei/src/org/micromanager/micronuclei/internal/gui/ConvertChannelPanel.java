@@ -19,7 +19,6 @@
 
 package org.micromanager.micronuclei.internal.gui;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JPanel;
@@ -39,8 +38,9 @@ import org.micromanager.propertymap.MutablePropertyMapView;
 public final class ConvertChannelPanel extends JPanel implements BasePanel {
    
    private static final String CONVERTCHANNELDATA = "ConvertChannelData";
-   private static final String PRE = "Pre";
-   private static final String POST = "Post";
+   public static final String PRE = "Pre";
+   public static final String POST = "Post";
+   public static final String CONVERT = "Convert-";
    
    private final  MutablePropertyMapView settings_;
    private final ConvertChannelTableModel convertChannelTableModel_;
@@ -52,23 +52,14 @@ public final class ConvertChannelPanel extends JPanel implements BasePanel {
       final ConvertChannelTable table = new ConvertChannelTable(studio, this);
       convertChannelTableModel_ = new ConvertChannelTableModel();
       channelInfoSettings_ = new ChannelInfoSettings(settings_);
-      List<ChannelInfo> channelList = 
-              channelInfoSettings_.retrieveChannels(CONVERTCHANNELDATA);
-      if (channelList.size() > 0) {
-         if (!channelList.get(0).purpose_.equals(PRE)) {
-            channelList = new ArrayList<ChannelInfo>();
-         } else if (!channelList.get(channelList.size()-1).purpose_.equals(POST)) {
-            channelList = new ArrayList<ChannelInfo>();
-         }
-      } 
-      if (channelList.isEmpty() ) {
-         ChannelInfo pre = new ChannelInfo();
-         pre.purpose_ = "Pre";
-         channelList.add(pre);
-         ChannelInfo post = new ChannelInfo();
-         post.purpose_ = "Post";
-         channelList.add(post);
-      }
+      List<ChannelInfo> channelList = new ArrayList<ChannelInfo>(5);
+      ChannelInfo pre = channelInfoSettings_.getChannelInfoByPurpose(
+              CONVERTCHANNELDATA, PRE);
+      channelList.add(pre);
+      ChannelInfo post = channelInfoSettings_.getChannelInfoByPurpose(
+              CONVERTCHANNELDATA, POST);
+      channelList.add(post);
+      
       convertChannelTableModel_.putChannels(channelList);
 
       studio.events().registerForEvents(convertChannelTableModel_);
@@ -83,22 +74,26 @@ public final class ConvertChannelPanel extends JPanel implements BasePanel {
               ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
       
       TableColumnModel cm = table.getColumnModel();
-      cm.getColumn(0).setPreferredWidth(settings_.getInteger(COL0WIDTH, 40));
+      cm.getColumn(0).setPreferredWidth(settings_.getInteger(COL0WIDTH, 70));
       cm.getColumn(1).setPreferredWidth(settings_.getInteger(COL1WIDTH, 20));
       cm.getColumn(2).setPreferredWidth(settings_.getInteger(COL2WIDTH, 100));
       cm.getColumn(3).setPreferredWidth(settings_.getInteger(COL3WIDTH, 50));
       cm.getColumn(4).setPreferredWidth(settings_.getInteger(COL4WIDTH, 50));
       tableScrollPane.setViewportView(table);
-      super.add(tableScrollPane, "span 1 2, hmax 75, wmax 320 ");
+      super.add(tableScrollPane, "span 1 2, hmax 100, wmax 320 ");
       
    }
    
    public void storeChannelsInProfile() {
-      channelInfoSettings_.storeChannels(CONVERTCHANNELDATA, getChannels());
+      for (ChannelInfo ci : getChannels()) {
+         channelInfoSettings_.storeChannelByPurpose(CONVERTCHANNELDATA, ci);
+      }
    }
      
    public void addConvertChannel() {
-      ChannelInfo newConvertChannel = new ChannelInfo();
+      String purpose = CONVERT + (getChannels().size() - 1);
+      ChannelInfo newConvertChannel = channelInfoSettings_.getChannelInfoByPurpose(
+              CONVERTCHANNELDATA, purpose);
       convertChannelTableModel_.addConvertChannel(newConvertChannel);
    }
 
@@ -108,29 +103,31 @@ public final class ConvertChannelPanel extends JPanel implements BasePanel {
    
    @Override
    public void updateExposureTime(int rowIndex) {
-      ChannelInfo cInfo = convertChannelTableModel_.getChannels().get(rowIndex);
+   /*   ChannelInfo cInfo = convertChannelTableModel_.getChannels().get(rowIndex);
       cInfo.exposureTimeMs_ = settings_.getDouble(
               cInfo.channelName_ + EXPOSURETIME, 100.0);
       convertChannelTableModel_.fireTableCellUpdated(rowIndex, 3);
+*/
    }
 
    public void storeChannelExposureTime(int rowIndex) {
       ChannelInfo cInfo = convertChannelTableModel_.getChannels().get(rowIndex);
-      settings_.putDouble(
-              cInfo.channelName_ + EXPOSURETIME, cInfo.exposureTimeMs_);
+      channelInfoSettings_.storeChannelByPurpose(CONVERTCHANNELDATA, cInfo);
    }
 
    @Override
    public void updateColor(int rowIndex) {
+      /*
       ChannelInfo cInfo = convertChannelTableModel_.getChannels().get(rowIndex);
+      
       cInfo.displayColor_ = settings_.getColor(
               cInfo.channelName_ + COLOR, Color.GREEN);
       convertChannelTableModel_.fireTableCellUpdated(rowIndex, 4);
+*/
    }
 
    public void storeChannelColor(int rowIndex) {
-      ChannelInfo cInfo = convertChannelTableModel_.getChannels().get(rowIndex);
-      settings_.putColor(cInfo.channelName_ + COLOR, cInfo.displayColor_);
+      storeChannelExposureTime(rowIndex);
    }
    
    public List<ChannelInfo> getChannels () {

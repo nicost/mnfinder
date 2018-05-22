@@ -44,6 +44,7 @@ public class ConvertChannelTableModel extends AbstractTableModel {
    public void addConvertChannel(ChannelInfo channelInfo) {
       channelInfo.purpose_ = "Convert-" + (rowData_.size() - 1);
       rowData_.add(rowData_.size() - 1, channelInfo);
+      super.fireTableDataChanged();
    }
    
    public void removeConvertChannel() {

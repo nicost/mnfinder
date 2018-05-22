@@ -115,7 +115,7 @@ public class NuclearSizeModule  extends AnalysisModule {
          iProcessor = iProcessor.crop();
          userRoiBounds = roi.getBounds();
       }
-      ImagePlus ip = (new ImagePlus("tmp", iProcessor)).duplicate();
+      ImagePlus ip = (new ImagePlus(UINAME, iProcessor.duplicate()));
 
       Calibration calibration = ip.getCalibration();
       calibration.pixelWidth = img.getMetadata().getPixelSizeUm();
@@ -182,7 +182,7 @@ public class NuclearSizeModule  extends AnalysisModule {
       IJ.run(ip, "Analyze Particles...", analyzeParticlesParameters);
       final Roi[] allNuclei = roiManager_.getRoisAsArray();
       
-            // Now measure and store masks in ROI manager
+      // Now measure and store masks in ROI manager
       IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
       analyzeParticlesParameters =  "size=" + (Double) minSizeSN_.get() + "-" + 
               (Double) maxSizeSN_.get() + " exclude clear add";

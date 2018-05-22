@@ -6,7 +6,6 @@ package org.micromanager.micronuclei.analysisinterface;
 import ij.gui.Roi;
 import java.util.ArrayList;
 import java.util.List;
-import org.micromanager.micronuclei.internal.gui.ConvertChannelTableModel;
 
 /**
  * DataStructure to hold the result of the analysismodule
