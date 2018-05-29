@@ -704,7 +704,8 @@ public class MicroNucleiForm extends MMFrame {
       File dataFile = new File(saveLocation + File.separator + "data.txt");
       dataFile.createNewFile();
       BufferedWriter dataWriter = new BufferedWriter(new FileWriter(dataFile));
-      dataWriter.write("Well" + "\t" + "Site" + "\t" + "ID" + "\t" + "Pre-Post-Status" + "\t"
+      dataWriter.write("Well" + "\t" + "Site" + "\t" + "ID" + "\t" + 
+              "Module" + "\t" + "Pre-Post-Status" + "\t"
               + "X" + "\t" + "Y" + "\t" + "Mean" + "\t" + "Area");
       dataWriter.newLine();
 
