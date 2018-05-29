@@ -215,8 +215,8 @@ public class NuclearSizeModule  extends AnalysisModule {
       
       ResultRois rrs = new ResultRois(allNuclei, convertRois, null, this.getName());
       rrs.reportOnImg(0);
-      rrs.reportOnZapChannel(0); // Pre-Zap
-      rrs.reportOnZapChannel(2);  // Post-Zap
+      //rrs.reportOnZapChannel(0); // Pre-Zap
+      //rrs.reportOnZapChannel(2);  // Post-Zap
       return rrs;
    }
 
