@@ -26,6 +26,9 @@ public class ResultRois {
    // so including 0, and 2 will report Pre- and Post-Zap values (if those images
    // were acquired by the user"
    private final List<Integer> zapChannelsToBeReported_;
+   // name to identify who created these ResultRois.  Used for reporting
+   private final String name_;
+   
    
    /**
     *
@@ -33,12 +36,13 @@ public class ResultRois {
     * @param hitRois - the Rois considered "positive" by the module
     * @param nonHitRois - the Rois considered negative by the module
    */
-   public ResultRois (Roi[] allRois, Roi[] hitRois, Roi[] nonHitRois) {
+   public ResultRois (Roi[] allRois, Roi[] hitRois, Roi[] nonHitRois, String name) {
       allRois_ = allRois;
       hitRois_ = hitRois;
       nonHitRois_ = nonHitRois;
       channelsToBeReported_ = new ArrayList<Integer>();
       zapChannelsToBeReported_ = new ArrayList<Integer>();
+      name_ = name;
    }
    
    public Roi[] getAllRois() {
@@ -72,6 +76,10 @@ public class ResultRois {
    
    public List<Integer> getZapChannelsToBeReported() {
       return zapChannelsToBeReported_;
+   }
+   
+   public String getName() {
+      return name_;
    }
    
 }

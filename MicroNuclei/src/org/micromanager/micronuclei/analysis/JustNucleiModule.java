@@ -127,14 +127,14 @@ public class JustNucleiModule extends AnalysisModule {
                  "Std. Dev. of image at position " + pos + " (" + 
                   NumberUtils.doubleToDisplayString(stdDev) +
                   ") is higher than the limit you set: " + maxStdDev);
-         return new ResultRois(null, null, null);
+         return new ResultRois(null, null, null, this.getName());
       }
       if (mean > maxMean) {
          mm.alerts().postAlert("Skip image", JustNucleiModule.class,
                  "Mean intensity of image at position " + pos + " (" + 
                   NumberUtils.doubleToDisplayString(mean) +
                   ") is higher than the limit you set: " + maxMean);
-         return new ResultRois(null, null, null);
+         return new ResultRois(null, null, null, this.getName());
       }
 
 
@@ -195,7 +195,8 @@ public class JustNucleiModule extends AnalysisModule {
          throw new AnalysisException (jse.getMessage());
       }
       
-      ResultRois rrs = new ResultRois(allNuclei, convertRois, nonConvertRois);
+      ResultRois rrs = new ResultRois(allNuclei, convertRois, nonConvertRois, 
+              this.getName());
       rrs.reportOnImg(0);
       rrs.reportOnZapChannel(0); // Pre-Zap
       rrs.reportOnZapChannel(2);  // Post-Zap

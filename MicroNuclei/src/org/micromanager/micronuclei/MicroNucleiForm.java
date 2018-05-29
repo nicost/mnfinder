@@ -47,7 +47,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -744,7 +746,11 @@ public class MicroNucleiForm extends MMFrame {
       // start cycling through the sites and group everything by well
       int count = 0;
       int siteCount = 0;
-      JSONObject parms = analysisSettings(showMasks_.isSelected());
+      Map<AnalysisModule, JSONObject> parmsMap = new HashMap<AnalysisModule, JSONObject> 
+        (analysisModules.size());
+      for (AnalysisModule am : analysisModules) {
+         parmsMap.put(am, analysisSettings(showMasks_.isSelected()));
+      }
       currentWell = "";
 
       double originalExposure = gui_.getCMMCore().getExposure();
@@ -800,7 +806,10 @@ public class MicroNucleiForm extends MMFrame {
             }
             gui_.logs().logMessage("Starting well: " + well);
             if (!currentWell.equals("")) {
-               recordWellSummary(resultsWriter, currentWell, parms);
+               for (AnalysisModule am : analysisModules) {
+                  recordWellSummary(resultsWriter, am.getName(), currentWell, 
+                       parmsMap.get(am));
+               }
             }
             currentWell = well;
             siteCount = 0;
@@ -828,10 +837,10 @@ public class MicroNucleiForm extends MMFrame {
             }
             for (AnalysisModule analysisModule : analysisModules) {
                analysisModule.reset();
+               // reset cell and object counters
+               parmsMap.get(analysisModule).put(AnalysisModule.CELLCOUNT, 0);
+               parmsMap.get(analysisModule).put(AnalysisModule.OBJECTCOUNT, 0);
             }
-            // reset cell and object counters
-            parms.put(AnalysisModule.CELLCOUNT, 0);
-            parms.put(AnalysisModule.OBJECTCOUNT, 0);
          }
 
          if (data != null) {
@@ -856,7 +865,10 @@ public class MicroNucleiForm extends MMFrame {
             List<ResultRois> resultRoiList = new ArrayList<ResultRois>();
             for (int amNr = 0; amNr < analysisModules.size(); amNr++) {
                AnalysisModule analysisModule = analysisModules.get(amNr);
-               ResultRois rr = analysisModule.analyze(gui_, imgs, null, parms);
+               ResultRois rr = analysisModule.analyze(gui_, imgs, null, 
+                       parmsMap.get(analysisModule));
+               rr.reportOnZapChannel(0); // Pre-Zap
+               rr.reportOnZapChannel(convertChannelPanel_.getChannels().size() - 1);  // Post-Zap
                resultRoiList.add(rr);
                if (rr.getHitRois() != null && rr.getHitRois().length != 0
                        && doZap_.isSelected()) {
@@ -866,9 +878,11 @@ public class MicroNucleiForm extends MMFrame {
                   for (int nr : rr.getImgsToBeReported()) {
                      ImageProcessor iProcessortmp = gui_.data().ij().createProcessor(imgs[nr]);
                      ImagePlus ipGFP = new ImagePlus("tmp", iProcessortmp);
-                     reportIntensities(dataWriter, currentWell, siteCount, ipGFP, "Hit-ch." + nr,
+                     reportIntensities(dataWriter, analysisModule.getName(), 
+                             currentWell, siteCount, ipGFP, "Hit-ch." + nr,
                              rr.getHitRois());
-                     reportIntensities(dataWriter, currentWell, siteCount, ipGFP, "NoHit-ch." + nr,
+                     reportIntensities(dataWriter, analysisModule.getName(), 
+                             currentWell, siteCount, ipGFP, "NoHit-ch." + nr,
                              rr.getNonHitRois());
                   }
                }
@@ -921,11 +935,11 @@ public class MicroNucleiForm extends MMFrame {
                         ImageProcessor iProc = gui_.data().ij().createProcessor(
                                 imgs[i + nrImagingChannels]);
                         ImagePlus ip = new ImagePlus("tmp", iProc);
-                        reportIntensities(dataWriter, currentWell, siteCount, ip,
-                                convertChannelPanel_.getPurpose(i) + "-Hit",
+                        reportIntensities(dataWriter, rr.getName(), currentWell, 
+                                siteCount, ip, convertChannelPanel_.getPurpose(i) + "-Hit",
                                 rr.getHitRois());
-                        reportIntensities(dataWriter, currentWell, siteCount, ip,
-                                convertChannelPanel_.getPurpose(i) + "-NoHit",
+                        reportIntensities(dataWriter, rr.getName(), currentWell, 
+                                siteCount, ip, convertChannelPanel_.getPurpose(i) + "-NoHit",
                                 rr.getNonHitRois());
                      }
                   }
@@ -958,7 +972,10 @@ public class MicroNucleiForm extends MMFrame {
       }
 
       // record the results from the last well:
-      recordWellSummary(resultsWriter, currentWell, parms);
+      for (AnalysisModule am : analysisModules) {
+         recordWellSummary(resultsWriter, am.getName(), currentWell,
+                 parmsMap.get(am));
+      }
 
       resultsWriter.close();
       dataWriter.close();
@@ -990,9 +1007,10 @@ public class MicroNucleiForm extends MMFrame {
       return true;
    }
 
-   private void recordWellSummary(BufferedWriter resultsWriter, String currentWell,
-           final JSONObject parms) throws IOException, MMScriptException {
-      resultsWriter.write(currentWell + "\t"
+   private void recordWellSummary(BufferedWriter resultsWriter, String moduleName, 
+           String currentWell,final JSONObject parms) 
+                     throws IOException, MMScriptException {
+      resultsWriter.write(currentWell + "\t" + moduleName + "\t" 
               + parms.optInt(AnalysisModule.CELLCOUNT) + "\t"
               + parms.optInt(AnalysisModule.OBJECTCOUNT));
       resultsWriter.newLine();
@@ -1105,16 +1123,18 @@ public class MicroNucleiForm extends MMFrame {
       return myBorder;
    }
         
-   private void reportIntensities(BufferedWriter theFile, String well, 
-           int posCounter, ImagePlus ip, String label, Roi[] rois) {
+   private void reportIntensities(BufferedWriter theFile, String moduleName, 
+           String well, int posCounter, ImagePlus ip, String label, Roi[] rois) {
    if (rois == null) {
       return;
    }
 	for (int i = 0; i < rois.length; i++) {
 		ip.setRoi(rois[i]);
-      ImageStatistics stats = ip.getStatistics(ImagePlus.CENTROID + ImagePlus.MEAN + ImagePlus.INTEGRATED_DENSITY + ImagePlus.AREA);
+      ImageStatistics stats = ip.getStatistics(ImagePlus.CENTROID + 
+              ImagePlus.MEAN + ImagePlus.INTEGRATED_DENSITY + ImagePlus.AREA);
       try {
-         theFile.write(well + "\t" + posCounter + "\t" + i + "\t" + label + "\t" +
+         theFile.write(well + "\t" + posCounter + "\t" + i + "\t" + 
+                       moduleName + "\t" + label + "\t" +
                  NumberUtils.doubleToDisplayString(stats.xCentroid) + "\t" +
                  NumberUtils.doubleToDisplayString(stats.yCentroid) + "\t" +
                  NumberUtils.doubleToDisplayString(stats.mean) + "\t"  +
