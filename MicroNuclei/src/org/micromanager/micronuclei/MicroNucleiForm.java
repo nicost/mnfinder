@@ -82,6 +82,7 @@ import org.micromanager.data.Datastore;
 import org.micromanager.data.Image;
 import org.micromanager.data.Metadata;
 import org.micromanager.data.Pipeline;
+import org.micromanager.data.PipelineErrorException;
 import org.micromanager.data.SummaryMetadata;
 import org.micromanager.data.internal.DefaultImage;
 import org.micromanager.display.ChannelDisplaySettings;
@@ -956,6 +957,7 @@ public class MicroNucleiForm extends MMFrame {
       
       if (data != null) {
          data.freeze();
+         gui_.displays().manage(data);
       }
       
       gui_.getCMMCore().setExposure(originalExposure);
@@ -1050,7 +1052,12 @@ public class MicroNucleiForm extends MMFrame {
       img = img.copyWith(coord, md);
 
       if (pipeline_ != null) {
-         pipeline_.insertImage(img);
+         try {
+            pipeline_.insertImage(img);
+         } catch (PipelineErrorException pee) {
+            gui_.logs().logError(pee);
+            data.putImage(img);
+         }
       } else {
          data.putImage(img);
       }
