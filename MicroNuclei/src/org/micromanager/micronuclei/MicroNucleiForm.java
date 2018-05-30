@@ -949,9 +949,9 @@ public class MicroNucleiForm extends MMFrame {
                   outTable.show(outTableName);
 
                }
-               siteCount++;
-               count++;
             }
+            siteCount++;
+            count++;
          }
       }
       
