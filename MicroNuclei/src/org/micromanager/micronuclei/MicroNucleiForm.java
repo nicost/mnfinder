@@ -831,7 +831,7 @@ public class MicroNucleiForm extends MMFrame {
                }
             }
             dw.setDisplaySettings(dsb.build());
-            gui_.displays().manage(data);
+            // gui_.displays().manage(data);
             if (useOnTheFlyProcessorPipeline_.isSelected()) {
                // Create a blocking pipeline
                pipeline_ = gui_.data().copyApplicationPipeline(data, true);
@@ -952,6 +952,10 @@ public class MicroNucleiForm extends MMFrame {
                count++;
             }
          }
+      }
+      
+      if (data != null) {
+         data.freeze();
       }
       
       gui_.getCMMCore().setExposure(originalExposure);
