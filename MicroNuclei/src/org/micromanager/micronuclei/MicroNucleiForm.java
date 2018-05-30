@@ -1091,7 +1091,7 @@ public class MicroNucleiForm extends MMFrame {
     * @throws MMScriptException
     */
    private void zap(Roi[] rois) throws MMScriptException {
-      if (rois == null) {
+      if (rois == null || rois.length == 0) {
          return;
       }
       ProjectorControlForm pcf
