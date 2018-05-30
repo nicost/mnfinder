@@ -1056,7 +1056,10 @@ public class MicroNucleiForm extends MMFrame {
             pipeline_.insertImage(img);
          } catch (PipelineErrorException pee) {
             gui_.logs().logError(pee);
-            data.putImage(img);
+            // even when we get this error, the image is already inserted - most of the time
+            if (!data.hasImage(img.getCoords())) {
+               data.putImage(img);
+            }
          }
       } else {
          data.putImage(img);
