@@ -909,11 +909,18 @@ public class MicroNucleiForm extends MMFrame {
                         ResultRois rr = resultRoiList.get(i - offset);
 
                         zap(rr.getHitRois());  // send ROIs to the device
+                        if (rr.getHitRois() != null && rr.getHitRois().length > 0) {
+                           gui_.getCMMCore().setConfig(channelGroup, ci.channelName_);
+                           gui_.getCMMCore().waitForConfig(channelGroup, ci.channelName_);
+                           gui_.getCMMCore().setExposure(ci.exposureTimeMs_);
+                           imgs[currentChannel] = snapAndInsertImage(data, msp, siteCount, currentChannel);
+                        }
+                     } else {
+                        gui_.getCMMCore().setConfig(channelGroup, ci.channelName_);
+                        gui_.getCMMCore().waitForConfig(channelGroup, ci.channelName_);
+                        gui_.getCMMCore().setExposure(ci.exposureTimeMs_);
+                        imgs[currentChannel] = snapAndInsertImage(data, msp, siteCount, currentChannel);
                      }
-                     gui_.getCMMCore().setConfig(channelGroup, ci.channelName_);
-                     gui_.getCMMCore().waitForConfig(channelGroup, ci.channelName_);
-                     gui_.getCMMCore().setExposure(ci.exposureTimeMs_);
-                     imgs[currentChannel] = snapAndInsertImage(data, msp, siteCount, currentChannel);
 
                      currentChannel++;
                   }
