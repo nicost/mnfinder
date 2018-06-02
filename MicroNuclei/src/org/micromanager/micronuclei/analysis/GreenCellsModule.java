@@ -172,7 +172,7 @@ public class GreenCellsModule extends AnalysisModule {
       }
       Roi restrictToThisRoi = edgeDetector_.analyze(mm, imgs); 
       
-      if (restrictToThisRoi != null) {
+      if (restrictToThisRoi != null && ((Boolean) skipWellsWithEdges_.get()) ) {
          int pos = imgs[0].getCoords().getStagePosition();
          mm.alerts().postAlert("Skip image", JustNucleiModule.class,
                  "Edge detected at " + pos );

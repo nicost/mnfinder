@@ -22,10 +22,8 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.Roi;
 import ij.measure.Calibration;
-import ij.measure.Measurements;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
-import ij.process.ImageStatistics;
 import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +31,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.micromanager.Studio;
 import org.micromanager.data.Image;
-import org.micromanager.internal.utils.NumberUtils;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
@@ -53,8 +50,8 @@ public class JustNucleiModule extends AnalysisModule {
 
    private final AnalysisProperty skipWellsWithEdges_;
    private final AnalysisProperty percentageOfNuclei_;
-   private final AnalysisProperty maxStdDev_;
-   private final AnalysisProperty maxMeanIntensity_;
+   // private final AnalysisProperty maxStdDev_;
+   // private final AnalysisProperty maxMeanIntensity_;
    private final AnalysisProperty minSizeN_;
    private final AnalysisProperty maxSizeN_;
    
@@ -73,6 +70,7 @@ public class JustNucleiModule extends AnalysisModule {
               null);
       percentageOfNuclei_ = new AnalysisProperty(this.getClass(),
               "Percentage of nuclei to be converted", null, 10.0, null);
+      /*
       maxStdDev_ = new AnalysisProperty(this.getClass(),
               "Maximum Std. Dev.",
               "<html>Std. Dev. of grayscale values of original image<br>"
@@ -81,6 +79,7 @@ public class JustNucleiModule extends AnalysisModule {
               "Maximum Mean Int.",
               "<html>If the average intensity of the image is higher<br>"
               + "than this number, the image will be skipped", 20000.0, null);
+      */
       minSizeN_ = new AnalysisProperty(this.getClass(),
               "<html>Minimum nuclear size (&micro;m<sup>2</sup>)</html>",
               "<html>Smallest size of putative nucleus in "
@@ -98,8 +97,8 @@ public class JustNucleiModule extends AnalysisModule {
       }
       apl.add(skipWellsWithEdges_);
       apl.add(percentageOfNuclei_);
-      apl.add(maxStdDev_);
-      apl.add(maxMeanIntensity_);
+      // apl.add(maxStdDev_);
+      // apl.add(maxMeanIntensity_);
       apl.add(minSizeN_);
       apl.add(maxSizeN_);
 
@@ -126,26 +125,35 @@ public class JustNucleiModule extends AnalysisModule {
       
       Roi restrictToThisRoi = edgeDetector_.analyze(mm, imgs); 
       
-      if (restrictToThisRoi != null) {
+      if (restrictToThisRoi != null && ((Boolean) skipWellsWithEdges_.get()) ) {
          int pos = imgs[0].getCoords().getStagePosition();
          mm.alerts().postAlert("Skip image", JustNucleiModule.class,
                  "Edge detected at " + pos );
          return new ResultRois(null, null, null, this.getName());
       }
 
-      
       ImagePlus ip = (new ImagePlus(UINAME, iProcessor.duplicate()));
+      if (restrictToThisRoi != null) {
+         ip.setRoi(restrictToThisRoi);
+         //IJ.run("setBackgroundColor(0, 0, 0)");
+         // this will set the pixels outside of the ROI to the backgroundcolor
+         // The automatic thresholding will not look at these pixels 
+         // (it only analyzes within the ROI)
+         IJ.run(ip, "Clear Outside", "");
+      }
+      
       Calibration calibration = ip.getCalibration();
       calibration.pixelWidth = img.getMetadata().getPixelSizeUm();
       calibration.pixelHeight = img.getMetadata().getPixelSizeUm();
       calibration.setUnit("um");
 
       // check for edges by calculating stdev
-      ImageStatistics stat = ip.getStatistics(Measurements.MEAN+ Measurements.STD_DEV);
-      final double stdDev = stat.stdDev;
-      final double mean = stat.mean;
-      final double maxStdDev = (Double) maxStdDev_.get();
-      final double maxMean = (Double) maxMeanIntensity_.get();
+      // ImageStatistics stat = ip.getStatistics(Measurements.MEAN+ Measurements.STD_DEV);
+      // final double stdDev = stat.stdDev;
+      // final double mean = stat.mean;
+      // final double maxStdDev = (Double) maxStdDev_.get();
+      // final double maxMean = (Double) maxMeanIntensity_.get();
+      /*
       int pos = img.getCoords().getStagePosition();
       if (stdDev > maxStdDev) {
          mm.alerts().postAlert("Skip image", JustNucleiModule.class,
@@ -161,6 +169,7 @@ public class JustNucleiModule extends AnalysisModule {
                   ") is higher than the limit you set: " + maxMean);
          return new ResultRois(null, null, null, this.getName());
       }
+      */
 
 
       // Even though we are flatfielding, results are much better after

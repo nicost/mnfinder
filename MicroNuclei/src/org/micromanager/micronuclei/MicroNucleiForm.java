@@ -719,6 +719,7 @@ public class MicroNucleiForm extends MMFrame {
       }
       String currentWell = "";
 
+     /*
       ResultsTable outTable = new ResultsTable();
       String outTableName = Terms.RESULTTABLENAME;
       Window oldOutTable = WindowManager.getWindow(outTableName);
@@ -726,6 +727,7 @@ public class MicroNucleiForm extends MMFrame {
          WindowManager.removeWindow(oldOutTable);
          oldOutTable.dispose();
       }
+      */
 
       int nrImagesPerWell = 0;
       int wellCount = 0;
@@ -759,7 +761,7 @@ public class MicroNucleiForm extends MMFrame {
 
       // prepare stuff needed to store data in MM
       Datastore data = null;
-      // DisplayWindow dw = null;
+      DisplayWindow dw;
 
       int nrChannels = 0;
       List<String> channelNames = new ArrayList<String>();
@@ -929,6 +931,7 @@ public class MicroNucleiForm extends MMFrame {
                // Reporting section
                for (ResultRois rr : resultRoiList) {
                   // list Rois in outTable
+                  /*
                   for (Roi roi : rr.getHitRois()) {
                      outTable.incrementCounter();
                      Rectangle bounds = roi.getBounds();
@@ -938,6 +941,7 @@ public class MicroNucleiForm extends MMFrame {
                      outTable.addValue(Terms.Y, y);
                      outTable.addValue(Terms.POSITION, siteCount);
                   }
+                  */
                   for (int i = 0; i < convertChannelPanel_.getChannels().size(); i++) {
 
                      if (rr.getZapChannelsToBeReported().contains(i)) {
