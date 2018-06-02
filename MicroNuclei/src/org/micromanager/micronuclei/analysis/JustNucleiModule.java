@@ -51,18 +51,26 @@ public class JustNucleiModule extends AnalysisModule {
            + "and identifies a user-defined percentage of these<br>"
            + "as hits";
 
+   private final AnalysisProperty skipWellsWithEdges_;
    private final AnalysisProperty percentageOfNuclei_;
    private final AnalysisProperty maxStdDev_;
    private final AnalysisProperty maxMeanIntensity_;
    private final AnalysisProperty minSizeN_;
    private final AnalysisProperty maxSizeN_;
-
+   
+   private final EdgeDetectorSubModule edgeDetector_;
    private RoiManager roiManager_;
 
    public JustNucleiModule() {
       // note: the type of the value when creating the AnalysisProperty determines
       // the allowed type, and can create problems when the user enters something
       // different
+      
+      skipWellsWithEdges_ = new AnalysisProperty(this.getClass(),
+              "<html>Skip wells with edges</html",
+              "Skips wells with edges when checked",
+              true,
+              null);
       percentageOfNuclei_ = new AnalysisProperty(this.getClass(),
               "Percentage of nuclei to be converted", null, 10.0, null);
       maxStdDev_ = new AnalysisProperty(this.getClass(),
@@ -81,8 +89,14 @@ public class JustNucleiModule extends AnalysisModule {
               "<html>Maximum nuclear size (&micro;m<sup>2</sup>)</html>",
               "<html>Largest size of putative nucleus in "
               + "&micro;m<sup>2</sup></html>", 1800.0, null);
+          
+      edgeDetector_ = new EdgeDetectorSubModule();
 
       List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
+      for (AnalysisProperty ap : edgeDetector_.getAnalysisProperties()) {
+         apl.add(ap);
+      }
+      apl.add(skipWellsWithEdges_);
       apl.add(percentageOfNuclei_);
       apl.add(maxStdDev_);
       apl.add(maxMeanIntensity_);
@@ -109,6 +123,17 @@ public class JustNucleiModule extends AnalysisModule {
          iProcessor = iProcessor.crop();
          userRoiBounds = userRoi.getBounds();
       }
+      
+      Roi restrictToThisRoi = edgeDetector_.analyze(mm, imgs); 
+      
+      if (restrictToThisRoi != null) {
+         int pos = imgs[0].getCoords().getStagePosition();
+         mm.alerts().postAlert("Skip image", JustNucleiModule.class,
+                 "Edge detected at " + pos );
+         return new ResultRois(null, null, null, this.getName());
+      }
+
+      
       ImagePlus ip = (new ImagePlus(UINAME, iProcessor.duplicate()));
       Calibration calibration = ip.getCalibration();
       calibration.pixelWidth = img.getMetadata().getPixelSizeUm();

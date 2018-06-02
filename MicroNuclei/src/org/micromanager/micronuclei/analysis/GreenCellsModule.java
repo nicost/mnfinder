@@ -23,12 +23,10 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.Roi;
 import ij.measure.Calibration;
-import ij.measure.Measurements;
 import ij.measure.ResultsTable;
 import ij.plugin.filter.Analyzer;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
-import ij.process.ImageStatistics;
 import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +34,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.micromanager.Studio;
 import org.micromanager.data.Image;
-import org.micromanager.internal.utils.NumberUtils;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import static org.micromanager.micronuclei.analysisinterface.AnalysisModule.CELLCOUNT;
@@ -54,8 +51,9 @@ public class GreenCellsModule extends AnalysisModule {
            "<html>Simple module that finds positive cells in the 2nd channel, <br>" +
            "and identifies these as hits";
 
-   private final AnalysisProperty maxStdDev_;
-   private final AnalysisProperty maxMeanIntensity_;
+   //private final AnalysisProperty maxStdDev_;
+   //private final AnalysisProperty maxMeanIntensity_;
+   private final AnalysisProperty skipWellsWithEdges_;
    private final AnalysisProperty minSizeN_;
    private final AnalysisProperty maxSizeN_;
    private final AnalysisProperty minCellSize_;
@@ -73,6 +71,7 @@ public class GreenCellsModule extends AnalysisModule {
       // note: the type of the value when creating the AnalysisProperty determines
       // the allowed type, and can create problems when the user enters something
       // different
+      /*
       maxStdDev_ = new AnalysisProperty(this.getClass(),
               "Maximum Std. Dev. of Nuclear image",
               "<html>Std. Dev. of grayscale values of original image<br>"
@@ -84,6 +83,12 @@ public class GreenCellsModule extends AnalysisModule {
               "<html>If the average intensity of the image is higher<br>"
               + "than this number, the image will be skipped", 
               20000.0, 
+              null);
+      */
+      skipWellsWithEdges_ = new AnalysisProperty(this.getClass(),
+              "<html>Skip wells with edges</html",
+              "Skips wells with edges when checked",
+              true,
               null);
       minSizeN_ = new AnalysisProperty(this.getClass(),
               "<html>Minimum nuclear size (&micro;m<sup>2</sup>)</html>",
@@ -133,8 +138,9 @@ public class GreenCellsModule extends AnalysisModule {
          apl.add(ap);
       }
       
-      apl.add(maxStdDev_);
-      apl.add(maxMeanIntensity_);
+      //apl.add(maxStdDev_);
+      //apl.add(maxMeanIntensity_);
+      apl.add(skipWellsWithEdges_);
       apl.add(minSizeN_);
       apl.add(maxSizeN_);
       apl.add(minCellSize_);
@@ -164,7 +170,14 @@ public class GreenCellsModule extends AnalysisModule {
          showMasks = parms.getBoolean(AnalysisModule.SHOWMASKS);
       } catch (JSONException jex) { // do nothing
       }
-      Roi restrictToThisRoi = edgeDetector_.analyze(mm, imgs);      
+      Roi restrictToThisRoi = edgeDetector_.analyze(mm, imgs); 
+      
+      if (restrictToThisRoi != null) {
+         int pos = imgs[0].getCoords().getStagePosition();
+         mm.alerts().postAlert("Skip image", JustNucleiModule.class,
+                 "Edge detected at " + pos );
+         return new ResultRois(null, null, null, this.getName());
+      }
 
       // First locate Nuclei
       ImageProcessor nuclearImgProcessor = mm.data().ij().createProcessor(imgs[0]);
@@ -192,12 +205,13 @@ public class GreenCellsModule extends AnalysisModule {
       }
       
       // check for edges by calculating stdev
-      ImageStatistics stat = nuclearImgIp.getStatistics(Measurements.MEAN + Measurements.STD_DEV);
-      final double stdDev = stat.stdDev;
-      final double mean = stat.mean;
-      final double maxStdDev = (Double) maxStdDev_.get();
-      final double maxMean = (Double) maxMeanIntensity_.get();
-      int pos = imgs[0].getCoords().getStagePosition();
+      // ImageStatistics stat = nuclearImgIp.getStatistics(Measurements.MEAN + Measurements.STD_DEV);
+      // final double stdDev = stat.stdDev;
+      // final double mean = stat.mean;
+      //final double maxStdDev = (Double) maxStdDev_.get();
+      //final double maxMean = (Double) maxMeanIntensity_.get();
+      // int pos = imgs[0].getCoords().getStagePosition();
+      /*
       if (stdDev > maxStdDev) {
          mm.alerts().postAlert("Skip image", JustNucleiModule.class,
                  "Std. Dev. of image at position " + pos + " ("
@@ -212,6 +226,7 @@ public class GreenCellsModule extends AnalysisModule {
                  + ") is higher than the limit you set: " + maxMean);
          return new ResultRois(null, null, null, this.getName());
       }
+      */
 
       // Even though we are flatfielding, results are much better after
       // background subtraction.  In one test, I get about 2 fold more nuclei
