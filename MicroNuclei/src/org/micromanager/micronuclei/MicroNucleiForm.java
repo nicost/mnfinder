@@ -759,7 +759,7 @@ public class MicroNucleiForm extends MMFrame {
 
       // prepare stuff needed to store data in MM
       Datastore data = null;
-      DisplayWindow dw = null;
+      // DisplayWindow dw = null;
 
       int nrChannels = 0;
       List<String> channelNames = new ArrayList<String>();
@@ -953,7 +953,7 @@ public class MicroNucleiForm extends MMFrame {
                      }
                   }
 
-                  outTable.show(outTableName);
+                  // outTable.show(outTableName);
 
                }
             }
@@ -971,6 +971,7 @@ public class MicroNucleiForm extends MMFrame {
 
       // add listeners to our ResultsTable that let user click on row and go 
       // to cell that was found
+      /*
       TextPanel tp;
       TextWindow win;
       Window frame = WindowManager.getWindow(outTableName);
@@ -984,6 +985,7 @@ public class MicroNucleiForm extends MMFrame {
          frame.toFront();
          frame.setVisible(true);
       }
+      */
 
       // record the results from the last well:
       for (AnalysisModule am : analysisModules) {
