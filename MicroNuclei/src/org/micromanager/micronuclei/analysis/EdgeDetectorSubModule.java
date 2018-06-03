@@ -1,3 +1,21 @@
+///////////////////////////////////////////////////////////////////////////////
+//PROJECT:       MicroNuclei detection project
+//-----------------------------------------------------------------------------
+//
+// AUTHOR:       Nico Stuurman
+//
+// COPYRIGHT:    Regents of the University of California 2018
+//
+// LICENSE:      This file is distributed under the BSD license.
+//               License text is included with the source distribution.
+//
+//               This file is distributed in the hope that it will be useful,
+//               but WITHOUT ANY WARRANTY; without even the implied warranty
+//               of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+//
+//               IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+//               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+//               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES. 
 
 package org.micromanager.micronuclei.analysis;
 
@@ -92,7 +110,6 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
       // get the largest selection, 
       
       // Now measure and store masks in ROI manager
-      //IJ.run("Set Measurements...", "area redirect=None decimal=2");
       String analyzeParticlesParameters =  "size=" + (Double) (0.1 * imageArea) + "-" + 
                imageArea + " clear add";
       // this roiManager reset is needed since Analyze Particles will not take 
@@ -103,13 +120,11 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
       if (candidates.length == 1) {
          ip2.setRoi(candidates[0]);
          //ip2.show();
-         ResultsTable rt = Analyzer.getResultsTable();
-         rt.reset();
-         IJ.run("Set Measurements...", "mean redirect=None decimal=2");
-         IJ.run(ip2, "Measure", "");
-         rt.updateResults();
+         ResultsTable rt = new ResultsTable();
+         Analyzer analyzer = new Analyzer(ip2, Analyzer.MEAN, rt);
+         analyzer.measure();
          double val = rt.getValue("Mean", 0);
-         // arbitrary cutoff to make sure this is a real edge
+         // cutoff to make sure this is a real edge
          if (val > (Double) edgeMinMean_.get() ) {
             ip.setRoi(candidates[0]);
             IJ.run (ip, "Make Inverse", "");
@@ -122,6 +137,28 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
       
       return roi;
    }
+   
+   /* Wayne Rasband on ImageJ Forum
+   img1 = IJ.openImage("http://wsr.imagej.net/images/blobs.gif");
+   IJ.setAutoThreshold(img1, "Default");
+   IJ.run(img1, "Analyze Particles...", "size=400 show=Overlay exclude");
+   img2 = IJ.createImage("Untitled", "8-bit ramp", 256, 254, 1);
+   overlay = img1.getOverlay();
+   img2.setOverlay(overlay);
+   IJ.run("Set Measurements...", "area mean centroid decimal=3");
+   rt = new ResultsTable();
+   measurements = Analyzer.getMeasurements();
+   for (i=0; i<overlay.size(); i++) {
+      roi = overlay.get(i);
+      img2.setRoi(roi);
+      analyzer = new Analyzer(img2, measurements, rt);
+      analyzer.measure();
+   }
+   path = IJ.getDir("temp")+"Results.xls";
+   rt.saveAs(path);
+   rt2 = ResultsTable.open(path);
+   //rt2.show("Results");
+   */
 
 
    

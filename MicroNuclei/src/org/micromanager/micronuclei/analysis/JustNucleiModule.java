@@ -128,7 +128,7 @@ public class JustNucleiModule extends AnalysisModule {
       if (restrictToThisRoi != null && ((Boolean) skipWellsWithEdges_.get()) ) {
          int pos = imgs[0].getCoords().getStagePosition();
          mm.alerts().postAlert("Skip image", JustNucleiModule.class,
-                 "Edge detected at " + pos );
+                 "Edge detected at position " + pos );
          return new ResultRois(null, null, null, this.getName());
       }
 
