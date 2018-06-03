@@ -117,7 +117,7 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
       roiManager.reset();
       IJ.run(ip, "Analyze Particles...", analyzeParticlesParameters);
       final Roi[] candidates = roiManager.getRoisAsArray();
-      if (candidates.length == 1) {
+      if (candidates.length >= 1) {
          ip2.setRoi(candidates[0]);
          //ip2.show();
          ResultsTable rt = new ResultsTable();
