@@ -317,13 +317,18 @@ public class GreenCellsModule extends AnalysisModule {
       
       // Check that the putative cell's intensity is high enough
       List<Roi> cellList = new ArrayList<Roi>();
-      ResultsTable rt = Analyzer.getResultsTable();
-      rt.reset();
+      //ResultsTable rt = Analyzer.getResultsTable();
+      //rt.reset();
       ImagePlus cellImgIp2 = (new ImagePlus("tmp2", cellImgProcessor));
-      IJ.run("Set Measurements...", "mean");
+      //IJ.run("Set Measurements...", "mean");
+      
+      ResultsTable rt = new ResultsTable();
+      Analyzer analyzer = new Analyzer(cellImgIp2, Analyzer.MEAN, rt);
+         
       for (Roi cell : putativeCells) {
          cellImgIp2.setRoi(cell);
-         IJ.run(cellImgIp2, "Measure", "");
+         analyzer.measure();
+         // IJ.run(cellImgIp2, "Measure", "");
          int counter = rt.getCounter();
          int col = rt.getColumnIndex("Mean");
          double value = rt.getValueAsDouble(col, counter - 1); //all the Area values
