@@ -142,10 +142,10 @@ public class MicroNucleiForm extends MMFrame {
    
    private final List<AnalysisModule> analysisModules_;
    private final List<String> analysisModulesNames_;
-   private final String MODULE ="ActiveModuleName";
    private final String MODULELIST = "ActiveModuleList";
    
    private Pipeline pipeline_;
+   private long startTime_;
    
    public MicroNucleiForm(final Studio gui) {
       gui_ = gui;
@@ -798,6 +798,7 @@ public class MicroNucleiForm extends MMFrame {
             resultsWriter.close();
             return;
          }
+         startTime_ = System.currentTimeMillis();
          String label = msp.getLabel();
          String well = label.split("-")[0];
          if (!currentWell.equals(well)) {
@@ -1061,7 +1062,9 @@ public class MicroNucleiForm extends MMFrame {
 
       mdb = mdb.xPositionUm(msp.getX()).yPositionUm(msp.getY());
 
-      md = mdb.positionName(msp.getLabel()).userData(ud).build();
+      md = mdb.positionName(msp.getLabel()).elapsedTimeMs(
+              (double) (System.currentTimeMillis() - startTime_)).userData(ud).build();
+      
       img = img.copyWith(coord, md);
 
       if (pipeline_ != null) {
