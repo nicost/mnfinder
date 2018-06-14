@@ -207,8 +207,6 @@ public class MicroNucleiForm extends MMFrame {
       
       super.add(acqPanel, "span 3, center, wrap");
       
-      
-     
             
       JPanel analysisPanel = new JPanel(new MigLayout(
               "flowx, fill, insets 8"));
@@ -793,146 +791,148 @@ public class MicroNucleiForm extends MMFrame {
                       stagePosition(nrImagesPerWell).
                       build());
 
-      for (MultiStagePosition msp : positions) {
-         if (stop_.get()) {
-            resultsWriter.close();
-            return;
-         }
-         startTime_ = System.currentTimeMillis();
-         String label = msp.getLabel();
-         String well = label.split("-")[0];
-         if (!currentWell.equals(well)) {
-            // new well
-            // freeze the existing datastore, but only if it exists
-            // TODO: to avoid running out of memory, we may need to call 
-            // close here instead of freeze
-            if (data != null) {
-               data.close();
+      try {
+         for (MultiStagePosition msp : positions) {
+            if (stop_.get()) {
+               resultsWriter.close();
+               dataWriter.close();
+               return;
             }
-            gui_.logs().logMessage("Starting well: " + well);
-            if (!currentWell.equals("")) {
-               for (AnalysisModule am : analysisModules) {
-                  recordWellSummary(resultsWriter, am.getName(), currentWell, 
-                       parmsMap.get(am));
+            startTime_ = System.currentTimeMillis();
+            String label = msp.getLabel();
+            String well = label.split("-")[0];
+            if (!currentWell.equals(well)) {
+               // new well
+               // freeze the existing datastore, but only if it exists
+               // TODO: to avoid running out of memory, we may need to call 
+               // close here instead of freeze
+               if (data != null) {
+                  data.close();
                }
-            }
-            currentWell = well;
-            siteCount = 0;
-
-            data = gui_.data().createMultipageTIFFDatastore(saveLocation
-                    + File.separator + well, true, false);
-            data.setSummaryMetadata(smb.build());
-            dw = gui_.displays().createDisplay(data);
-            DisplaySettings.Builder dsb = gui_.displays().getStandardDisplaySettings().copyBuilder();
-            ChannelDisplaySettings.Builder cdb
-                    = gui_.displays().channelDisplaySettingsBuilder();
-            int chCounter = 0;
-            for (ChannelInfo ci : channelPanel_.getChannels()) {
-               if (ci.use_) {
-                  cdb.color(ci.displayColor_);
-                  dsb.channel(chCounter, cdb.build());
-                  chCounter++;
-               }
-            }
-            dw.setDisplaySettings(dsb.build());
-            // gui_.displays().manage(data);
-            if (useOnTheFlyProcessorPipeline_.isSelected()) {
-               // Create a blocking pipeline
-               pipeline_ = gui_.data().copyApplicationPipeline(data, true);
-            }
-            for (AnalysisModule analysisModule : analysisModules) {
-               analysisModule.reset();
-               // reset cell and object counters
-               parmsMap.get(analysisModule).put(AnalysisModule.CELLCOUNT, 0);
-               parmsMap.get(analysisModule).put(AnalysisModule.OBJECTCOUNT, 0);
-            }
-         }
-
-         if (data != null) {
-            int currentChannel = 0;
-            Image[] imgs = new Image[nrChannels];
-            MultiStagePosition.goToPosition(msp, gui_.getCMMCore());
-            for (ChannelInfo ci : channelPanel_.getChannels()) {
-               if (ci.use_) {
-                  gui_.getCMMCore().waitForSystem();
-                  gui_.logs().logMessage("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y);
-                  gui_.getCMMCore().setConfig(channelGroup, ci.channelName_);
-                  gui_.getCMMCore().waitForConfig(channelGroup, ci.channelName_);
-                  gui_.getCMMCore().setExposure(ci.exposureTimeMs_);
-                  imgs[currentChannel] = snapAndInsertImage(data, msp, siteCount, currentChannel);
-                  currentChannel++;
-               }
-            }
-            int nrImagingChannels = currentChannel;
-
-            // Analyze and zap
-            boolean zapThem = false;
-            List<ResultRois> resultRoiList = new ArrayList<ResultRois>();
-            for (int amNr = 0; amNr < analysisModules.size(); amNr++) {
-               AnalysisModule analysisModule = analysisModules.get(amNr);
-               ResultRois rr = analysisModule.analyze(gui_, imgs, null, 
-                       parmsMap.get(analysisModule));
-               rr.reportOnZapChannel(0); // Pre-Zap
-               rr.reportOnZapChannel(convertChannelPanel_.getChannels().size() - 1);  // Post-Zap
-               resultRoiList.add(rr);
-               if (rr.getHitRois() != null && rr.getHitRois().length != 0
-                       && doZap_.isSelected()) {
-                  zapThem = true;
-
-                  // Report imaging channel intensities
-                  for (int nr : rr.getImgsToBeReported()) {
-                     ImageProcessor iProcessortmp = gui_.data().ij().createProcessor(imgs[nr]);
-                     ImagePlus ipGFP = new ImagePlus("tmp", iProcessortmp);
-                     reportIntensities(dataWriter, analysisModule.getName(), 
-                             currentWell, siteCount, ipGFP, "Hit-ch." + nr,
-                             rr.getHitRois());
-                     reportIntensities(dataWriter, analysisModule.getName(), 
-                             currentWell, siteCount, ipGFP, "NoHit-ch." + nr,
-                             rr.getNonHitRois());
+               gui_.logs().logMessage("Starting well: " + well);
+               if (!currentWell.equals("")) {
+                  for (AnalysisModule am : analysisModules) {
+                     recordWellSummary(resultsWriter, am.getName(), currentWell,
+                             parmsMap.get(am));
                   }
                }
+               currentWell = well;
+               siteCount = 0;
+
+               data = gui_.data().createMultipageTIFFDatastore(saveLocation
+                       + File.separator + well, true, false);
+               data.setSummaryMetadata(smb.build());
+               dw = gui_.displays().createDisplay(data);
+               DisplaySettings.Builder dsb = gui_.displays().getStandardDisplaySettings().copyBuilder();
+               ChannelDisplaySettings.Builder cdb
+                       = gui_.displays().channelDisplaySettingsBuilder();
+               int chCounter = 0;
+               for (ChannelInfo ci : channelPanel_.getChannels()) {
+                  if (ci.use_) {
+                     cdb.color(ci.displayColor_);
+                     dsb.channel(chCounter, cdb.build());
+                     chCounter++;
+                  }
+               }
+               dw.setDisplaySettings(dsb.build());
+               // gui_.displays().manage(data);
+               if (useOnTheFlyProcessorPipeline_.isSelected()) {
+                  // Create a blocking pipeline
+                  pipeline_ = gui_.data().copyApplicationPipeline(data, true);
+               }
+               for (AnalysisModule analysisModule : analysisModules) {
+                  analysisModule.reset();
+                  // reset cell and object counters
+                  parmsMap.get(analysisModule).put(AnalysisModule.CELLCOUNT, 0);
+                  parmsMap.get(analysisModule).put(AnalysisModule.OBJECTCOUNT, 0);
+               }
             }
 
-            if (zapThem) {
-
-               String acq2 = msp.getLabel();
-               gui_.logs().logMessage("Imaging cells to be zapped at site: " + acq2);
-
-               int offset = 0;
-               for (int i = 0; i < convertChannelPanel_.getChannels().size(); i++) {
-                  ChannelInfo ci = convertChannelPanel_.getChannels().get(i);
+            if (data != null) {
+               int currentChannel = 0;
+               Image[] imgs = new Image[nrChannels];
+               MultiStagePosition.goToPosition(msp, gui_.getCMMCore());
+               for (ChannelInfo ci : channelPanel_.getChannels()) {
                   if (ci.use_) {
                      gui_.getCMMCore().waitForSystem();
                      gui_.logs().logMessage("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y);
-                     if (ci.purpose_.equals(ConvertChannelPanel.PRE)) {
-                        offset += 1;
-                     }
-                     if (!ci.purpose_.equals(ConvertChannelPanel.PRE)
-                             && !ci.purpose_.equals(ConvertChannelPanel.POST)) { // zap channel
-                        ResultRois rr = resultRoiList.get(i - offset);
+                     gui_.getCMMCore().setConfig(channelGroup, ci.channelName_);
+                     gui_.getCMMCore().waitForConfig(channelGroup, ci.channelName_);
+                     gui_.getCMMCore().setExposure(ci.exposureTimeMs_);
+                     imgs[currentChannel] = snapAndInsertImage(data, msp, siteCount, currentChannel);
+                     currentChannel++;
+                  }
+               }
+               int nrImagingChannels = currentChannel;
 
-                        zap(rr.getHitRois());  // send ROIs to the device
-                        if (rr.getHitRois() != null && rr.getHitRois().length > 0) {
+               // Analyze and zap
+               boolean zapThem = false;
+               List<ResultRois> resultRoiList = new ArrayList<ResultRois>();
+               for (int amNr = 0; amNr < analysisModules.size(); amNr++) {
+                  AnalysisModule analysisModule = analysisModules.get(amNr);
+                  ResultRois rr = analysisModule.analyze(gui_, imgs, null,
+                          parmsMap.get(analysisModule));
+                  rr.reportOnZapChannel(0); // Pre-Zap
+                  rr.reportOnZapChannel(convertChannelPanel_.getChannels().size() - 1);  // Post-Zap
+                  resultRoiList.add(rr);
+                  if (rr.getHitRois() != null && rr.getHitRois().length != 0
+                          && doZap_.isSelected()) {
+                     zapThem = true;
+
+                     // Report imaging channel intensities
+                     for (int nr : rr.getImgsToBeReported()) {
+                        ImageProcessor iProcessortmp = gui_.data().ij().createProcessor(imgs[nr]);
+                        ImagePlus ipGFP = new ImagePlus("tmp", iProcessortmp);
+                        reportIntensities(dataWriter, analysisModule.getName(),
+                                currentWell, siteCount, ipGFP, "Hit-ch." + nr,
+                                rr.getHitRois());
+                        reportIntensities(dataWriter, analysisModule.getName(),
+                                currentWell, siteCount, ipGFP, "NoHit-ch." + nr,
+                                rr.getNonHitRois());
+                     }
+                  }
+               }
+
+               if (zapThem) {
+
+                  String acq2 = msp.getLabel();
+                  gui_.logs().logMessage("Imaging cells to be zapped at site: " + acq2);
+
+                  int offset = 0;
+                  for (int i = 0; i < convertChannelPanel_.getChannels().size(); i++) {
+                     ChannelInfo ci = convertChannelPanel_.getChannels().get(i);
+                     if (ci.use_) {
+                        gui_.getCMMCore().waitForSystem();
+                        gui_.logs().logMessage("Site: " + msp.getLabel() + ", x: " + msp.get(0).x + ", y: " + msp.get(0).y);
+                        if (ci.purpose_.equals(ConvertChannelPanel.PRE)) {
+                           offset += 1;
+                        }
+                        if (!ci.purpose_.equals(ConvertChannelPanel.PRE)
+                                && !ci.purpose_.equals(ConvertChannelPanel.POST)) { // zap channel
+                           ResultRois rr = resultRoiList.get(i - offset);
+
+                           zap(rr.getHitRois());  // send ROIs to the device
+                           if (rr.getHitRois() != null && rr.getHitRois().length > 0) {
+                              gui_.getCMMCore().setConfig(channelGroup, ci.channelName_);
+                              gui_.getCMMCore().waitForConfig(channelGroup, ci.channelName_);
+                              gui_.getCMMCore().setExposure(ci.exposureTimeMs_);
+                              imgs[currentChannel] = snapAndInsertImage(data, msp, siteCount, currentChannel);
+                           }
+                        } else {
                            gui_.getCMMCore().setConfig(channelGroup, ci.channelName_);
                            gui_.getCMMCore().waitForConfig(channelGroup, ci.channelName_);
                            gui_.getCMMCore().setExposure(ci.exposureTimeMs_);
                            imgs[currentChannel] = snapAndInsertImage(data, msp, siteCount, currentChannel);
                         }
-                     } else {
-                        gui_.getCMMCore().setConfig(channelGroup, ci.channelName_);
-                        gui_.getCMMCore().waitForConfig(channelGroup, ci.channelName_);
-                        gui_.getCMMCore().setExposure(ci.exposureTimeMs_);
-                        imgs[currentChannel] = snapAndInsertImage(data, msp, siteCount, currentChannel);
+
+                        currentChannel++;
                      }
-
-                     currentChannel++;
                   }
-               }
 
-               // Reporting section
-               for (ResultRois rr : resultRoiList) {
-                  // list Rois in outTable
-                  /*
+                  // Reporting section
+                  for (ResultRois rr : resultRoiList) {
+                     // list Rois in outTable
+                     /*
                   for (Roi roi : rr.getHitRois()) {
                      outTable.incrementCounter();
                      Rectangle bounds = roi.getBounds();
@@ -942,41 +942,40 @@ public class MicroNucleiForm extends MMFrame {
                      outTable.addValue(Terms.Y, y);
                      outTable.addValue(Terms.POSITION, siteCount);
                   }
-                  */
-                  for (int i = 0; i < convertChannelPanel_.getChannels().size(); i++) {
+                      */
+                     for (int i = 0; i < convertChannelPanel_.getChannels().size(); i++) {
 
-                     if (rr.getZapChannelsToBeReported().contains(i)) {
-                        ImageProcessor iProc = gui_.data().ij().createProcessor(
-                                imgs[i + nrImagingChannels]);
-                        ImagePlus ip = new ImagePlus("tmp", iProc);
-                        reportIntensities(dataWriter, rr.getName(), currentWell, 
-                                siteCount, ip, convertChannelPanel_.getPurpose(i) + "-Hit",
-                                rr.getHitRois());
-                        reportIntensities(dataWriter, rr.getName(), currentWell, 
-                                siteCount, ip, convertChannelPanel_.getPurpose(i) + "-NoHit",
-                                rr.getNonHitRois());
+                        if (rr.getZapChannelsToBeReported().contains(i)) {
+                           ImageProcessor iProc = gui_.data().ij().createProcessor(
+                                   imgs[i + nrImagingChannels]);
+                           ImagePlus ip = new ImagePlus("tmp", iProc);
+                           reportIntensities(dataWriter, rr.getName(), currentWell,
+                                   siteCount, ip, convertChannelPanel_.getPurpose(i) + "-Hit",
+                                   rr.getHitRois());
+                           reportIntensities(dataWriter, rr.getName(), currentWell,
+                                   siteCount, ip, convertChannelPanel_.getPurpose(i) + "-NoHit",
+                                   rr.getNonHitRois());
+                        }
                      }
+
+                     // outTable.show(outTableName);
                   }
-
-                  // outTable.show(outTableName);
-
                }
+               siteCount++;
+               count++;
             }
-            siteCount++;
-            count++;
          }
-      }
-      
-      if (data != null) {
-         data.freeze();
-         gui_.displays().manage(data);
-      }
-      
-      gui_.getCMMCore().setExposure(originalExposure);
 
-      // add listeners to our ResultsTable that let user click on row and go 
-      // to cell that was found
-      /*
+         if (data != null) {
+            data.freeze();
+            gui_.displays().manage(data);
+         }
+
+         gui_.getCMMCore().setExposure(originalExposure);
+
+         // add listeners to our ResultsTable that let user click on row and go 
+         // to cell that was found
+         /*
       TextPanel tp;
       TextWindow win;
       Window frame = WindowManager.getWindow(outTableName);
@@ -990,18 +989,23 @@ public class MicroNucleiForm extends MMFrame {
          frame.toFront();
          frame.setVisible(true);
       }
-      */
+          */
+         // record the results from the last well:
+         for (AnalysisModule am : analysisModules) {
+            recordWellSummary(resultsWriter, am.getName(), currentWell,
+                    parmsMap.get(am));
+         }
 
-      // record the results from the last well:
-      for (AnalysisModule am : analysisModules) {
-         recordWellSummary(resultsWriter, am.getName(), currentWell,
-                 parmsMap.get(am));
+      } catch (Exception ex) {
+         throw ex;
+      } finally {
+         resultsWriter.close();
+         dataWriter.close();
+        
       }
-
-      resultsWriter.close();
-      dataWriter.close();
+      
       if (data != null) {
-         data.freeze();
+         data.freeze();  // freezing in the finally block can lead to additional exceptions
       }
       String msg = "Analyzed " + count + " images, in " + wellCount + " wells.";
       gui_.logs().logMessage(msg);
@@ -1009,10 +1013,10 @@ public class MicroNucleiForm extends MMFrame {
    }
 
 
-      /**
-       * Be vary careful with this function as it will follow symlinks and
-       * delete everything it finds
-       */
+   /**
+    * Be vary careful with this function as it will follow symlinks and
+    * delete everything it finds
+    */
    private boolean delete(File f) throws IOException {
       if (f.isDirectory()) {
          for (File c : f.listFiles()) {
