@@ -95,6 +95,7 @@ import org.micromanager.internal.utils.FileDialogs;
 import org.micromanager.internal.utils.MMFrame;
 import org.micromanager.internal.utils.MMScriptException;
 import org.micromanager.internal.utils.NumberUtils;
+import org.micromanager.internal.utils.ReportingUtils;
 import org.micromanager.micronuclei.analysis.GreenCellsModule;
 
 import org.micromanager.projector.internal.ProjectorControlForm;
@@ -130,6 +131,7 @@ public class MicroNucleiForm extends MMFrame {
    private final ConvertChannelPanel convertChannelPanel_;
    private final JCheckBox doZap_;
    private final JCheckBox showMasks_;
+   private final JCheckBox useDisplay_;
 
    private final JCheckBox useOnTheFlyProcessorPipeline_;
    
@@ -137,6 +139,7 @@ public class MicroNucleiForm extends MMFrame {
    private final String SAVELOCATION = "SaveLocation";
    private final String DOZAP = "DoZap";
    private final String SHOWMASKS = "ShowMasks";
+   private final String USEDISPLAY = "Use Display";
    
    private final AtomicBoolean stop_ = new AtomicBoolean(false);
    
@@ -297,6 +300,17 @@ public class MicroNucleiForm extends MMFrame {
       });
       super.add (doZap_);
       
+      useDisplay_ = new JCheckBox("Use display");
+      useDisplay_.setSelected(settings_.getBoolean(USEDISPLAY, true));
+      useDisplay_.setFont(arialSmallFont_);
+      useDisplay_.addActionListener(new ActionListener() {
+         @Override
+         public void actionPerformed(ActionEvent ae) {
+              settings_.putBoolean(USEDISPLAY, useDisplay_.isSelected());
+         }
+      });
+      super.add (useDisplay_);
+      
       showMasks_  = new JCheckBox("Show Masks");
       showMasks_.setSelected (settings_.getBoolean(SHOWMASKS, false));
       showMasks_.setFont(arialSmallFont_);
@@ -313,6 +327,7 @@ public class MicroNucleiForm extends MMFrame {
       runButton.addActionListener(new ActionListener() {
          @Override
          public void actionPerformed(ActionEvent e) {
+            settings_.putString(SAVELOCATION, saveTextField_.getText());
             RunAll myThread = new RunAll();
             myThread.init(false);
 
@@ -680,7 +695,12 @@ public class MicroNucleiForm extends MMFrame {
          throw new MMScriptException("No AnalysisModule used");
       }
 
-      String channelGroup = gui_.getCMMCore().getChannelGroup();
+      final String channelGroup = gui_.getCMMCore().getChannelGroup();
+      
+      if (channelGroup.isEmpty()) {
+         ReportingUtils.showError("Please set the ChannelGroup in the main window first");
+         return;
+      }
 
       //TODO: error checking for file IO!
       File fd = new File(saveLocation);
@@ -822,20 +842,23 @@ public class MicroNucleiForm extends MMFrame {
                data = gui_.data().createMultipageTIFFDatastore(saveLocation
                        + File.separator + well, true, false);
                data.setSummaryMetadata(smb.build());
-               dw = gui_.displays().createDisplay(data);
-               DisplaySettings.Builder dsb = gui_.displays().getStandardDisplaySettings().copyBuilder();
-               ChannelDisplaySettings.Builder cdb
-                       = gui_.displays().channelDisplaySettingsBuilder();
-               int chCounter = 0;
-               for (ChannelInfo ci : channelPanel_.getChannels()) {
-                  if (ci.use_) {
-                     cdb.color(ci.displayColor_);
-                     dsb.channel(chCounter, cdb.build());
-                     chCounter++;
+
+               if (useDisplay_.isSelected()) {
+                  DisplaySettings.Builder dsb = gui_.displays().getStandardDisplaySettings().copyBuilder();
+                  ChannelDisplaySettings.Builder cdb
+                          = gui_.displays().channelDisplaySettingsBuilder();
+                  int chCounter = 0;
+                  for (ChannelInfo ci : channelPanel_.getChannels()) {
+                     if (ci.use_) {
+                        cdb.color(ci.displayColor_);
+                        dsb.channel(chCounter, cdb.build());
+                        chCounter++;
+                     }
                   }
+                  dw = gui_.displays().createDisplay(data);
+                  dw.setDisplaySettings(dsb.build());
                }
-               dw.setDisplaySettings(dsb.build());
-               // gui_.displays().manage(data);
+               
                if (useOnTheFlyProcessorPipeline_.isSelected()) {
                   // Create a blocking pipeline
                   pipeline_ = gui_.data().copyApplicationPipeline(data, true);
