@@ -27,6 +27,7 @@ import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.measure.ResultsTable;
 import ij.plugin.frame.RoiManager;
+import ij.process.FloatPolygon;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
 import ij.text.TextPanel;
@@ -41,6 +42,7 @@ import java.awt.Rectangle;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.geom.AffineTransform;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -113,6 +115,8 @@ import org.micromanager.micronuclei.internal.gui.ChannelPanel;
 import org.micromanager.micronuclei.internal.gui.ConvertChannelPanel;
 import org.micromanager.micronuclei.internal.gui.ResultsListener;
 import org.micromanager.micronuclei.internal.gui.PropertyGUI;
+import org.micromanager.projector.ProjectionDevice;
+import org.micromanager.projector.ProjectorActions;
 import org.micromanager.propertymap.MutablePropertyMapView;
 
 
@@ -1137,8 +1141,6 @@ public class MicroNucleiForm extends MMFrame {
       if (rois == null || rois.length == 0) {
          return;
       }
-      ProjectorControlForm pcf
-              = ProjectorControlForm.showSingleton(gui_.getCMMCore(), gui_);
       int i;
       // convert zapRois in a Roi[] of Polygon Rois
       for (i = 0; i < rois.length; i++) {
@@ -1146,13 +1148,31 @@ public class MicroNucleiForm extends MMFrame {
          rois[i] = new PolygonRoi(poly, Roi.POLYGON);
       }
 
-      // send to the galvo device and zap them for real
+      // send to the projection device and zap them for real
       gui_.logs().logMessage("Zapping " + (i + 1) + " of " + rois.length);
+      ProjectionDevice pd = ProjectorActions.getProjectionDevice(gui_);
+      if (pd == null) {
+         ReportingUtils.showError("No Projection Device found.  Can not Zap");
+         return;
+      }
+      Map<Polygon, AffineTransform> maps = ProjectorActions.loadMapping(gui_, pd);
+      if (maps == null) {
+         ReportingUtils.showError("ProjectionDevice is not calibrated.  Please calibrate first");
+         ProjectorControlForm.showSingleton(gui_.getCMMCore(), gui_);
+         return;
+      }
+      List<FloatPolygon> transformROIs = ProjectorActions.transformROIs(rois, maps);
+      pd.loadRois(transformROIs);
+      pd.waitForDevice();
+      pd.runPolygons();
+      pd.waitForDevice();
+      /*
       pcf.setROIs(rois);
       pcf.updateROISettings();
       pcf.getDevice().waitForDevice();
       pcf.runRois();
       pcf.getDevice().waitForDevice();
+      */
 
       /*  The following was written for a Galvo conversion system
       pcf.setNrRepetitions(5);
