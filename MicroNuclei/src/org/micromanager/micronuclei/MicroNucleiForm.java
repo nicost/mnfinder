@@ -47,6 +47,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -153,6 +154,9 @@ public class MicroNucleiForm extends MMFrame {
    
    private Pipeline pipeline_;
    private long startTime_;
+   
+   private static final SimpleDateFormat DATE_FORMATTER = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z");
+
    
    public MicroNucleiForm(final Studio gui) {
       gui_ = gui;
@@ -1087,13 +1091,14 @@ public class MicroNucleiForm extends MMFrame {
               + ",c=" + channelNr + ",z=0");
       Image img = snap.get(0).copyAtCoords(coord);
 
-      Metadata md = img.getMetadata();
-      Metadata.MetadataBuilder mdb = md.copy();
-      PropertyMap ud = md.getUserData();
+      Metadata.Builder mdb = img.getMetadata().copyBuilderPreservingUUID();
+      PropertyMap.Builder udb = img.getMetadata().getUserData().copyBuilder();
+      PropertyMap ud = udb.putString("Time", DATE_FORMATTER.format(new Date())).build();
+      
 
       mdb = mdb.xPositionUm(msp.getX()).yPositionUm(msp.getY());
 
-      md = mdb.positionName(msp.getLabel()).elapsedTimeMs(
+      Metadata md = mdb.positionName(msp.getLabel()).elapsedTimeMs(
               (double) (System.currentTimeMillis() - startTime_)).userData(ud).build();
       
       img = img.copyWith(coord, md);
