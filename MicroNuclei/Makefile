@@ -19,7 +19,7 @@ SOURCEFILES = src/org/micromanager/micronuclei/MicroNucleiPlugin.java \
 				 src/org/micromanager/micronuclei/internal/gui/DragDropUtil.java 
 MMPATH = ../../micromanager2Viewer3D
 MMARTIFACTS = $(MMPATH)/dependencies/artifacts
-IJJARPATH = $(MMARTIFACTS)/imagej/ij-1.51g.jar
+IJJARPATH = $(MMARTIFACTS)/imagej/ij-1.51s.jar
 MMJARPATH = $(MMPATH)/mmstudio/MMJ_.jar
 SCIJAVAJARPATH = $(MMARTIFACTS)/compile/scijava-common-2.66.0.jar
 MMCOREJARPATH = $(MMPATH)/MMCoreJ_wrap/MMCoreJ.jar
@@ -31,8 +31,8 @@ PROJECTORJARPATH = $(MMPATH)/libraries/Projector.jar
 .SUFFIXES: .java .class
 ../MicroNuclei.jar:  $(SOURCEFILES)
 	test -d build || mkdir build
-	rm -rf build/*
-	$(JC) -source 1.8 -target 1.8 -sourcepath src -classpath $(IJJARPATH):$(MMJARPATH):$(SCIJAVAJARPATH):$(MMCOREJARPATH):$(MIGCOREJARPATH):$(MIGJARPATH):$(GUAVAJARPATH):$(PROJECTORJARPATH):. src/org/micromanager/micronuclei/*.java -d build
+	rm -rf build/org
+	$(JC) -source 1.8 -target 1.8 -sourcepath src -classpath $(IJJARPATH):$(MMJARPATH):$(MMCOREJARPATH):$(MIGCOREJARPATH):$(MIGJARPATH):$(GUAVAJARPATH):$(PROJECTORJARPATH):$(SCIJAVAJARPATH):. src/org/micromanager/micronuclei/MicroNucleiPlugin.java -d build
 	## Work around bug in 'jar': jar cf MM_.jar -C bin/ bin/* does not work
 	cd build && jar cf ../../MicroNuclei.jar * 
 
@@ -41,5 +41,5 @@ classes: $(CLASSES:.java)
 default: ../MicroNuclei.jar
 
 clean:
-	$(RM) -r build/*
+	$(RM) -r build/org
 	$(RM) ../MicroNuclei.jar 
