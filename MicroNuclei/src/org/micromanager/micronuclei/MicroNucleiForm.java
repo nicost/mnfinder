@@ -41,7 +41,6 @@ import java.awt.Polygon;
 import java.awt.Rectangle;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.geom.AffineTransform;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -106,6 +105,7 @@ import org.micromanager.projector.internal.ProjectorControlForm;
 import org.micromanager.micronuclei.analysis.JustNucleiModule;
 import org.micromanager.micronuclei.analysis.MicroNucleiAnalysisModule;
 import org.micromanager.micronuclei.analysis.NuclearSizeModule;
+import org.micromanager.micronuclei.analysis.NucleoCytoplasmicRatio;
 import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
@@ -166,13 +166,14 @@ public class MicroNucleiForm extends MMFrame {
               
       // Hard coded analysis modules.  This should be changed to make the
       // modules disoverable at run-time      
-      analysisModules_ = new ArrayList<AnalysisModule>();
+      analysisModules_ = new ArrayList<>();
       // For now, whenever you write a new module, add it here
       analysisModules_.add(new MicroNucleiAnalysisModule());
       analysisModules_.add(new JustNucleiModule());
       analysisModules_.add(new GreenCellsModule());
       analysisModules_.add(new NuclearSizeModule());
-      analysisModulesNames_ = new ArrayList<String>();
+      analysisModules_.add(new NucleoCytoplasmicRatio());
+      analysisModulesNames_ = new ArrayList<>();
       for (AnalysisModule module : analysisModules_) {
          analysisModulesNames_.add(module.getName());
       }
@@ -194,11 +195,8 @@ public class MicroNucleiForm extends MMFrame {
       acqPanel.add(saveTextField_);
       
       final JButton dirButton = myButton(buttonSize_, arialSmallFont_, "...");
-      dirButton.addActionListener(new java.awt.event.ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent e) {
-            dirActionPerformed(e);
-         }
+      dirButton.addActionListener((ActionEvent e) -> {
+         dirActionPerformed(e);
       });
       acqPanel.add(dirButton, "wrap");
 
@@ -225,13 +223,10 @@ public class MicroNucleiForm extends MMFrame {
       
       useOnTheFlyProcessorPipeline_ = new JCheckBox("Use On-The-Fly Processor Pipeline");
       useOnTheFlyProcessorPipeline_.setSelected(
-              !gui.getDataManager().getApplicationPipelineConfigurators().isEmpty());
-      useOnTheFlyProcessorPipeline_.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent ae) {
-            if (useOnTheFlyProcessorPipeline_.isSelected()) {
-               ((MMStudio) gui).getPipelineFrame().setVisible(true);
-            }
+              !gui.getDataManager().getApplicationPipelineConfigurators(false).isEmpty());
+      useOnTheFlyProcessorPipeline_.addActionListener((ActionEvent ae) -> {
+         if (useOnTheFlyProcessorPipeline_.isSelected()) {
+            ((MMStudio) gui).getPipelineFrame().setVisible(true);
          }
       });
       analysisPanel.add(useOnTheFlyProcessorPipeline_, "span 2, center, wrap");
@@ -243,39 +238,33 @@ public class MicroNucleiForm extends MMFrame {
       final JComboBox analysisModulesBox = new JComboBox (unUsedModules(
               analysisModules_, modulesInUse).toArray()); 
       final JButton addModuleButton = new JButton ("Add");
-      addModuleButton.addActionListener(new ActionListener(){
-         @Override
-         public void actionPerformed(ActionEvent e) {
-            String moduleName = (String) analysisModulesBox.getSelectedItem();
-            boolean found = false;
-            for (int i = 0; i < analysisModules_.size() && !found; i++) {
-               if (analysisModules_.get(i).getName().equals(moduleName)) {
-                  found = true;
-                  modulesInUse.add(moduleName);
-                  settings_.putStringList(MODULELIST, modulesInUse);
-                  JPanel panel =  makeModulePanel(new JPanel(new MigLayout(
-              "flowx, fill, insets 8")),  analysisModules_.get(i));
-                  modulesPane.addTab(moduleName, panel); 
-                  analysisModulesBox.removeItem(moduleName);
-                  convertChannelPanel_.addConvertChannel();     
-                  ourForm.pack();
-               }
+      addModuleButton.addActionListener((ActionEvent e) -> {
+         String moduleName = (String) analysisModulesBox.getSelectedItem();
+         boolean found = false;
+         for (int i = 0; i < analysisModules_.size() && !found; i++) {
+            if (analysisModules_.get(i).getName().equals(moduleName)) {
+               found = true;
+               modulesInUse.add(moduleName);
+               settings_.putStringList(MODULELIST, modulesInUse);
+               JPanel panel =  makeModulePanel(new JPanel(new MigLayout(
+                       "flowx, fill, insets 8")),  analysisModules_.get(i));
+               modulesPane.addTab(moduleName, panel);
+               analysisModulesBox.removeItem(moduleName);
+               convertChannelPanel_.addConvertChannel();
+               ourForm.pack();
             }
          }
       });
       
       final JButton removeModuleButton = new JButton("Remove");
-      removeModuleButton.addActionListener(new ActionListener(){
-         @Override
-         public void actionPerformed(ActionEvent e) {
-            String moduleName = modulesPane.getTitleAt(modulesPane.getTabCount() - 1);
-            modulesPane.remove(modulesPane.getTabCount() - 1);
-            modulesInUse.remove(moduleName);
-            settings_.putStringList(MODULELIST, modulesInUse);
-            analysisModulesBox.addItem(moduleName);
-            convertChannelPanel_.removeConvertChannel();
-            ourForm.pack();
-         }
+      removeModuleButton.addActionListener((ActionEvent e) -> {
+         String moduleName = modulesPane.getTitleAt(modulesPane.getTabCount() - 1);
+         modulesPane.remove(modulesPane.getTabCount() - 1);
+         modulesInUse.remove(moduleName);
+         settings_.putStringList(MODULELIST, modulesInUse);
+         analysisModulesBox.addItem(moduleName);
+         convertChannelPanel_.removeConvertChannel();
+         ourForm.pack();
       });
       
       analysisPanel.add(analysisModulesBox);
@@ -300,66 +289,47 @@ public class MicroNucleiForm extends MMFrame {
       doZap_ = new JCheckBox("Zap");
       doZap_.setSelected(settings_.getBoolean(DOZAP, false));
       doZap_.setFont(arialSmallFont_);
-      doZap_.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent ae) {
-              settings_.putBoolean(DOZAP, doZap_.isSelected());
-         }
+      doZap_.addActionListener((ActionEvent ae) -> {
+         settings_.putBoolean(DOZAP, doZap_.isSelected());
       });
       super.add (doZap_);
       
       useDisplay_ = new JCheckBox("Use display");
       useDisplay_.setSelected(settings_.getBoolean(USEDISPLAY, true));
       useDisplay_.setFont(arialSmallFont_);
-      useDisplay_.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent ae) {
-              settings_.putBoolean(USEDISPLAY, useDisplay_.isSelected());
-         }
+      useDisplay_.addActionListener((ActionEvent ae) -> {
+         settings_.putBoolean(USEDISPLAY, useDisplay_.isSelected());
       });
       super.add (useDisplay_);
       
       showMasks_  = new JCheckBox("Show Masks");
       showMasks_.setSelected (settings_.getBoolean(SHOWMASKS, false));
       showMasks_.setFont(arialSmallFont_);
-      showMasks_.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent ae) {
-              settings_.putBoolean(SHOWMASKS, showMasks_.isSelected());
-         }
+      showMasks_.addActionListener((ActionEvent ae) -> {
+         settings_.putBoolean(SHOWMASKS, showMasks_.isSelected());
       });
       super.add (showMasks_, "wrap");
       
             
       final JButton runButton = myButton(buttonSize_, arialSmallFont_, "Run");
-      runButton.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent e) {
-            settings_.putString(SAVELOCATION, saveTextField_.getText());
-            RunAll myThread = new RunAll();
-            myThread.init(false);
-
-         }
+      runButton.addActionListener((ActionEvent e) -> {
+         settings_.putString(SAVELOCATION, saveTextField_.getText());
+         RunAll myThread = new RunAll();
+         myThread.init(false);
       });
       super.add(runButton, "span 3, split 3, center");
 
       final JButton stopButton = myButton(buttonSize_, arialSmallFont_, "Stop");
-      stopButton.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent e) {
-            stop_.set(true);
-         }
-      } );
+      stopButton.addActionListener((ActionEvent e) -> {
+         stop_.set(true);
+      });
       super.add(stopButton, "center");
       
       final JButton testButton = myButton(buttonSize_, arialSmallFont_, "Test");
-      testButton.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent e) {
-            RunAll myThread = new RunAll();
-            myThread.init(true);
-         }
-      } );
+      testButton.addActionListener((ActionEvent e) -> {
+         RunAll myThread = new RunAll();
+         myThread.init(true);
+      });
       super.add(testButton, "center, wrap");
             
 
@@ -387,7 +357,7 @@ public class MicroNucleiForm extends MMFrame {
    
    private List<String> unUsedModules(List<AnalysisModule> analysisModules, 
            List<String> modulesInUse) {
-      List<String> unUsedModules = new ArrayList<String>();
+      List<String> unUsedModules = new ArrayList<>();
       for (AnalysisModule module : analysisModules) {
          if (!modulesInUse.contains(module.getName())) {
             unUsedModules.add(module.getName());
@@ -470,7 +440,7 @@ public class MicroNucleiForm extends MMFrame {
     * @return the first AnalysisModule with this name or null if not found
     */
    private List<AnalysisModule> modulesFromNames(List<String> names) {
-      List<AnalysisModule> lam = new ArrayList<AnalysisModule>();
+      List<AnalysisModule> lam = new ArrayList<>();
       for (String name : names) {
          for (AnalysisModule am : analysisModules_) {
             if (am.getName().equals(name)) {
@@ -776,7 +746,7 @@ public class MicroNucleiForm extends MMFrame {
       // start cycling through the sites and group everything by well
       int count = 0;
       int siteCount = 0;
-      Map<AnalysisModule, JSONObject> parmsMap = new HashMap<AnalysisModule, JSONObject> 
+      Map<AnalysisModule, JSONObject> parmsMap = new HashMap<> 
         (analysisModules.size());
       for (AnalysisModule am : analysisModules) {
          parmsMap.put(am, analysisSettings(showMasks_.isSelected()));
@@ -790,7 +760,7 @@ public class MicroNucleiForm extends MMFrame {
       DisplayWindow dw;
 
       int nrChannels = 0;
-      List<String> channelNames = new ArrayList<String>();
+      List<String> channelNames = new ArrayList<>();
       for (ChannelInfo ci : channelPanel_.getChannels()) {
          if (ci.use_) {
             channelNames.add(ci.channelName_);
@@ -898,7 +868,7 @@ public class MicroNucleiForm extends MMFrame {
 
                // Analyze and zap
                boolean zapThem = false;
-               List<ResultRois> resultRoiList = new ArrayList<ResultRois>();
+               List<ResultRois> resultRoiList = new ArrayList<>();
                for (int amNr = 0; amNr < analysisModules.size(); amNr++) {
                   AnalysisModule analysisModule = analysisModules.get(amNr);
                   ResultRois rr = analysisModule.analyze(gui_, imgs, null,
