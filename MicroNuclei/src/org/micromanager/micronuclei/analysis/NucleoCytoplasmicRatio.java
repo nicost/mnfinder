@@ -18,6 +18,19 @@
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES. 
 package org.micromanager.micronuclei.analysis;
 
+import boofcv.alg.filter.binary.BinaryImageOps;
+import boofcv.alg.filter.binary.Contour;
+import boofcv.alg.filter.binary.GThresholdImageOps;
+import boofcv.alg.misc.PixelMath;
+import boofcv.core.image.ConvertImage;
+import boofcv.struct.ConnectRule;
+import boofcv.struct.image.GrayI16;
+import boofcv.struct.image.GrayS16;
+import boofcv.struct.image.GrayS32;
+import boofcv.struct.image.GrayU16;
+import boofcv.struct.image.GrayU8;
+import boofcv.struct.image.ImageGray;
+import georegression.struct.point.Point2D_I32;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.Roi;
@@ -29,6 +42,7 @@ import ij.process.ImageProcessor;
 import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.micromanager.Studio;
@@ -39,6 +53,8 @@ import static org.micromanager.micronuclei.analysisinterface.AnalysisModule.CELL
 import static org.micromanager.micronuclei.analysisinterface.AnalysisModule.OBJECTCOUNT;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.ResultRois;
+import org.micromanager.micronuclei.utilities.BinaryListOps;
+import org.micromanager.pointandshootanalysis.data.BoofCVImageConverter;
 
 /**
  *
@@ -151,7 +167,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       IJ.run(nuclIp, "Subtract Background...", "rolling=5 sliding");
       // Pre-filter to improve nuclear detection and slightly enlarge the masks
       IJ.run(nuclIp, "Smooth", "");
-      IJ.run(nuclIp, "Gaussian Blur...", "sigma=5.0");
+      IJ.run(nuclIp, "Gaussian Blur...", "sigma=3.0");
 
       // get the nuclear masks 
       IJ.setAutoThreshold(nuclIp, "Otsu dark");
@@ -162,8 +178,75 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       // eroding normall)
       IJ.run(nuclIp, "Options...", "iterations=1 count=1 black pad edm=Overwrite do=Close");
       IJ.run(nuclIp, "Watershed", "");
-
+      ImageGray igNuc = BoofCVImageConverter.convert(nuclIp.getProcessor(), false);
+      GrayU8 binary = new GrayU8(igNuc.width,igNuc.height);
+      GThresholdImageOps.threshold(igNuc, binary, 10, false);
+      GrayS32 contourImg = new GrayS32(igNuc.getWidth(), igNuc.getHeight());
+      List<Contour> contours = 
+                    BinaryImageOps.contour(binary, ConnectRule.FOUR, contourImg);
+      List<List<Point2D_I32>> nuclearClusters = 
+                    BinaryImageOps.labelToClusters(contourImg, contours.size(), null);
+      List<List<Point2D_I32>> cytoClusters = new ArrayList<>();
+      for (List<Point2D_I32> cluster : nuclearClusters) {
+         Set<Point2D_I32> expandedNuclearCluster = BinaryListOps.listToSet(cluster);
+         // this defines an "empty" ring between nucleus and cytoplasm
+         for (int i = 0; i < 2; i++) {
+            expandedNuclearCluster = 
+                 BinaryListOps.dilate4_2D_I32(expandedNuclearCluster, igNuc.width, igNuc.height);
+         }
+         Set<Point2D_I32>cytoCluster = 
+                 BinaryListOps.dilate4_2D_I32(expandedNuclearCluster, igNuc.width, igNuc.height);
+         // this defines the "thickness" of the cytoplasmic ring
+         for (int i = 0; i < 4; i++) {
+            cytoCluster = 
+                 BinaryListOps.dilate4_2D_I32(cytoCluster, igNuc.width, igNuc.height);
+         }
+         cytoCluster = BinaryListOps.subtract(cytoCluster, expandedNuclearCluster);
+         cytoClusters.add(BinaryListOps.setToList(cytoCluster));
+      }
+      
+      // Now get average intensities under nuclear mask and cytoplasmic mask
+      GrayU16 originalImg = (GrayU16) BoofCVImageConverter.convert(nuclIProcessor, false);
+      for (int i = 0; i < nuclearClusters.size() && i < cytoClusters.size(); i++) {
+         List<Point2D_I32> nucleus = nuclearClusters.get(i);
+         double sum = 0.0;
+         for (Point2D_I32 p : nucleus) {
+            sum += originalImg.get(p.x, p.y);
+         }
+         double nAvg = sum / nucleus.size();
+         List<Point2D_I32> cyto = cytoClusters.get(i);
+         sum = 0.0;
+         for (Point2D_I32 p : cyto) {
+            sum += originalImg.get(p.x, p.y);
+         }
+         double cAvg = sum / cyto.size();
+         System.out.println("" + i + ": " + nAvg + ", " + cAvg + ", " + nAvg / cAvg);
+      }
+      
+      
+      
+      /**
+       * Uncomment to display the nuclear and cytoplasmic masks
+       */
+      GrayU8 dispImg = new GrayU8(igNuc.getWidth(), igNuc.getHeight());
+      for (List<Point2D_I32> cluster : nuclearClusters) {
+         for (Point2D_I32 p : cluster) {
+            dispImg.set(p.x, p.y, dispImg.get(p.x, p.y) + 30);
+         }
+      }
+      for (List<Point2D_I32> cluster : cytoClusters) {
+         for (Point2D_I32 p : cluster) {
+            dispImg.set(p.x, p.y, dispImg.get(p.x, p.y) + 60);
+         }
+      }
+      ImageProcessor convert = BoofCVImageConverter.convert(dispImg, false);
+      ImagePlus showMe = new ImagePlus("Boof", convert);
+      showMe.show();
+      //*/
+      
+      
       // Now measure and store masks in ROI manager
+      /*
       IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
       String analyzeParticlesParameters =  "size=" + (Double) minSizeN_.get() + "-" + 
               (Double) maxSizeN_.get() + " exclude clear add";
@@ -175,6 +258,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       IJ.run(cytoPlusNucIp, "Options...", "iteration=2 count=1 black pad edm=Overwrite do=Dilate");
       ImagePlus cytoIp = (new ImageCalculator()).run("Subtract create", cytoPlusNucIp, nuclIp);
       cytoIp.show();
+   */
 
       // prepare the masks to be send to the DMD
       Roi[] allNuclei = roiManager_.getRoisAsArray();
