@@ -21,11 +21,7 @@ package org.micromanager.micronuclei.analysis;
 import boofcv.alg.filter.binary.BinaryImageOps;
 import boofcv.alg.filter.binary.Contour;
 import boofcv.alg.filter.binary.GThresholdImageOps;
-import boofcv.alg.misc.PixelMath;
-import boofcv.core.image.ConvertImage;
 import boofcv.struct.ConnectRule;
-import boofcv.struct.image.GrayI16;
-import boofcv.struct.image.GrayS16;
 import boofcv.struct.image.GrayS32;
 import boofcv.struct.image.GrayU16;
 import boofcv.struct.image.GrayU8;
@@ -35,8 +31,6 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.Roi;
 import ij.measure.Calibration;
-import ij.plugin.Duplicator;
-import ij.plugin.ImageCalculator;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import java.awt.Rectangle;
@@ -54,7 +48,7 @@ import static org.micromanager.micronuclei.analysisinterface.AnalysisModule.OBJE
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.ResultRois;
 import org.micromanager.micronuclei.utilities.BinaryListOps;
-import org.micromanager.pointandshootanalysis.data.BoofCVImageConverter;
+import org.micromanager.imageprocessing.BoofCVImageConverter;
 
 /**
  *
