@@ -471,6 +471,9 @@ public class MicroNucleiForm extends MMFrame {
             gui_.getLogManager().showError(ex, "Error during acquisition");
          } catch (org.micromanager.data.DatastoreRewriteException drex) {
             gui_.getLogManager().showError(drex, "Failed to save data.");
+         }
+         catch (AnalysisException ae) {
+            gui_.logs().showError(ae.getMessage());
          } catch (Exception ex) {
             gui_.getLogManager().showError(ex, "Error during acquisition");
          } finally {
@@ -570,7 +573,7 @@ public class MicroNucleiForm extends MMFrame {
 
                try {
                   Coords.CoordsBuilder builder = store.getAnyImage().getCoords().copyBuilder();
-                  builder.channel(0);
+                  builder.channel(0).time(0);
                   int nrPositions = store.getAxisLength(Coords.STAGE_POSITION);
                   int nrChannels = store.getAxisLength(Coords.CHANNEL);
                   Image[] imgs = new Image[nrChannels];

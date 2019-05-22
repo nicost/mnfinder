@@ -1,8 +1,4 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
+
 package org.micromanager.micronuclei.utilities;
 
 import ij.IJ;
@@ -13,7 +9,7 @@ import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
 import mmcorej.TaggedImage;
 import org.micromanager.data.Image;
-import org.micromanager.internal.utils.ImageUtils;
+import org.micromanager.internal.utils.imageanalysis.ImageUtils;
 
 /**
  *

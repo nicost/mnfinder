@@ -16,16 +16,21 @@
 //               IN NO EVENT SHALL THE COPYRIGHT OWNER OR
 //               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES. 
+
 package org.micromanager.micronuclei.analysis;
 
 import boofcv.alg.filter.binary.BinaryImageOps;
 import boofcv.alg.filter.binary.Contour;
 import boofcv.alg.filter.binary.GThresholdImageOps;
+import boofcv.alg.filter.blur.GBlurImageOps;
+import boofcv.alg.misc.GImageStatistics;
+import boofcv.alg.nn.KdTreePoint2D_F32;
 import boofcv.struct.ConnectRule;
 import boofcv.struct.image.GrayS32;
 import boofcv.struct.image.GrayU16;
 import boofcv.struct.image.GrayU8;
 import boofcv.struct.image.ImageGray;
+import georegression.struct.point.Point2D_F32;
 import georegression.struct.point.Point2D_I32;
 import ij.IJ;
 import ij.ImagePlus;
@@ -35,8 +40,15 @@ import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import java.awt.Rectangle;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import org.ddogleg.nn.FactoryNearestNeighbor;
+import org.ddogleg.nn.NearestNeighbor;
+import org.ddogleg.nn.NnData;
+import org.ddogleg.struct.FastQueue;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.micromanager.Studio;
@@ -48,7 +60,7 @@ import static org.micromanager.micronuclei.analysisinterface.AnalysisModule.OBJE
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.ResultRois;
 import org.micromanager.micronuclei.utilities.BinaryListOps;
-import org.micromanager.imageprocessing.BoofCVImageConverter;
+import org.micromanager.internal.utils.imageanalysis.BoofCVImageConverter;
 
 /**
  *
@@ -122,7 +134,20 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
 
    @Override
    public ResultRois analyze(Studio mm, Image[] imgs, Roi userRoi, JSONObject parms) throws AnalysisException {
-      Image nuclImg = imgs[(int) nuclearChannel_.get() - 1];
+      int nC = (int) nuclearChannel_.get() - 1;
+      if (nC < 0 || nC > imgs.length - 1) {
+         String msg = "Channel nr. for nuclei should be between 1 and " + (imgs.length + 1);
+         throw new AnalysisException(msg);
+      }
+      int cC = (int) testChannel_.get() - 1;
+      if (cC < 0 || cC > imgs.length - 1) {
+          String msg = "Channel nr. for cytoplasm should be between 1 and " + (imgs.length + 1);
+         throw new AnalysisException(msg);
+      }
+            
+      Image nuclImg = imgs[nC];
+      Image cytoImg = imgs[cC];
+      
       ImageProcessor nuclIProcessor = mm.data().ij().createProcessor(nuclImg);
       Rectangle userRoiBounds = null;
       if (userRoi != null) {
@@ -172,19 +197,30 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       // eroding normall)
       IJ.run(nuclIp, "Options...", "iterations=1 count=1 black pad edm=Overwrite do=Close");
       IJ.run(nuclIp, "Watershed", "");
+      // debatable: shrinc the nuclei to make sure we don't get cytoplasm
+      IJ.run(nuclIp, "Options...", "iterations=1 count=1 black pad edm=Overwrite do=Erode");
       ImageGray igNuc = BoofCVImageConverter.convert(nuclIp.getProcessor(), false);
+      ImageGray igCyto = BoofCVImageConverter.mmToBoofCV(cytoImg, false);
       GrayU8 binary = new GrayU8(igNuc.width,igNuc.height);
       GThresholdImageOps.threshold(igNuc, binary, 10, false);
       GrayS32 contourImg = new GrayS32(igNuc.getWidth(), igNuc.getHeight());
       List<Contour> contours = 
                     BinaryImageOps.contour(binary, ConnectRule.FOUR, contourImg);
-      List<List<Point2D_I32>> nuclearClusters = 
+      List<List<Point2D_I32>> tmpNuclearClusters = 
                     BinaryImageOps.labelToClusters(contourImg, contours.size(), null);
-      List<List<Point2D_I32>> cytoClusters = new ArrayList<>();
-      for (List<Point2D_I32> cluster : nuclearClusters) {
+      Map<Integer, List<Point2D_I32>> nuclearClusters = new HashMap<>(tmpNuclearClusters.size());
+      Map<Integer, Point2D_F32> centers = new HashMap<>(tmpNuclearClusters.size());
+      // cyoplasm "ring" only
+      Map<Integer, List<Point2D_I32>> cytoClusters = new HashMap<>(tmpNuclearClusters.size());
+      // nucleus plus cytoplasm
+      Map<Integer, List<Point2D_I32>> cellClusters = new HashMap<>(tmpNuclearClusters.size());
+      int index = 0;
+      for (List<Point2D_I32> cluster : tmpNuclearClusters) {
+         nuclearClusters.put(index, cluster);
+         centers.put(index, center(cluster));
          Set<Point2D_I32> expandedNuclearCluster = BinaryListOps.listToSet(cluster);
          // this defines an "empty" ring between nucleus and cytoplasm
-         for (int i = 0; i < 2; i++) {
+         for (int i = 0; i < 3; i++) {
             expandedNuclearCluster = 
                  BinaryListOps.dilate4_2D_I32(expandedNuclearCluster, igNuc.width, igNuc.height);
          }
@@ -195,26 +231,84 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
             cytoCluster = 
                  BinaryListOps.dilate4_2D_I32(cytoCluster, igNuc.width, igNuc.height);
          }
+         cellClusters.put(index, BinaryListOps.setToList(cytoCluster));
          cytoCluster = BinaryListOps.subtract(cytoCluster, expandedNuclearCluster);
-         cytoClusters.add(BinaryListOps.setToList(cytoCluster));
+         cytoClusters.put(index, BinaryListOps.setToList(cytoCluster));
+         index++;
       }
       
+      // find the n cell masks closest to this one.  Subtract neighboring cellmask from this cytoplasm mask
+      NearestNeighbor<Point2D_F32> nn = FactoryNearestNeighbor.kdtree(new KdTreePoint2D_F32());
+      List<Point2D_F32> centersList = new ArrayList<>(centers.size());
+      for (Map.Entry<Integer, Point2D_F32> entry : centers.entrySet()) {
+         centersList.add(entry.getValue());
+      }
+      nn.setPoints(centersList, true);
+      NnData<Point2D_F32> result = new NnData<>();
+      // 5 should be enough...
+      FastQueue<NnData<Point2D_F32>> fResults = new FastQueue(5, result.getClass(), true);
+      for (int i =  0; i < centersList.size(); i++) {
+         List<Point2D_I32> cyto = cytoClusters.get(i);
+         nn.findNearest(centersList.get(i), -1, 5, fResults);
+         for (int j = 0; j < fResults.size(); j++) {
+            NnData<Point2D_F32> candidate = fResults.get(j);
+            if (i != candidate.index) { // make sure to not compare against ourselves
+               List<Point2D_I32> cell = cellClusters.get(candidate.index);
+               Iterator itr = cyto.iterator();
+               while (itr.hasNext()) {
+                  Point2D_I32 next = (Point2D_I32) itr.next();
+                  if (cell.contains(next)) {
+                     itr.remove();
+                  }
+               }
+            }
+         }
+      }
+      
+      // Make cytoplasmic mask to "AND" our little cyto circles
+      GrayU16 originalCyto = (GrayU16) igCyto;
+      GrayU16 blurred = originalCyto.createSameShape(GrayU16.class);
+      GBlurImageOps.gaussian(originalCyto, blurred, -1, 3, null);
+      double minValue = GImageStatistics.min(blurred);
+      double maxValue = GImageStatistics.max(blurred);      
+      double threshold = GThresholdImageOps.computeHuang(blurred, minValue, maxValue);
+      GrayU8 cytoMask = new GrayU8(blurred.width, blurred.height);
+      GThresholdImageOps.threshold(blurred, cytoMask, threshold, false);
+      //ImageProcessor c = BoofCVImageConverter.convert(cytoMask, false);
+      //ImagePlus cyMe = new ImagePlus("Boof-CytoMask", c);
+      //cyMe.show();
+      // now do the logical "AND"
+      for (int i = 0; i < cytoClusters.size(); i++) {
+         List<Point2D_I32> cyto = cytoClusters.get(i);
+         Iterator itr = cyto.iterator();
+         while (itr.hasNext()) {
+            Point2D_I32 next = (Point2D_I32) itr.next();
+            if (cytoMask.get(next.x, next.y) == 0) {
+               itr.remove();
+            }
+         }
+      }
+      
+      
       // Now get average intensities under nuclear mask and cytoplasmic mask
-      GrayU16 originalImg = (GrayU16) BoofCVImageConverter.convert(nuclIProcessor, false);
       for (int i = 0; i < nuclearClusters.size() && i < cytoClusters.size(); i++) {
+         
          List<Point2D_I32> nucleus = nuclearClusters.get(i);
          double sum = 0.0;
          for (Point2D_I32 p : nucleus) {
-            sum += originalImg.get(p.x, p.y);
+            sum += originalCyto.get(p.x, p.y);
          }
          double nAvg = sum / nucleus.size();
+         
          List<Point2D_I32> cyto = cytoClusters.get(i);
          sum = 0.0;
          for (Point2D_I32 p : cyto) {
-            sum += originalImg.get(p.x, p.y);
+            sum += originalCyto.get(p.x, p.y);
          }
          double cAvg = sum / cyto.size();
-         System.out.println("" + i + ": " + nAvg + ", " + cAvg + ", " + nAvg / cAvg);
+         System.out.println("" + i + " x: " + (int) centers.get(i).x + ", y:" 
+                 + (int) centers.get(i).y + ", cytoAvg: " + cAvg + 
+                 ", ratio: " + nAvg / cAvg);
       }
       
       
@@ -223,12 +317,14 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
        * Uncomment to display the nuclear and cytoplasmic masks
        */
       GrayU8 dispImg = new GrayU8(igNuc.getWidth(), igNuc.getHeight());
-      for (List<Point2D_I32> cluster : nuclearClusters) {
+      for (int i = 0; i < nuclearClusters.size(); i++) {
+         List<Point2D_I32> cluster = nuclearClusters.get(i);
          for (Point2D_I32 p : cluster) {
             dispImg.set(p.x, p.y, dispImg.get(p.x, p.y) + 30);
          }
       }
-      for (List<Point2D_I32> cluster : cytoClusters) {
+      for (int i = 0; i < cytoClusters.size(); i++) {
+         List<Point2D_I32> cluster = cytoClusters.get(i);
          for (Point2D_I32 p : cluster) {
             dispImg.set(p.x, p.y, dispImg.get(p.x, p.y) + 60);
          }
@@ -293,6 +389,18 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
    @Override
    public String getDescription() {
       return DESCRIPTION;
+   }
+   
+   public static Point2D_F32 center(List<Point2D_I32> input) {
+      if (input.size() < 1) return null;
+      Point2D_F32 tmp = new Point2D_F32();
+      for (Point2D_I32 p: input) {
+         tmp.x += p.x;
+         tmp.y += p.y;
+      }
+      tmp.x /= input.size();
+      tmp.y /= input.size();
+      return tmp;
    }
    
 }
