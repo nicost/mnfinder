@@ -179,6 +179,20 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       calibration.pixelWidth = nuclImg.getMetadata().getPixelSizeUm();
       calibration.pixelHeight = nuclImg.getMetadata().getPixelSizeUm();
       calibration.setUnit("um");
+      
+      GrayU16 bNuc = (GrayU16) BoofCVImageConverter.mmToBoofCV(nuclImg, false);
+      GrayU16 bgNuc = bNuc.createSameShape(GrayU16.class);
+      GBlurImageOps.gaussian(bNuc, bgNuc, -1, 250, null);
+      /*
+      double minValue = GImageStatistics.min(blurred);
+      double maxValue = GImageStatistics.max(blurred);      
+      double threshold = GThresholdImageOps.computeHuang(blurred, minValue, maxValue);
+      GrayU8 cytoMask = new GrayU8(blurred.width, blurred.height);
+      GThresholdImageOps.threshold(blurred, cytoMask, threshold, false);
+      */
+      ImageProcessor c = BoofCVImageConverter.convert(bgNuc, false);
+      ImagePlus cyMe = new ImagePlus("Boof-bg", c);
+      cyMe.show();
 
       // Even though we are flatfielding, results are much better after
       // background subtraction.  In one test, I get about 2 fold more nuclei
