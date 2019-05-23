@@ -24,7 +24,14 @@ import boofcv.alg.filter.binary.Contour;
 import boofcv.alg.filter.binary.GThresholdImageOps;
 import boofcv.alg.filter.blur.GBlurImageOps;
 import boofcv.alg.misc.GImageStatistics;
+import boofcv.alg.misc.GPixelMath;
+import boofcv.alg.misc.ImageStatistics;
+import boofcv.alg.misc.PixelMath;
 import boofcv.alg.nn.KdTreePoint2D_F32;
+import boofcv.alg.segmentation.watershed.WatershedVincentSoille1991;
+import boofcv.core.image.ConvertImage;
+import boofcv.factory.segmentation.FactorySegmentationAlg;
+import boofcv.struct.ConfigLength;
 import boofcv.struct.ConnectRule;
 import boofcv.struct.image.GrayS32;
 import boofcv.struct.image.GrayU16;
@@ -182,7 +189,58 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       
       GrayU16 bNuc = (GrayU16) BoofCVImageConverter.mmToBoofCV(nuclImg, false);
       GrayU16 bgNuc = bNuc.createSameShape(GrayU16.class);
-      GBlurImageOps.gaussian(bNuc, bgNuc, -1, 250, null);
+      GrayS32 subNuc = bNuc.createSameShape(GrayS32.class);
+      GBlurImageOps.gaussian(bNuc, bgNuc, -1, 400, null);
+      // subtract the minimum from background to avoid values < 0 after subtraction
+      int min = boofcv.alg.misc.ImageStatistics.min(bgNuc);
+      PixelMath.minus(bgNuc, min, bgNuc);
+      PixelMath.subtract(bNuc, bgNuc, subNuc);
+      ConvertImage.convert(subNuc, bNuc);
+      GrayU16 gaussNuc = bNuc.createSameShape(GrayU16.class);
+      GBlurImageOps.gaussian(bNuc, gaussNuc, -1, 3, null);
+      int otsu2 = GThresholdImageOps.computeOtsu2(gaussNuc, boofcv.alg.misc.ImageStatistics.min(gaussNuc),
+              boofcv.alg.misc.ImageStatistics.max(gaussNuc));
+      GrayU8 thresholdedNuc = gaussNuc.createSameShape(GrayU8.class);
+      GrayU8 thresholdedNuc2 = gaussNuc.createSameShape(GrayU8.class);
+      
+      //GThresholdImageOps.localOtsu(gaussNuc, thresholdedNuc, false, ConfigLength.fixed(250), 0, 1.0, true);
+      //GThresholdImageOps.localSauvola(gaussNuc, thresholdedNuc2, ConfigLength.fixed(250), 1.0f, true);
+      
+      
+      GThresholdImageOps.threshold(gaussNuc, thresholdedNuc, otsu2, false);
+            
+      ImageProcessor d = BoofCVImageConverter.convert(thresholdedNuc, false);
+      
+      ImagePlus dyMe = new ImagePlus("Boof-thresholded", d);
+      dyMe.show();
+      IJ.run(dyMe, "Watershed", "");
+      IJ.run(dyMe, "Options...", "iterations=2 count=1 black pad edm=Overwrite do=Erode");
+      dyMe.show();
+      
+      //ImageProcessor c = BoofCVImageConverter.convert(thresholdedNuc2, false);
+      //ImagePlus cyMe = new ImagePlus("Boof-localSauvola", c);
+      //cyMe.show();
+      /*
+      WatershedVincentSoille1991 watershed = FactorySegmentationAlg.watershed(ConnectRule.FOUR);
+      GrayU8 gaussNuc8 = bNuc.createSameShape(GrayU8.class);
+      GPixelMath.multiply(gaussNuc, 255.0 / ImageStatistics.max(gaussNuc), gaussNuc);
+      ConvertImage.convert(gaussNuc, gaussNuc8);
+      watershed.process(gaussNuc8, label);
+      int regions = watershed.getTotalRegions();
+      GrayS32 ws = watershed.getOutput();
+      int max = boofcv.alg.misc.ImageStatistics.max(ws);
+      GPixelMath.multiply(ws, 255.0 / max, ws);
+      GrayU8 ws8 = ws.createSameShape(GrayU8.class);
+      ConvertImage.convert(ws, ws8);
+      ImageProcessor c = BoofCVImageConverter.convert(ws8, false);
+      ImagePlus cyMe = new ImagePlus("Boof-ws", c);
+      cyMe.show();
+      BinaryImageOps.erode8(thresholdedNuc, 1, thresholdedNuc2);
+      BinaryImageOps.dilate8(thresholdedNuc2, 1, thresholdedNuc);
+      */
+      
+      
+      
       /*
       double minValue = GImageStatistics.min(blurred);
       double maxValue = GImageStatistics.max(blurred);      
@@ -190,9 +248,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       GrayU8 cytoMask = new GrayU8(blurred.width, blurred.height);
       GThresholdImageOps.threshold(blurred, cytoMask, threshold, false);
       */
-      ImageProcessor c = BoofCVImageConverter.convert(bgNuc, false);
-      ImagePlus cyMe = new ImagePlus("Boof-bg", c);
-      cyMe.show();
+      
 
       // Even though we are flatfielding, results are much better after
       // background subtraction.  In one test, I get about 2 fold more nuclei
@@ -329,7 +385,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       
       /**
        * Uncomment to display the nuclear and cytoplasmic masks
-       */
+       *
       GrayU8 dispImg = new GrayU8(igNuc.getWidth(), igNuc.getHeight());
       for (int i = 0; i < nuclearClusters.size(); i++) {
          List<Point2D_I32> cluster = nuclearClusters.get(i);
@@ -346,7 +402,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       ImageProcessor convert = BoofCVImageConverter.convert(dispImg, false);
       ImagePlus showMe = new ImagePlus("Boof", convert);
       showMe.show();
-      //*/
+      */
       
       
       // Now measure and store masks in ROI manager
@@ -416,5 +472,5 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       tmp.y /= input.size();
       return tmp;
    }
-   
+
 }
