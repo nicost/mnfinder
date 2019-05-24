@@ -24,14 +24,10 @@ import boofcv.alg.filter.binary.Contour;
 import boofcv.alg.filter.binary.GThresholdImageOps;
 import boofcv.alg.filter.blur.GBlurImageOps;
 import boofcv.alg.misc.GImageStatistics;
-import boofcv.alg.misc.GPixelMath;
 import boofcv.alg.misc.ImageStatistics;
 import boofcv.alg.misc.PixelMath;
 import boofcv.alg.nn.KdTreePoint2D_F32;
-import boofcv.alg.segmentation.watershed.WatershedVincentSoille1991;
 import boofcv.core.image.ConvertImage;
-import boofcv.factory.segmentation.FactorySegmentationAlg;
-import boofcv.struct.ConfigLength;
 import boofcv.struct.ConnectRule;
 import boofcv.struct.image.GrayS32;
 import boofcv.struct.image.GrayU16;
@@ -42,10 +38,12 @@ import georegression.struct.point.Point2D_I32;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.Roi;
-import ij.measure.Calibration;
+import ij.plugin.filter.EDM;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
+import ij.text.TextWindow;
 import java.awt.Rectangle;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -88,6 +86,15 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
    
    private final EdgeDetectorSubModule edgeDetector_;
    private RoiManager roiManager_;
+   private TextWindow textWindow_;
+   
+   // Intermediate BoofCV images.  Keep references for efficiency
+   private GrayU16 nuclearImgBackground_;
+   private GrayS32 backgroundSubtractedNuclearImg;
+   private GrayU16 gaussNuc_;
+   private GrayS32 contourImg_;
+   private GrayU16 cytoBlurred_;
+   private GrayU8 cytoMask_;
 
    public NucleoCytoplasmicRatio() {
       // note: the type of the value when creating the AnalysisProperty determines
@@ -182,74 +189,48 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
          IJ.run(nuclIp, "Clear Outside", "");
       }
       
-      Calibration calibration = nuclIp.getCalibration();
-      calibration.pixelWidth = nuclImg.getMetadata().getPixelSizeUm();
-      calibration.pixelHeight = nuclImg.getMetadata().getPixelSizeUm();
-      calibration.setUnit("um");
-      
-      GrayU16 bNuc = (GrayU16) BoofCVImageConverter.mmToBoofCV(nuclImg, false);
-      GrayU16 bgNuc = bNuc.createSameShape(GrayU16.class);
-      GrayS32 subNuc = bNuc.createSameShape(GrayS32.class);
-      GBlurImageOps.gaussian(bNuc, bgNuc, -1, 400, null);
-      // subtract the minimum from background to avoid values < 0 after subtraction
-      int min = boofcv.alg.misc.ImageStatistics.min(bgNuc);
-      PixelMath.minus(bgNuc, min, bgNuc);
-      PixelMath.subtract(bNuc, bgNuc, subNuc);
-      ConvertImage.convert(subNuc, bNuc);
-      GrayU16 gaussNuc = bNuc.createSameShape(GrayU16.class);
-      GBlurImageOps.gaussian(bNuc, gaussNuc, -1, 3, null);
-      int otsu2 = GThresholdImageOps.computeOtsu2(gaussNuc, boofcv.alg.misc.ImageStatistics.min(gaussNuc),
-              boofcv.alg.misc.ImageStatistics.max(gaussNuc));
-      GrayU8 thresholdedNuc = gaussNuc.createSameShape(GrayU8.class);
-      GrayU8 thresholdedNuc2 = gaussNuc.createSameShape(GrayU8.class);
-      
-      //GThresholdImageOps.localOtsu(gaussNuc, thresholdedNuc, false, ConfigLength.fixed(250), 0, 1.0, true);
-      //GThresholdImageOps.localSauvola(gaussNuc, thresholdedNuc2, ConfigLength.fixed(250), 1.0f, true);
-      
-      
-      GThresholdImageOps.threshold(gaussNuc, thresholdedNuc, otsu2, false);
-            
-      ImageProcessor d = BoofCVImageConverter.convert(thresholdedNuc, false);
-      
-      ImagePlus dyMe = new ImagePlus("Boof-thresholded", d);
-      dyMe.show();
-      IJ.run(dyMe, "Watershed", "");
-      IJ.run(dyMe, "Options...", "iterations=2 count=1 black pad edm=Overwrite do=Erode");
-      dyMe.show();
-      
-      //ImageProcessor c = BoofCVImageConverter.convert(thresholdedNuc2, false);
-      //ImagePlus cyMe = new ImagePlus("Boof-localSauvola", c);
-      //cyMe.show();
-      /*
-      WatershedVincentSoille1991 watershed = FactorySegmentationAlg.watershed(ConnectRule.FOUR);
-      GrayU8 gaussNuc8 = bNuc.createSameShape(GrayU8.class);
-      GPixelMath.multiply(gaussNuc, 255.0 / ImageStatistics.max(gaussNuc), gaussNuc);
-      ConvertImage.convert(gaussNuc, gaussNuc8);
-      watershed.process(gaussNuc8, label);
-      int regions = watershed.getTotalRegions();
-      GrayS32 ws = watershed.getOutput();
-      int max = boofcv.alg.misc.ImageStatistics.max(ws);
-      GPixelMath.multiply(ws, 255.0 / max, ws);
-      GrayU8 ws8 = ws.createSameShape(GrayU8.class);
-      ConvertImage.convert(ws, ws8);
-      ImageProcessor c = BoofCVImageConverter.convert(ws8, false);
-      ImagePlus cyMe = new ImagePlus("Boof-ws", c);
-      cyMe.show();
-      BinaryImageOps.erode8(thresholdedNuc, 1, thresholdedNuc2);
-      BinaryImageOps.dilate8(thresholdedNuc2, 1, thresholdedNuc);
-      */
-      
-      
-      
-      /*
-      double minValue = GImageStatistics.min(blurred);
-      double maxValue = GImageStatistics.max(blurred);      
-      double threshold = GThresholdImageOps.computeHuang(blurred, minValue, maxValue);
-      GrayU8 cytoMask = new GrayU8(blurred.width, blurred.height);
-      GThresholdImageOps.threshold(blurred, cytoMask, threshold, false);
-      */
-      
+      final double pixelSurface = nuclImg.getMetadata().getPixelSizeUm() * 
+              nuclImg.getMetadata().getPixelSizeUm();
 
+      GrayU16 bNuc = (GrayU16) BoofCVImageConverter.mmToBoofCV(nuclImg, false);
+      ImageGray igCyto = BoofCVImageConverter.mmToBoofCV(cytoImg, false);
+      nuclearImgBackground_ = (GrayU16) createSameShapeIfNeeded(bNuc, 
+              nuclearImgBackground_, GrayU16.class);
+      backgroundSubtractedNuclearImg = (GrayS32) createSameShapeIfNeeded(bNuc, 
+              backgroundSubtractedNuclearImg, GrayS32.class);
+      gaussNuc_ = (GrayU16) createSameShapeIfNeeded(bNuc, gaussNuc_, GrayU16.class);
+      contourImg_ = (GrayS32) createSameShapeIfNeeded(bNuc, contourImg_, GrayS32.class);
+      
+      // Heavy blur to create a "background" image
+      GBlurImageOps.gaussian(bNuc, nuclearImgBackground_, -1, 400, null);
+      // subtract the minimum from background to avoid values < 0 after subtraction
+      final int nuclearBackgroundMinimum = ImageStatistics.min(nuclearImgBackground_);
+      PixelMath.minus(nuclearImgBackground_, nuclearBackgroundMinimum, nuclearImgBackground_);
+      // Subtract background from nuclear image
+      PixelMath.subtract(bNuc, nuclearImgBackground_, backgroundSubtractedNuclearImg);
+      ConvertImage.convert(backgroundSubtractedNuclearImg, bNuc);
+      GBlurImageOps.gaussian(bNuc, gaussNuc_, -1, 3, null);
+  
+      int otsu2 = GThresholdImageOps.computeOtsu2(gaussNuc_, ImageStatistics.min(gaussNuc_),
+              ImageStatistics.max(gaussNuc_));
+      GrayU8 thresholdedNuc = gaussNuc_.createSameShape(GrayU8.class);
+      GrayU8 thresholdedNuc2 = gaussNuc_.createSameShape(GrayU8.class);
+
+      GThresholdImageOps.threshold(gaussNuc_, thresholdedNuc, otsu2, false);
+
+      // close using dilate/erode
+      BinaryImageOps.dilate4(thresholdedNuc, 2, thresholdedNuc2);
+      BinaryImageOps.erode4(thresholdedNuc2, 2, thresholdedNuc);
+   
+      // Use ImageJ Watershed code.  Worth porting to BoofCV?
+      ImageProcessor d = BoofCVImageConverter.convert(thresholdedNuc, false);
+      EDM edm = new EDM();
+      edm.toWatershed(d);
+      // note: d shares pixels with thesholdedNuc, so we can erode thresholdedNuc directly!
+      BinaryImageOps.erode4(thresholdedNuc, 2, thresholdedNuc2);
+
+
+      /*
       // Even though we are flatfielding, results are much better after
       // background subtraction.  In one test, I get about 2 fold more nuclei
       // when doing this background subtraction
@@ -270,14 +251,12 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       // debatable: shrinc the nuclei to make sure we don't get cytoplasm
       IJ.run(nuclIp, "Options...", "iterations=1 count=1 black pad edm=Overwrite do=Erode");
       ImageGray igNuc = BoofCVImageConverter.convert(nuclIp.getProcessor(), false);
-      ImageGray igCyto = BoofCVImageConverter.mmToBoofCV(cytoImg, false);
-      GrayU8 binary = new GrayU8(igNuc.width,igNuc.height);
-      GThresholdImageOps.threshold(igNuc, binary, 10, false);
-      GrayS32 contourImg = new GrayS32(igNuc.getWidth(), igNuc.getHeight());
+      */
+
       List<Contour> contours = 
-                    BinaryImageOps.contour(binary, ConnectRule.FOUR, contourImg);
+                    BinaryImageOps.contour(thresholdedNuc2, ConnectRule.FOUR, contourImg_);
       List<List<Point2D_I32>> tmpNuclearClusters = 
-                    BinaryImageOps.labelToClusters(contourImg, contours.size(), null);
+                    BinaryImageOps.labelToClusters(contourImg_, contours.size(), null);
       Map<Integer, List<Point2D_I32>> nuclearClusters = new HashMap<>(tmpNuclearClusters.size());
       Map<Integer, Point2D_F32> centers = new HashMap<>(tmpNuclearClusters.size());
       // cyoplasm "ring" only
@@ -292,14 +271,14 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
          // this defines an "empty" ring between nucleus and cytoplasm
          for (int i = 0; i < 3; i++) {
             expandedNuclearCluster = 
-                 BinaryListOps.dilate4_2D_I32(expandedNuclearCluster, igNuc.width, igNuc.height);
+                 BinaryListOps.dilate4_2D_I32(expandedNuclearCluster, thresholdedNuc2.width, thresholdedNuc2.height);
          }
          Set<Point2D_I32>cytoCluster = 
-                 BinaryListOps.dilate4_2D_I32(expandedNuclearCluster, igNuc.width, igNuc.height);
+                 BinaryListOps.dilate4_2D_I32(expandedNuclearCluster, thresholdedNuc2.width, thresholdedNuc2.height);
          // this defines the "thickness" of the cytoplasmic ring
          for (int i = 0; i < 4; i++) {
             cytoCluster = 
-                 BinaryListOps.dilate4_2D_I32(cytoCluster, igNuc.width, igNuc.height);
+                 BinaryListOps.dilate4_2D_I32(cytoCluster, thresholdedNuc2.width, thresholdedNuc2.height);
          }
          cellClusters.put(index, BinaryListOps.setToList(cytoCluster));
          cytoCluster = BinaryListOps.subtract(cytoCluster, expandedNuclearCluster);
@@ -337,56 +316,72 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       
       // Make cytoplasmic mask to "AND" our little cyto circles
       GrayU16 originalCyto = (GrayU16) igCyto;
-      GrayU16 blurred = originalCyto.createSameShape(GrayU16.class);
-      GBlurImageOps.gaussian(originalCyto, blurred, -1, 3, null);
-      double minValue = GImageStatistics.min(blurred);
-      double maxValue = GImageStatistics.max(blurred);      
-      double threshold = GThresholdImageOps.computeHuang(blurred, minValue, maxValue);
-      GrayU8 cytoMask = new GrayU8(blurred.width, blurred.height);
-      GThresholdImageOps.threshold(blurred, cytoMask, threshold, false);
-      //ImageProcessor c = BoofCVImageConverter.convert(cytoMask, false);
-      //ImagePlus cyMe = new ImagePlus("Boof-CytoMask", c);
-      //cyMe.show();
-      // now do the logical "AND"
+      cytoBlurred_ = (GrayU16) createSameShapeIfNeeded(originalCyto, cytoBlurred_, GrayU16.class);
+      cytoMask_ = (GrayU8) createSameShapeIfNeeded(originalCyto, cytoMask_, GrayU8.class);
+      
+      GBlurImageOps.gaussian(originalCyto, cytoBlurred_, -1, 3, null);
+      double minValue = GImageStatistics.min(cytoBlurred_);
+      double maxValue = GImageStatistics.max(cytoBlurred_);      
+      double threshold = GThresholdImageOps.computeHuang(cytoBlurred_, minValue, maxValue);
+      GThresholdImageOps.threshold(cytoBlurred_, cytoMask_, threshold, false);
+      // Do the logical "AND"
       for (int i = 0; i < cytoClusters.size(); i++) {
          List<Point2D_I32> cyto = cytoClusters.get(i);
          Iterator itr = cyto.iterator();
          while (itr.hasNext()) {
             Point2D_I32 next = (Point2D_I32) itr.next();
-            if (cytoMask.get(next.x, next.y) == 0) {
+            if (cytoMask_.get(next.x, next.y) == 0) {
                itr.remove();
             }
          }
       }
       
       
-      // Now get average intensities under nuclear mask and cytoplasmic mask
+      // Get average intensities under nuclear mask and cytoplasmic mask
+      if (textWindow_ == null || !textWindow_.isVisible()) {
+         textWindow_ = new TextWindow("NucleoCytoplasmic Ratio", 
+                 "#\tx\ty\tnucl. Size\tnucl. Avg\tcyto Avg\tratio", 400, 250);
+      }
+      textWindow_.setVisible(true);
+      
+      String pos = "" + nuclImg.getCoords().getP();
+      //outStream.println("#\tx\ty\tnucl. Size\tnucl. Avg\tcyto Avg\tratio");
+      int counter = 0;
       for (int i = 0; i < nuclearClusters.size() && i < cytoClusters.size(); i++) {
          
          List<Point2D_I32> nucleus = nuclearClusters.get(i);
          double sum = 0.0;
          for (Point2D_I32 p : nucleus) {
+            sum += bNuc.get(p.x, p.y);
+         }
+         final double nuclearAvg = sum / nucleus.size() - (nuclearBackgroundMinimum);
+         
+         sum = 0.0;
+         for (Point2D_I32 p : nucleus) {
             sum += originalCyto.get(p.x, p.y);
          }
-         double nAvg = sum / nucleus.size();
+         final double nAvg = sum / nucleus.size();
          
          List<Point2D_I32> cyto = cytoClusters.get(i);
          sum = 0.0;
          for (Point2D_I32 p : cyto) {
             sum += originalCyto.get(p.x, p.y);
          }
-         double cAvg = sum / cyto.size();
-         System.out.println("" + i + " x: " + (int) centers.get(i).x + ", y:" 
-                 + (int) centers.get(i).y + ", cytoAvg: " + cAvg + 
-                 ", ratio: " + nAvg / cAvg);
+         final double cAvg = sum / cyto.size();
+         final double nuclearSize = nucleus.size() * pixelSurface;
+         if (nuclearSize > (double) minSizeN_.get() && nuclearSize < (double) maxSizeN_.get()) {
+            textWindow_.append(pos + "-" + counter++ + "\t" + (int) centers.get(i).x + "\t"
+                    + (int) centers.get(i).y + "\t" + nucleus.size() * pixelSurface + "\t"
+                    + nuclearAvg + "\t" + cAvg + "\t" + nAvg / cAvg + "\n");
+         }
       }
       
       
       
       /**
        * Uncomment to display the nuclear and cytoplasmic masks
-       *
-      GrayU8 dispImg = new GrayU8(igNuc.getWidth(), igNuc.getHeight());
+       */
+      GrayU8 dispImg = new GrayU8(thresholdedNuc2.getWidth(), thresholdedNuc2.getHeight());
       for (int i = 0; i < nuclearClusters.size(); i++) {
          List<Point2D_I32> cluster = nuclearClusters.get(i);
          for (Point2D_I32 p : cluster) {
@@ -402,7 +397,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       ImageProcessor convert = BoofCVImageConverter.convert(dispImg, false);
       ImagePlus showMe = new ImagePlus("Boof", convert);
       showMe.show();
-      */
+      //*/
       
       
       // Now measure and store masks in ROI manager
@@ -471,6 +466,24 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       tmp.x /= input.size();
       tmp.y /= input.size();
       return tmp;
+   }
+   
+   /**
+    * Wrapper around BoofCV createSameShape.  Checks if the target already exists
+    * and is the correct size.  If not, creates new image, otherwise returns the
+    * existing one
+    * @param template
+    * @param target
+    * @param c
+    * @return 
+    */
+   public static ImageGray createSameShapeIfNeeded(ImageGray template, ImageGray target, Class c) {
+      if (target == null) {
+         target = template.createSameShape(c);
+      }  else if (target.getHeight() != template.getHeight() || target.getWidth() != template.getWidth()) {
+         target = template.createSameShape(c);
+      }
+      return target;
    }
 
 }

@@ -88,6 +88,8 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
          return null;
       }
       Image img = imgs[channelNr];
+      
+      
       ImageProcessor iProcessor = mm.data().ij().createProcessor(img);
       ImagePlus ip = (new ImagePlus("tmp", iProcessor)).duplicate();
       ImagePlus ip2 = ip.duplicate();
