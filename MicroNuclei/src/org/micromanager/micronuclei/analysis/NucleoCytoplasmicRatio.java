@@ -43,7 +43,6 @@ import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import ij.text.TextWindow;
 import java.awt.Rectangle;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -170,7 +169,8 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
          userRoiBounds = userRoi.getBounds();
       }
       
-      Roi restrictToThisRoi = edgeDetector_.analyze(mm, imgs); 
+      Roi restrictToThisRoi;
+      restrictToThisRoi= edgeDetector_.analyze(mm, imgs); 
       
       if (restrictToThisRoi != null && ((Boolean) skipWellsWithEdges_.get()) ) {
          int pos = imgs[0].getCoords().getStagePosition();
@@ -262,7 +262,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       // cyoplasm "ring" only
       Map<Integer, List<Point2D_I32>> cytoClusters = new HashMap<>(tmpNuclearClusters.size());
       // nucleus plus cytoplasm
-      Map<Integer, List<Point2D_I32>> cellClusters = new HashMap<>(tmpNuclearClusters.size());
+      Map<Integer, Set<Point2D_I32>> cellClusters = new HashMap<>(tmpNuclearClusters.size());
       int index = 0;
       for (List<Point2D_I32> cluster : tmpNuclearClusters) {
          nuclearClusters.put(index, cluster);
@@ -280,7 +280,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
             cytoCluster = 
                  BinaryListOps.dilate4_2D_I32(cytoCluster, thresholdedNuc2.width, thresholdedNuc2.height);
          }
-         cellClusters.put(index, BinaryListOps.setToList(cytoCluster));
+         cellClusters.put(index, cytoCluster);
          cytoCluster = BinaryListOps.subtract(cytoCluster, expandedNuclearCluster);
          cytoClusters.put(index, BinaryListOps.setToList(cytoCluster));
          index++;
@@ -294,15 +294,15 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       }
       nn.setPoints(centersList, true);
       NnData<Point2D_F32> result = new NnData<>();
-      // 5 should be enough...
-      FastQueue<NnData<Point2D_F32>> fResults = new FastQueue(5, result.getClass(), true);
+      // 4 should be enough...
+      FastQueue<NnData<Point2D_F32>> fResults = new FastQueue(4, result.getClass(), true);
       for (int i =  0; i < centersList.size(); i++) {
          List<Point2D_I32> cyto = cytoClusters.get(i);
          nn.findNearest(centersList.get(i), -1, 5, fResults);
          for (int j = 0; j < fResults.size(); j++) {
             NnData<Point2D_F32> candidate = fResults.get(j);
             if (i != candidate.index) { // make sure to not compare against ourselves
-               List<Point2D_I32> cell = cellClusters.get(candidate.index);
+               Set<Point2D_I32> cell = cellClusters.get(candidate.index);
                Iterator itr = cyto.iterator();
                while (itr.hasNext()) {
                   Point2D_I32 next = (Point2D_I32) itr.next();
@@ -380,7 +380,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       
       /**
        * Uncomment to display the nuclear and cytoplasmic masks
-       */
+       *
       GrayU8 dispImg = new GrayU8(thresholdedNuc2.getWidth(), thresholdedNuc2.getHeight());
       for (int i = 0; i < nuclearClusters.size(); i++) {
          List<Point2D_I32> cluster = nuclearClusters.get(i);
@@ -397,7 +397,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       ImageProcessor convert = BoofCVImageConverter.convert(dispImg, false);
       ImagePlus showMe = new ImagePlus("Boof", convert);
       showMe.show();
-      //*/
+      */
       
       
       // Now measure and store masks in ROI manager
