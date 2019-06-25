@@ -37,6 +37,7 @@ import clearcl.ClearCL;
 import clearcl.ClearCLBuffer;
 import clearcl.ClearCLContext;
 import clearcl.ClearCLDevice;
+import clearcl.backend.ClearCLBackends;
 import clearcl.backend.jocl.ClearCLBackendJOCL;
 import clearcl.converters.NioConverters;
 import clearcl.ops.kernels.CLKernelExecutor;
@@ -89,7 +90,8 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
            + "calculate nucl/cytoplasmic ration in another.";
 
    private CLKernelExecutor clke_ = null;
-   private ClearCLContext mClearCLContext_;
+   private ClearCLContext cclContext_;
+   
    private final AnalysisProperty skipWellsWithEdges_;
    private final AnalysisProperty nuclearChannel_;
    private final AnalysisProperty testChannel_;
@@ -112,11 +114,11 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       // note: the type of the value when creating the AnalysisProperty determines
       // the allowed type, and can create problems when the user enters something
       // different
-      nuclearChannel_ = new AnalysisProperty(this.getClass(), 
+      nuclearChannel_ = new AnalysisProperty(this.getClass(),
               "<html>Channel nr. for nuclei</html>",
               "Channel nr for nuclei",
               1, null);
-      testChannel_ = new AnalysisProperty(this.getClass(), 
+      testChannel_ = new AnalysisProperty(this.getClass(),
               "<html>Channel nr. for nucleo-cytoplasmic ratio</html>",
               "Channel nr. for nucleo-cytoplasmic ratio",
               2, null);
@@ -133,12 +135,11 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
               "<html>Maximum nuclear size (&micro;m<sup>2</sup>)</html>",
               "<html>Largest size of putative nucleus in "
               + "&micro;m<sup>2</sup></html>", 1800.0, null);
-          
+
       edgeDetector_ = new EdgeDetectorSubModule();
 
-      
       List<AnalysisProperty> apl = new ArrayList<>();
-      
+
       apl.add(nuclearChannel_);
       apl.add(testChannel_);
       apl.add(minSizeN_);
@@ -151,34 +152,34 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       setAnalysisProperties(apl);
 
       // the ImageJ roiManager	
-        roiManager_ = RoiManager.getInstance();
-        if (roiManager_ == null) {
-            roiManager_ = new RoiManager();
-        }
+      roiManager_ = RoiManager.getInstance();
+      if (roiManager_ == null) {
+         roiManager_ = new RoiManager();
+      }
 
-        ClearCL mClearCL = new ClearCL(new ClearCLBackendJOCL());
-        ClearCLDevice mClearCLDevice = mClearCL.getBestGPUDevice();
-        
-        if (mClearCLDevice == null) {
-            ReportingUtils.logDebugMessage("Warning: GPU device determination failed. Retrying using first device found.");
-            return;
-        }
+      ClearCL mClearCL = new ClearCL(ClearCLBackends.getBestBackend());
+      ClearCLDevice mClearCLDevice = mClearCL.getBestGPUDevice();
 
-        ReportingUtils.logDebugMessage("Using OpenCL device: " + mClearCLDevice.getName());
+      if (mClearCLDevice == null) {
+         ReportingUtils.logDebugMessage("Warning: GPU device determination failed.");
+         return;
+      }
 
-        mClearCLContext_ = mClearCLDevice.createContext();
-        
-        try {
-            clke_ = new CLKernelExecutor(
-                    mClearCLContext_,
-                    clearcl.ocllib.OCLlib.class,
-                    "blur.cl",
-                    "gaussian_blur_image2d",
-                    null);
-        } catch (IOException ioe) {
-            ReportingUtils.showError("Failed to find GPU code");
-        }
-    }
+      ReportingUtils.logDebugMessage("Using OpenCL device: " + mClearCLDevice.getName());
+
+      cclContext_ = mClearCLDevice.createContext();
+
+      try {
+         clke_ = new CLKernelExecutor(
+                 cclContext_,
+                 clearcl.ocllib.OCLlib.class,
+                 "kernels/blur.cl",
+                 "gaussian_blur_image2d",
+                 null);
+      } catch (IOException ioe) {
+         ReportingUtils.showError("Failed to find GPU code");
+      }
+   }
 
    @Override
    public ResultRois analyze(Studio mm, Image[] imgs, Roi userRoi, JSONObject parms) throws AnalysisException {
@@ -189,13 +190,13 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       }
       int cC = (int) testChannel_.get() - 1;
       if (cC < 0 || cC > imgs.length - 1) {
-          String msg = "Channel nr. for cytoplasm should be between 1 and " + (imgs.length + 1);
+         String msg = "Channel nr. for cytoplasm should be between 1 and " + (imgs.length + 1);
          throw new AnalysisException(msg);
       }
-            
+
       Image nuclImg = imgs[nC];
       Image cytoImg = imgs[cC];
-      
+
       ImageProcessor nuclIProcessor = mm.data().ij().createProcessor(nuclImg);
       Rectangle userRoiBounds = null;
       if (userRoi != null) {
@@ -203,14 +204,14 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
          nuclIProcessor = nuclIProcessor.crop();
          userRoiBounds = userRoi.getBounds();
       }
-      
+
       Roi restrictToThisRoi;
-      restrictToThisRoi= edgeDetector_.analyze(mm, imgs); 
-      
-      if (restrictToThisRoi != null && ((Boolean) skipWellsWithEdges_.get()) ) {
+      restrictToThisRoi = edgeDetector_.analyze(mm, imgs);
+
+      if (restrictToThisRoi != null && ((Boolean) skipWellsWithEdges_.get())) {
          int pos = imgs[0].getCoords().getStagePosition();
          mm.alerts().postAlert("Skip image", JustNucleiModule.class,
-                 "Edge detected at position " + pos );
+                 "Edge detected at position " + pos);
          return new ResultRois(null, null, null, this.getName());
       }
 
@@ -223,32 +224,31 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
          // (it only analyzes within the ROI)
          IJ.run(nuclIp, "Clear Outside", "");
       }
-      
-      final double pixelSurface = nuclImg.getMetadata().getPixelSizeUm() * 
-              nuclImg.getMetadata().getPixelSizeUm();
-      
+
+      final double pixelSurface = nuclImg.getMetadata().getPixelSizeUm()
+              * nuclImg.getMetadata().getPixelSizeUm();
+
       if (clke_ != null) {
-          long[] dimensions = {nuclImg.getWidth(), nuclImg.getHeight()};
-          DefaultImage dNuclImg = (DefaultImage) nuclImg;
-          ClearCLBuffer clNuclImg = NioConverters.convertNioTiClearCLBuffer(mClearCLContext_, 
-                  dNuclImg.getPixelBuffer(), dimensions);
-          ClearCLBuffer clGaussNuc = clke_.createCLBuffer(clNuclImg);
-          Kernels.blur(clke_, clNuclImg, clGaussNuc, 400.0f, 400.0f);
-          clGaussNuc.writeTo(dNuclImg.getPixelBuffer(), true);
-          //NioConverters.convertClearCLBufferToNio(clGaussNuc);
-    
-          
+         long[] dimensions = {nuclImg.getWidth(), nuclImg.getHeight()};
+         DefaultImage dNuclImg = (DefaultImage) nuclImg;
+         ClearCLBuffer clNuclImg = NioConverters.convertNioTiClearCLBuffer(cclContext_,
+                 dNuclImg.getPixelBuffer(), dimensions);
+         ClearCLBuffer clGaussNuc = clke_.createCLBuffer(clNuclImg);
+         Kernels.blur(clke_, clNuclImg, clGaussNuc, 400.0f, 400.0f);
+         clGaussNuc.writeTo(dNuclImg.getPixelBuffer(), true);
+         //NioConverters.convertClearCLBufferToNio(clGaussNuc);
+
       }
 
       GrayU16 bNuc = (GrayU16) BoofCVImageConverter.mmToBoofCV(nuclImg, false);
       ImageGray igCyto = BoofCVImageConverter.mmToBoofCV(cytoImg, false);
-      nuclearImgBackground_ = (GrayU16) createSameShapeIfNeeded(bNuc, 
+      nuclearImgBackground_ = (GrayU16) createSameShapeIfNeeded(bNuc,
               nuclearImgBackground_, GrayU16.class);
-      backgroundSubtractedNuclearImg = (GrayS32) createSameShapeIfNeeded(bNuc, 
+      backgroundSubtractedNuclearImg = (GrayS32) createSameShapeIfNeeded(bNuc,
               backgroundSubtractedNuclearImg, GrayS32.class);
       gaussNuc_ = (GrayU16) createSameShapeIfNeeded(bNuc, gaussNuc_, GrayU16.class);
       contourImg_ = (GrayS32) createSameShapeIfNeeded(bNuc, contourImg_, GrayS32.class);
-      
+
       // Heavy blur to create a "background" image
       GBlurImageOps.gaussian(bNuc, nuclearImgBackground_, -1, 400, null);
       // subtract the minimum from background to avoid values < 0 after subtraction
@@ -258,7 +258,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       PixelMath.subtract(bNuc, nuclearImgBackground_, backgroundSubtractedNuclearImg);
       ConvertImage.convert(backgroundSubtractedNuclearImg, bNuc);
       GBlurImageOps.gaussian(bNuc, gaussNuc_, -1, 3, null);
-  
+
       int otsu2 = GThresholdImageOps.computeOtsu2(gaussNuc_, ImageStatistics.min(gaussNuc_),
               ImageStatistics.max(gaussNuc_));
       GrayU8 thresholdedNuc = gaussNuc_.createSameShape(GrayU8.class);
@@ -269,7 +269,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       // close using dilate/erode
       BinaryImageOps.dilate4(thresholdedNuc, 2, thresholdedNuc2);
       BinaryImageOps.erode4(thresholdedNuc2, 2, thresholdedNuc);
-   
+
       // Use ImageJ Watershed code.  Worth porting to BoofCV?
       ImageProcessor d = BoofCVImageConverter.convert(thresholdedNuc, false);
       EDM edm = new EDM();
