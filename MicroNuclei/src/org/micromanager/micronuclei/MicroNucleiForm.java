@@ -41,7 +41,6 @@ import java.awt.Polygon;
 import java.awt.Rectangle;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
-import java.awt.geom.AffineTransform;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -116,6 +115,7 @@ import org.micromanager.micronuclei.internal.gui.ChannelPanel;
 import org.micromanager.micronuclei.internal.gui.ConvertChannelPanel;
 import org.micromanager.micronuclei.internal.gui.ResultsListener;
 import org.micromanager.micronuclei.internal.gui.PropertyGUI;
+import org.micromanager.projector.Mapping;
 import org.micromanager.projector.ProjectionDevice;
 import org.micromanager.projector.ProjectorActions;
 import org.micromanager.propertymap.MutablePropertyMapView;
@@ -1133,17 +1133,24 @@ public class MicroNucleiForm extends MMFrame {
          ReportingUtils.showError("No Projection Device found.  Can not Zap");
          return;
       }
-      Map<Polygon, AffineTransform> maps = ProjectorActions.loadMapping(gui_, pd);
+      Mapping maps = ProjectorActions.loadMapping(gui_, pd);
       if (maps == null) {
          ReportingUtils.showError("ProjectionDevice is not calibrated.  Please calibrate first");
          ProjectorControlForm.showSingleton(gui_.getCMMCore(), gui_);
          return;
       }
-      List<FloatPolygon> transformROIs = ProjectorActions.transformROIs(rois, maps);
+      try {
+      Integer binning = Integer.parseInt(gui_.core().getProperty(gui_.core().getCameraDevice(), "Binning")
+                .substring(0, 1));
+      List<FloatPolygon> transformROIs = ProjectorActions.transformROIs(
+              rois, maps, gui_.core().getROI(), binning);
       pd.loadRois(transformROIs);
       pd.waitForDevice();
       pd.runPolygons();
       pd.waitForDevice();
+      } catch (Exception ex) {
+          ReportingUtils.showError("Error communicating with the hardware");
+      }
       /*
       pcf.setROIs(rois);
       pcf.updateROISettings();

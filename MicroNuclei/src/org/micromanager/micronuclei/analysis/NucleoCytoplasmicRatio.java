@@ -33,6 +33,14 @@ import boofcv.struct.image.GrayS32;
 import boofcv.struct.image.GrayU16;
 import boofcv.struct.image.GrayU8;
 import boofcv.struct.image.ImageGray;
+import clearcl.ClearCL;
+import clearcl.ClearCLBuffer;
+import clearcl.ClearCLContext;
+import clearcl.ClearCLDevice;
+import clearcl.backend.jocl.ClearCLBackendJOCL;
+import clearcl.converters.NioConverters;
+import clearcl.ops.kernels.CLKernelExecutor;
+import clearcl.ops.kernels.Kernels;
 import georegression.struct.point.Point2D_F32;
 import georegression.struct.point.Point2D_I32;
 import ij.IJ;
@@ -43,6 +51,7 @@ import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import ij.text.TextWindow;
 import java.awt.Rectangle;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -57,6 +66,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.micromanager.Studio;
 import org.micromanager.data.Image;
+import org.micromanager.data.internal.DefaultImage;
+import org.micromanager.internal.utils.ReportingUtils;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import static org.micromanager.micronuclei.analysisinterface.AnalysisModule.CELLCOUNT;
@@ -77,6 +88,8 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
            = "<html>Locate nuclei based on nuclear channel, <br>"
            + "calculate nucl/cytoplasmic ration in another.";
 
+   private CLKernelExecutor clke_ = null;
+   private ClearCLContext mClearCLContext_;
    private final AnalysisProperty skipWellsWithEdges_;
    private final AnalysisProperty nuclearChannel_;
    private final AnalysisProperty testChannel_;
@@ -138,12 +151,34 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       setAnalysisProperties(apl);
 
       // the ImageJ roiManager	
-      roiManager_ = RoiManager.getInstance();
-      if (roiManager_ == null) {
-         roiManager_ = new RoiManager();
-      }
+        roiManager_ = RoiManager.getInstance();
+        if (roiManager_ == null) {
+            roiManager_ = new RoiManager();
+        }
 
-   }
+        ClearCL mClearCL = new ClearCL(new ClearCLBackendJOCL());
+        ClearCLDevice mClearCLDevice = mClearCL.getBestGPUDevice();
+        
+        if (mClearCLDevice == null) {
+            ReportingUtils.logDebugMessage("Warning: GPU device determination failed. Retrying using first device found.");
+            return;
+        }
+
+        ReportingUtils.logDebugMessage("Using OpenCL device: " + mClearCLDevice.getName());
+
+        mClearCLContext_ = mClearCLDevice.createContext();
+        
+        try {
+            clke_ = new CLKernelExecutor(
+                    mClearCLContext_,
+                    clearcl.ocllib.OCLlib.class,
+                    "blur.cl",
+                    "gaussian_blur_image2d",
+                    null);
+        } catch (IOException ioe) {
+            ReportingUtils.showError("Failed to find GPU code");
+        }
+    }
 
    @Override
    public ResultRois analyze(Studio mm, Image[] imgs, Roi userRoi, JSONObject parms) throws AnalysisException {
@@ -191,6 +226,19 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       
       final double pixelSurface = nuclImg.getMetadata().getPixelSizeUm() * 
               nuclImg.getMetadata().getPixelSizeUm();
+      
+      if (clke_ != null) {
+          long[] dimensions = {nuclImg.getWidth(), nuclImg.getHeight()};
+          DefaultImage dNuclImg = (DefaultImage) nuclImg;
+          ClearCLBuffer clNuclImg = NioConverters.convertNioTiClearCLBuffer(mClearCLContext_, 
+                  dNuclImg.getPixelBuffer(), dimensions);
+          ClearCLBuffer clGaussNuc = clke_.createCLBuffer(clNuclImg);
+          Kernels.blur(clke_, clNuclImg, clGaussNuc, 400.0f, 400.0f);
+          clGaussNuc.writeTo(dNuclImg.getPixelBuffer(), true);
+          //NioConverters.convertClearCLBufferToNio(clGaussNuc);
+    
+          
+      }
 
       GrayU16 bNuc = (GrayU16) BoofCVImageConverter.mmToBoofCV(nuclImg, false);
       ImageGray igCyto = BoofCVImageConverter.mmToBoofCV(cytoImg, false);
