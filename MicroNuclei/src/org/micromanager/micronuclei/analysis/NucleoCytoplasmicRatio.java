@@ -340,7 +340,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       // Get average intensities under nuclear mask and cytoplasmic mask
       if (textWindow_ == null || !textWindow_.isVisible()) {
          textWindow_ = new TextWindow("NucleoCytoplasmic Ratio", 
-                 "#\tx\ty\tnucl. Size\tnucl. Avg\tcyto Avg\tratio", 400, 250);
+                 "#\tx\ty\tnucl. Size\tnucl. Avg\tcyto. Size \tcyto. Avg\tn/c ratio", 400, 250);
       }
       textWindow_.setVisible(true);
       
@@ -369,10 +369,11 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
          }
          final double cAvg = sum / cyto.size();
          final double nuclearSize = nucleus.size() * pixelSurface;
+         final double cytoSize = cyto.size() * pixelSurface;
          if (nuclearSize > (double) minSizeN_.get() && nuclearSize < (double) maxSizeN_.get()) {
             textWindow_.append(pos + "-" + counter++ + "\t" + (int) centers.get(i).x + "\t"
-                    + (int) centers.get(i).y + "\t" + nucleus.size() * pixelSurface + "\t"
-                    + nuclearAvg + "\t" + cAvg + "\t" + nAvg / cAvg + "\n");
+                    + (int) centers.get(i).y + "\t" + nuclearSize + "\t"
+                    + nuclearAvg + "\t" + cytoSize + "\t" + cAvg + "\t" + nAvg / cAvg + "\n");
          }
       }
       
