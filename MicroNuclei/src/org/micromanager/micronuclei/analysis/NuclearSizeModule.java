@@ -173,9 +173,9 @@ public class NuclearSizeModule  extends AnalysisModule {
       IJ.run(ip, "Watershed", "");
 
       // Now measure and store masks in ROI manager
-      IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
+      IJ.run("Set Measurements...", "center area integrated redirect=None decimal=2");
       String analyzeParticlesParameters =  "size=" + (Double) minSizeN_.get() + "-" + 
-              (Double) maxSizeN_.get() + " exclude clear add";
+              (Double) maxSizeN_.get() + " display exclude add";
       // this roiManager reset is needed since Analyze Particles will not take 
       // this action if it does not find any Rois, leading to erronous results
       roiManager_.reset();
@@ -183,6 +183,7 @@ public class NuclearSizeModule  extends AnalysisModule {
       final Roi[] allNuclei = roiManager_.getRoisAsArray();
       
       // Now measure and store masks in ROI manager
+      /*
       IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
       analyzeParticlesParameters =  "size=" + (Double) minSizeSN_.get() + "-" + 
               (Double) maxSizeSN_.get() + " exclude clear add";
@@ -190,12 +191,13 @@ public class NuclearSizeModule  extends AnalysisModule {
       // this action if it does not find any Rois, leading to erronous results
       roiManager_.reset();
       IJ.run(ip, "Analyze Particles...", analyzeParticlesParameters);
+      */
 
       // prepare the masks to be send to the DMD
       Roi[] selectedNuclei = roiManager_.getRoisAsArray();
       //mm.alerts().postAlert(UINAME, JustNucleiModule.class, 
       //        "Found " + allNuclei.length + " nuclei");
-      List convertRoiList = new ArrayList();
+      List<Roi> convertRoiList = new ArrayList();
       for (Roi selectedNuclei1 : selectedNuclei) {
          if (userRoiBounds != null) {
             Rectangle r2d = selectedNuclei1.getBounds();
@@ -203,6 +205,8 @@ public class NuclearSizeModule  extends AnalysisModule {
          }
          convertRoiList.add(selectedNuclei1);
       }
+
+      
       Roi[] convertRois = new Roi[convertRoiList.size()];
       convertRois = (Roi[]) convertRoiList.toArray(convertRois);
       
