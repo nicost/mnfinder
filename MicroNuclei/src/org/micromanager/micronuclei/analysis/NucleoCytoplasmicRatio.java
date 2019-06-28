@@ -40,8 +40,10 @@ import clearcl.ClearCLDevice;
 import clearcl.backend.ClearCLBackends;
 import clearcl.backend.jocl.ClearCLBackendJOCL;
 import clearcl.converters.NioConverters;
+import clearcl.ops.kernels.CLKernelException;
 import clearcl.ops.kernels.CLKernelExecutor;
 import clearcl.ops.kernels.Kernels;
+import clearcl.ops.math.MinMax;
 import georegression.struct.point.Point2D_F32;
 import georegression.struct.point.Point2D_I32;
 import ij.IJ;
@@ -59,6 +61,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.ddogleg.nn.FactoryNearestNeighbor;
 import org.ddogleg.nn.NearestNeighbor;
 import org.ddogleg.nn.NnData;
@@ -172,10 +176,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       try {
          clke_ = new CLKernelExecutor(
                  cclContext_,
-                 clearcl.ocllib.OCLlib.class,
-                 "kernels/blur.cl",
-                 "gaussian_blur_image2d",
-                 null);
+                 clearcl.ocllib.OCLlib.class);
       } catch (IOException ioe) {
          ReportingUtils.showError("Failed to find GPU code");
       }
@@ -229,15 +230,35 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
               * nuclImg.getMetadata().getPixelSizeUm();
 
       if (clke_ != null) {
-         long[] dimensions = {nuclImg.getWidth(), nuclImg.getHeight()};
-         DefaultImage dNuclImg = (DefaultImage) nuclImg;
-         ClearCLBuffer clNuclImg = NioConverters.convertNioTiClearCLBuffer(cclContext_,
-                 dNuclImg.getPixelBuffer(), dimensions);
-         ClearCLBuffer clGaussNuc = clke_.createCLBuffer(clNuclImg);
-         Kernels.blur(clke_, clNuclImg, clGaussNuc, 400.0f, 400.0f);
-         clGaussNuc.writeTo(dNuclImg.getPixelBuffer(), true);
-         //NioConverters.convertClearCLBufferToNio(clGaussNuc);
-
+         try {
+            long[] dimensions = {nuclImg.getWidth(), nuclImg.getHeight()};
+            DefaultImage dNuclImg = (DefaultImage) nuclImg;
+            ClearCLBuffer clNuclImg = NioConverters.convertNioTiClearCLBuffer(cclContext_,
+                    dNuclImg.getPixelBuffer(), dimensions);
+            ClearCLBuffer clNuclearImgBackground = clke_.createCLBuffer(clNuclImg);
+            ClearCLBuffer clScratch2 = clke_.createCLBuffer(clNuclImg);
+            ClearCLBuffer clScratch3 = clke_.createCLBuffer(clNuclImg);
+            Kernels.blur(clke_, clNuclImg, clNuclearImgBackground, 400.0f, 400.0f);
+            /*
+            MinMax lReductions = new MinMax(cclContext_.getDefaultQueue());
+            float[] minMax = lReductions.minmax(clNuclearImgBackground, 32);
+            Kernels.addImageAndScalar(clke_, clNuclearImgBackground, clScratch2, -minMax[0]);
+            */
+            Kernels.subtractImages(clke_, clNuclImg, clNuclearImgBackground, clScratch2);
+            Kernels.blur(clke_, clScratch2, clScratch3, 3.0f, 3.0f);
+            Kernels.addImageAndScalar(clke_, clScratch3, clScratch2, -5.0f);
+            
+            clScratch2.writeTo(dNuclImg.getPixelBuffer(), true);
+            
+            clNuclImg.close();
+            clNuclearImgBackground.close();
+            clScratch2.close();
+            clScratch3.close();
+            
+         } catch (CLKernelException  clKexc) {
+            ReportingUtils.logError(clKexc);
+         }
+         
       }
 
       GrayU16 bNuc = (GrayU16) BoofCVImageConverter.mmToBoofCV(nuclImg, false);
