@@ -182,8 +182,7 @@ public class NuclearSizeModule  extends AnalysisModule {
       IJ.run(ip, "Analyze Particles...", analyzeParticlesParameters);
       final Roi[] allNuclei = roiManager_.getRoisAsArray();
       
-      // Now measure and store masks in ROI manager
-      /*
+      // Now measure and store masks in ROI manager      
       IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
       analyzeParticlesParameters =  "size=" + (Double) minSizeSN_.get() + "-" + 
               (Double) maxSizeSN_.get() + " exclude clear add";
@@ -191,7 +190,7 @@ public class NuclearSizeModule  extends AnalysisModule {
       // this action if it does not find any Rois, leading to erronous results
       roiManager_.reset();
       IJ.run(ip, "Analyze Particles...", analyzeParticlesParameters);
-      */
+      
 
       // prepare the masks to be send to the DMD
       Roi[] selectedNuclei = roiManager_.getRoisAsArray();
