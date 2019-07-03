@@ -79,7 +79,7 @@ public class NuclearSizeModule  extends AnalysisModule {
       
       edgeDetector_ = new EdgeDetectorSubModule();
 
-      List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
+      List<AnalysisProperty> apl = new ArrayList<>();
       for (AnalysisProperty ap : edgeDetector_.getAnalysisProperties()) {
          apl.add(ap);
       }
@@ -172,7 +172,7 @@ public class NuclearSizeModule  extends AnalysisModule {
       IJ.run(ip, "Options...", "iterations=1 count=1 black pad edm=Overwrite do=Close");
       IJ.run(ip, "Watershed", "");
 
-      // Now measure and store masks in ROI manager
+      // Now measure and store all nuclei in ROI manager
       IJ.run("Set Measurements...", "center area integrated redirect=None decimal=2");
       String analyzeParticlesParameters =  "size=" + (Double) minSizeN_.get() + "-" + 
               (Double) maxSizeN_.get() + " display exclude add";
@@ -182,7 +182,7 @@ public class NuclearSizeModule  extends AnalysisModule {
       IJ.run(ip, "Analyze Particles...", analyzeParticlesParameters);
       final Roi[] allNuclei = roiManager_.getRoisAsArray();
       
-      // Now measure and store masks in ROI manager      
+      // Now measure and store size-selected nuclei in ROI manager      
       IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
       analyzeParticlesParameters =  "size=" + (Double) minSizeSN_.get() + "-" + 
               (Double) maxSizeSN_.get() + " exclude clear add";
@@ -190,12 +190,12 @@ public class NuclearSizeModule  extends AnalysisModule {
       // this action if it does not find any Rois, leading to erronous results
       roiManager_.reset();
       IJ.run(ip, "Analyze Particles...", analyzeParticlesParameters);
-      
-
-      // prepare the masks to be send to the DMD
       Roi[] selectedNuclei = roiManager_.getRoisAsArray();
+      
       //mm.alerts().postAlert(UINAME, JustNucleiModule.class, 
       //        "Found " + allNuclei.length + " nuclei");
+      
+      // prepare the masks to be send to the DMD
       List<Roi> convertRoiList = new ArrayList();
       for (Roi selectedNuclei1 : selectedNuclei) {
          if (userRoiBounds != null) {
