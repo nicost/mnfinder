@@ -6,9 +6,12 @@ import ij.ImagePlus;
 import ij.gui.Roi;
 import ij.measure.Calibration;
 import ij.measure.Measurements;
+import ij.measure.ResultsTable;
+import ij.plugin.filter.Analyzer;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
+import ij.text.TextWindow;
 import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,6 +42,8 @@ public class NuclearSizeModule  extends AnalysisModule {
    private final AnalysisProperty maxSizeN_;
    private final AnalysisProperty minSizeSN_;
    private final AnalysisProperty maxSizeSN_;
+   
+   private TextWindow textWindow_;
 
    private final EdgeDetectorSubModule edgeDetector_;
    private RoiManager roiManager_;
@@ -175,17 +180,28 @@ public class NuclearSizeModule  extends AnalysisModule {
       // Now measure and store all nuclei in ROI manager
       IJ.run("Set Measurements...", "center area integrated redirect=None decimal=2");
       String analyzeParticlesParameters =  "size=" + (Double) minSizeN_.get() + "-" + 
-              (Double) maxSizeN_.get() + " display exclude add";
+              (Double) maxSizeN_.get() + "clear display exclude add";
       // this roiManager reset is needed since Analyze Particles will not take 
       // this action if it does not find any Rois, leading to erronous results
       roiManager_.reset();
       IJ.run(ip, "Analyze Particles...", analyzeParticlesParameters);
+      ResultsTable resultsTable = Analyzer.getResultsTable();
       final Roi[] allNuclei = roiManager_.getRoisAsArray();
+      
+      // Report results
+      if (textWindow_ == null || !textWindow_.isVisible()) {
+         textWindow_ = new TextWindow("Nuclear Size", resultsTable.getColumnHeadings(), 450, 300);
+      }
+      for (int row = 0; row < resultsTable.size(); row++) {
+          
+        textWindow_.append( resultsTable.getRowAsString(row));
+      }
+      textWindow_.setVisible(true);
       
       // Now measure and store size-selected nuclei in ROI manager      
       IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
       analyzeParticlesParameters =  "size=" + (Double) minSizeSN_.get() + "-" + 
-              (Double) maxSizeSN_.get() + " exclude clear add";
+              (Double) maxSizeSN_.get() + " clear exclude add";
       // this roiManager reset is needed since Analyze Particles will not take 
       // this action if it does not find any Rois, leading to erronous results
       roiManager_.reset();
