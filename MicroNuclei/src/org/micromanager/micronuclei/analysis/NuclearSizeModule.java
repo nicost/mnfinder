@@ -36,6 +36,7 @@ public class NuclearSizeModule  extends AnalysisModule {
    private final String DESCRIPTION = 
            "<html>Module that selects nuclei (imaged in the first channel), <br>" +
            "based on size<br>";
+   private final AnalysisProperty skipWellsWithEdges_;
    private final AnalysisProperty maxStdDev_;
    private final AnalysisProperty maxMeanIntensity_;
    private final AnalysisProperty minSizeN_;
@@ -52,7 +53,12 @@ public class NuclearSizeModule  extends AnalysisModule {
       // note: the type of the value when creating the AnalysisProperty determines
       // the allowed type, and can create problems when the user enters something
       // different
-
+      
+      skipWellsWithEdges_ = new AnalysisProperty(this.getClass(),
+              "<html>Skip wells with edges</html",
+              "Skips wells with edges when checked",
+              true,
+              null);
       maxStdDev_ = new AnalysisProperty(this.getClass(),
               "Maximum Image Std. Dev.",
               "<html>Std. Dev. of grayscale values of original image<br>"
@@ -89,6 +95,7 @@ public class NuclearSizeModule  extends AnalysisModule {
          apl.add(ap);
       }
       
+      apl.add(skipWellsWithEdges_);
       apl.add(maxStdDev_);
       apl.add(maxMeanIntensity_);
       apl.add(minSizeN_);
@@ -110,6 +117,13 @@ public class NuclearSizeModule  extends AnalysisModule {
    public ResultRois analyze(Studio mm, Image[] imgs, Roi roi, JSONObject parms) 
            throws AnalysisException {
       Roi restrictToThisRoi = edgeDetector_.analyze(mm, imgs);
+            
+      if (restrictToThisRoi != null && ((Boolean) skipWellsWithEdges_.get()) ) {
+         int pos = imgs[0].getCoords().getStagePosition();
+         mm.alerts().postAlert("Skip image", JustNucleiModule.class,
+                 "Edge detected at position " + pos );
+         return new ResultRois(null, null, null, this.getName());
+      }
       
       Image img = imgs[0];
       ImageProcessor iProcessor = mm.data().ij().createProcessor(img);
