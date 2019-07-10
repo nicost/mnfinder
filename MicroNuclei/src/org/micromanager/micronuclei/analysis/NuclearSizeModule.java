@@ -179,7 +179,7 @@ public class NuclearSizeModule  extends AnalysisModule {
       IJ.run(ip, "Subtract Background...", "rolling=5 sliding");
       // Pre-filter to improve nuclear detection and slightly enlarge the masks
       IJ.run(ip, "Smooth", "");
-      IJ.run(ip, "Gaussian Blur...", "sigma=5.0");
+      //IJ.run(ip, "Gaussian Blur...", "sigma=5.0");
 
       // get the nuclear masks 
       IJ.setAutoThreshold(ip, "Otsu dark");
