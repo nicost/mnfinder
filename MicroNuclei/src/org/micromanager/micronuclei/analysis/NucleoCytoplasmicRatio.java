@@ -38,12 +38,10 @@ import clearcl.ClearCLBuffer;
 import clearcl.ClearCLContext;
 import clearcl.ClearCLDevice;
 import clearcl.backend.ClearCLBackends;
-import clearcl.backend.jocl.ClearCLBackendJOCL;
-import clearcl.converters.NioConverters;
 import clearcl.ops.kernels.CLKernelException;
 import clearcl.ops.kernels.CLKernelExecutor;
 import clearcl.ops.kernels.Kernels;
-import clearcl.ops.math.MinMax;
+import coremem.enums.NativeTypeEnum;
 import georegression.struct.point.Point2D_F32;
 import georegression.struct.point.Point2D_I32;
 import ij.IJ;
@@ -61,8 +59,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.ddogleg.nn.FactoryNearestNeighbor;
 import org.ddogleg.nn.NearestNeighbor;
 import org.ddogleg.nn.NnData;
@@ -81,6 +77,7 @@ import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.ResultRois;
 import org.micromanager.micronuclei.utilities.BinaryListOps;
 import org.micromanager.internal.utils.imageanalysis.BoofCVImageConverter;
+import org.micromanager.internal.utils.imageanalysis.ClearCLNioConverters;
 
 /**
  *
@@ -233,20 +230,23 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
          try {
             long[] dimensions = {nuclImg.getWidth(), nuclImg.getHeight()};
             DefaultImage dNuclImg = (DefaultImage) nuclImg;
-            ClearCLBuffer clNuclImg = NioConverters.convertNioTiClearCLBuffer(cclContext_,
+            ClearCLBuffer clNuclImg = ClearCLNioConverters.convertNioTiClearCLBuffer(cclContext_,
                     dNuclImg.getPixelBuffer(), dimensions);
             ClearCLBuffer clNuclearImgBackground = clke_.createCLBuffer(clNuclImg);
             ClearCLBuffer clScratch2 = clke_.createCLBuffer(clNuclImg);
             ClearCLBuffer clScratch3 = clke_.createCLBuffer(clNuclImg);
+            
             Kernels.blur(clke_, clNuclImg, clNuclearImgBackground, 400.0f, 400.0f);
-            /*
-            MinMax lReductions = new MinMax(cclContext_.getDefaultQueue());
-            float[] minMax = lReductions.minmax(clNuclearImgBackground, 32);
+            float[] minMax = Kernels.minMax(clke_, clNuclearImgBackground, 32);
             Kernels.addImageAndScalar(clke_, clNuclearImgBackground, clScratch2, -minMax[0]);
-            */
-            Kernels.subtractImages(clke_, clNuclImg, clNuclearImgBackground, clScratch2);
-            Kernels.blur(clke_, clScratch2, clScratch3, 3.0f, 3.0f);
-            Kernels.addImageAndScalar(clke_, clScratch3, clScratch2, -5.0f);
+            Kernels.subtractImages(clke_, clNuclImg, clScratch2, clScratch3);
+            Kernels.blur(clke_, clScratch3, clScratch2, 3.0f, 3.0f);
+            minMax = Kernels.minMax(clke_, clScratch2, 32);
+            long[] histDim =  { (long) (minMax[1] - minMax[0]), 1, 1};
+            ClearCLBuffer clHist = clke_.createCLBuffer(histDim, NativeTypeEnum.Float);
+            Kernels.histogram(clke_, clScratch2, clHist, minMax[0], minMax[1]);
+            clHist.writeTo(pBuffer, true);
+
             
             clScratch2.writeTo(dNuclImg.getPixelBuffer(), true);
             
