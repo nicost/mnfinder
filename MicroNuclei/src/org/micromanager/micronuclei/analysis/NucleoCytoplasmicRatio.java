@@ -41,7 +41,6 @@ import clearcl.backend.ClearCLBackends;
 import clearcl.ops.kernels.CLKernelException;
 import clearcl.ops.kernels.CLKernelExecutor;
 import clearcl.ops.kernels.Kernels;
-import coremem.enums.NativeTypeEnum;
 import georegression.struct.point.Point2D_F32;
 import georegression.struct.point.Point2D_I32;
 import ij.IJ;
@@ -229,26 +228,37 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       if (clke_ != null) {
          try {
             long[] dimensions = {nuclImg.getWidth(), nuclImg.getHeight()};
+            int totalPixels = nuclImg.getWidth() * nuclImg.getHeight();
             DefaultImage dNuclImg = (DefaultImage) nuclImg;
             ClearCLBuffer clNuclImg = ClearCLNioConverters.convertNioTiClearCLBuffer(cclContext_,
                     dNuclImg.getPixelBuffer(), dimensions);
             ClearCLBuffer clNuclearImgBackground = clke_.createCLBuffer(clNuclImg);
             ClearCLBuffer clScratch2 = clke_.createCLBuffer(clNuclImg);
             ClearCLBuffer clScratch3 = clke_.createCLBuffer(clNuclImg);
-            
+            // blur to create backgroundimage
             Kernels.blur(clke_, clNuclImg, clNuclearImgBackground, 400.0f, 400.0f);
+            // subtract, but ensure there is no clipping
             float[] minMax = Kernels.minMax(clke_, clNuclearImgBackground, 32);
             Kernels.addImageAndScalar(clke_, clNuclearImgBackground, clScratch2, -minMax[0]);
             Kernels.subtractImages(clke_, clNuclImg, clScratch2, clScratch3);
-            Kernels.blur(clke_, clScratch3, clScratch2, 3.0f, 3.0f);
+            Kernels.blur(clke_, clScratch3, clScratch2, 2.0f, 2.0f);
+            //otsu thresholding
             minMax = Kernels.minMax(clke_, clScratch2, 32);
-            long[] histDim =  { (long) (minMax[1] - minMax[0]), 1, 1};
-            ClearCLBuffer clHist = clke_.createCLBuffer(histDim, NativeTypeEnum.Float);
-            Kernels.histogram(clke_, clScratch2, clHist, minMax[0], minMax[1]);
-            clHist.writeTo(pBuffer, true);
+            int[] hist = new int[256];
+            Kernels.histogram(clke_, clScratch2, hist, minMax[0], minMax[1]);
+            int otsu = GThresholdImageOps.computeOtsu(hist, 256, totalPixels);
+            otsu = (int) (minMax[0] + otsu / 256f * (minMax[1] - minMax[0])) ;
+            Kernels.threshold(clke_, clScratch2, clScratch3, (float) otsu);
+            // close using dilate/erode (2x each)
+            Kernels.dilateBox(clke_, clScratch3, clScratch2);
+            Kernels.dilateBox(clke_, clScratch2, clScratch3);            
+            Kernels.erodeBox(clke_, clScratch3, clScratch2);
+            Kernels.erodeBox(clke_, clScratch2, clScratch3);
+            
+            
 
             
-            clScratch2.writeTo(dNuclImg.getPixelBuffer(), true);
+            clScratch3.writeTo(dNuclImg.getPixelBuffer(), true);
             
             clNuclImg.close();
             clNuclearImgBackground.close();
