@@ -92,9 +92,9 @@ public class JustNucleiModule extends AnalysisModule {
       edgeDetector_ = new EdgeDetectorSubModule();
 
       List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
-      for (AnalysisProperty ap : edgeDetector_.getAnalysisProperties()) {
+      edgeDetector_.getAnalysisProperties().forEach((ap) -> {
          apl.add(ap);
-      }
+      });
       apl.add(skipWellsWithEdges_);
       apl.add(percentageOfNuclei_);
       // apl.add(maxStdDev_);
@@ -178,7 +178,7 @@ public class JustNucleiModule extends AnalysisModule {
       IJ.run(ip, "Subtract Background...", "rolling=5 sliding");
       // Pre-filter to improve nuclear detection and slightly enlarge the masks
       IJ.run(ip, "Smooth", "");
-      IJ.run(ip, "Gaussian Blur...", "sigma=5.0");
+      //IJ.run(ip, "Gaussian Blur...", "sigma=5.0");
 
       // get the nuclear masks 
       IJ.setAutoThreshold(ip, "Otsu dark");
@@ -187,7 +187,28 @@ public class JustNucleiModule extends AnalysisModule {
       // Use this instead of erode/dilate or Close since we can pad the edges this way
       // and can still reject nuclei touching the edge (which is not true when 
       // eroding normall)
-      IJ.run(ip, "Options...", "iterations=1 count=1 black pad edm=Overwrite do=Close");
+      
+      // added by Xiaowei to exclude clustered cells
+      IJ.run("Set Measurements...", "center area integrated redirect=None decimal=2");
+      String analyzeMaskParameters =  "size=" + 1250 + "-Infinity" + "clear display exclude add";
+      roiManager_.reset();
+      IJ.run(ip, "Analyze Particles...", analyzeMaskParameters);
+      Roi[] clusterMask = roiManager_.getRoisAsArray();
+      
+      if (clusterMask != null) {
+         for (Roi mask : clusterMask) {
+            ip.setRoi(mask);
+            //IJ.run("setBackgroundColor(0, 0, 0)");
+            // this will set the pixels outside of the ROI to the backgroundcolor
+            // The automatic thresholding will not look at these pixels 
+            // (it only analyzes within the ROI)
+            IJ.run(ip, "Clear", "");
+         }
+      }
+      //added done
+      
+      //IJ.run(ip, "Options...", "iterations=1 count=1 black pad edm=Overwrite do=Close");
+      IJ.run(ip, "Fill Holes", "");
       IJ.run(ip, "Watershed", "");
 
       // Now measure and store masks in ROI manager
