@@ -54,6 +54,9 @@ public class JustNucleiModule extends AnalysisModule {
    // private final AnalysisProperty maxMeanIntensity_;
    private final AnalysisProperty minSizeN_;
    private final AnalysisProperty maxSizeN_;
+   private final AnalysisProperty sizeFilter_;
+   private final AnalysisProperty maxCirc_;
+   private final AnalysisProperty minCirc_;
    
    private final EdgeDetectorSubModule edgeDetector_;
    private RoiManager roiManager_;
@@ -88,6 +91,19 @@ public class JustNucleiModule extends AnalysisModule {
               "<html>Maximum nuclear size (&micro;m<sup>2</sup>)</html>",
               "<html>Largest size of putative nucleus in "
               + "&micro;m<sup>2</sup></html>", 1800.0, null);
+      sizeFilter_ = new AnalysisProperty(this.getClass(),
+              "<html>Minimum size of clustered cells (&micro;m<sup>2</sup>)</html>",
+              "<html>Nuclear size threshold in "
+              + "&micro;m<sup>2</sup></html><br> +"
+              + "Used to filter pre-watershed mask", 1250.0, null);
+      maxCirc_= new AnalysisProperty(this.getClass(),
+              "<html>Maximum circ </html>",
+              "<html>circ upper limit <br>"
+              + "Used to filter selected nucleus", 0.90, null);
+      minCirc_= new AnalysisProperty(this.getClass(),
+              "<html>Minimum circ </html>",
+              "<html>circ lower limit <br>"
+              + "Used to filter selected nucleus", 0.55, null);
           
       edgeDetector_ = new EdgeDetectorSubModule();
 
@@ -101,6 +117,9 @@ public class JustNucleiModule extends AnalysisModule {
       // apl.add(maxMeanIntensity_);
       apl.add(minSizeN_);
       apl.add(maxSizeN_);
+      apl.add(sizeFilter_);
+      apl.add(maxCirc_);
+      apl.add(minCirc_);
 
       setAnalysisProperties(apl);
 
@@ -190,7 +209,8 @@ public class JustNucleiModule extends AnalysisModule {
       
       // added by Xiaowei to exclude clustered cells
       IJ.run("Set Measurements...", "center area integrated redirect=None decimal=2");
-      String analyzeMaskParameters =  "size=" + 1250 + "-Infinity" + "clear display exclude add";
+      String analyzeMaskParameters =  "size=" + (Double) sizeFilter_.get() + "-Infinity" + "clear display add";
+      // do not use "exclude" option since this won't exclude ROI which connects with edge
       roiManager_.reset();
       IJ.run(ip, "Analyze Particles...", analyzeMaskParameters);
       Roi[] clusterMask = roiManager_.getRoisAsArray();
@@ -214,7 +234,8 @@ public class JustNucleiModule extends AnalysisModule {
       // Now measure and store masks in ROI manager
       IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
       String analyzeParticlesParameters =  "size=" + (Double) minSizeN_.get() + "-" + 
-              (Double) maxSizeN_.get() + " exclude clear add";
+              (Double) maxSizeN_.get() + "circularity=" + (Double) minCirc_.get() + "-" + (Double) maxCirc_.get() + " exclude clear add";
+      // add circularity filter to exclude cells lost focus/ clustered cells
       // this roiManager reset is needed since Analyze Particles will not take 
       // this action if it does not find any Rois, leading to erronous results
       roiManager_.reset();
