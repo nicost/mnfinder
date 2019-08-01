@@ -1140,16 +1140,16 @@ public class MicroNucleiForm extends MMFrame {
          return;
       }
       try {
-      Integer binning = Integer.parseInt(gui_.core().getProperty(gui_.core().getCameraDevice(), "Binning")
-                .substring(0, 1));
-      List<FloatPolygon> transformROIs = ProjectorActions.transformROIs(
-              rois, maps, gui_.core().getROI(), binning);
-      pd.loadRois(transformROIs);
-      pd.waitForDevice();
-      pd.runPolygons();
-      pd.waitForDevice();
+         Integer binning = Integer.parseInt(gui_.core().getProperty(gui_.core().getCameraDevice(), "Binning")
+                 .substring(0, 1));
+         List<FloatPolygon> transformROIs = ProjectorActions.transformROIs(
+                 rois, maps, gui_.core().getROI(), binning);
+         pd.loadRois(transformROIs);
+         pd.waitForDevice();
+         pd.runPolygons();
+         pd.waitForDevice();
       } catch (Exception ex) {
-          ReportingUtils.showError("Error communicating with the hardware");
+         ReportingUtils.showError("Error communicating with the hardware");
       }
       /*
       pcf.setROIs(rois);

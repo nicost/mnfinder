@@ -27,12 +27,13 @@ MIGJARPATH = $(MMARTIFACTS)/compile/miglayout-swing-4.2.jar
 MIGCOREJARPATH = $(MMARTIFACTS)/compile/miglayout-core-4.2.jar
 GUAVAJARPATH = $(MMARTIFACTS)/compile/guava-17.0.jar
 PROJECTORJARPATH = $(MMPATH)/libraries/Projector.jar
+DDOGLEGJARPATH = $(MMPATH)/compile/ddogleg-0.16.jar
 
 .SUFFIXES: .java .class
 ../MicroNuclei.jar:  $(SOURCEFILES)
 	test -d build || mkdir build
 	rm -rf build/org
-	$(JC) -source 1.8 -target 1.8 -sourcepath src -classpath $(IJJARPATH):$(MMJARPATH):$(MMCOREJARPATH):$(MIGCOREJARPATH):$(MIGJARPATH):$(GUAVAJARPATH):$(PROJECTORJARPATH):$(SCIJAVAJARPATH):. src/org/micromanager/micronuclei/MicroNucleiPlugin.java -d build
+	$(JC) -source 1.8 -target 1.8 -sourcepath src -classpath $(IJJARPATH):$(MMJARPATH):$(MMCOREJARPATH):$(MIGCOREJARPATH):$(MIGJARPATH):$(GUAVAJARPATH):$(PROJECTORJARPATH):$(SCIJAVAJARPATH):$(DDOGLEGJARPATH):. src/org/micromanager/micronuclei/MicroNucleiPlugin.java -d build
 	## Work around bug in 'jar': jar cf MM_.jar -C bin/ bin/* does not work
 	cd build && jar cf ../../MicroNuclei.jar * 
 

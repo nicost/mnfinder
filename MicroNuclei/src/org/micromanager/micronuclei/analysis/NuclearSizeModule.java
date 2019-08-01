@@ -6,9 +6,13 @@ import ij.ImagePlus;
 import ij.gui.Roi;
 import ij.measure.Calibration;
 import ij.measure.Measurements;
+import ij.measure.ResultsTable;
+import ij.plugin.Duplicator;
+import ij.plugin.filter.Analyzer;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
+import ij.text.TextWindow;
 import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,12 +37,19 @@ public class NuclearSizeModule  extends AnalysisModule {
    private final String DESCRIPTION = 
            "<html>Module that selects nuclei (imaged in the first channel), <br>" +
            "based on size<br>";
+   private final AnalysisProperty skipWellsWithEdges_;
    private final AnalysisProperty maxStdDev_;
    private final AnalysisProperty maxMeanIntensity_;
    private final AnalysisProperty minSizeN_;
    private final AnalysisProperty maxSizeN_;
    private final AnalysisProperty minSizeSN_;
    private final AnalysisProperty maxSizeSN_;
+   private final AnalysisProperty sizeFilter_;
+   private final AnalysisProperty maxCirc_;
+   private final AnalysisProperty minCirc_;
+   private final AnalysisProperty sdFilter_;
+   
+   private TextWindow textWindow_;
 
    private final EdgeDetectorSubModule edgeDetector_;
    private RoiManager roiManager_;
@@ -47,7 +58,12 @@ public class NuclearSizeModule  extends AnalysisModule {
       // note: the type of the value when creating the AnalysisProperty determines
       // the allowed type, and can create problems when the user enters something
       // different
-
+      
+      skipWellsWithEdges_ = new AnalysisProperty(this.getClass(),
+              "<html>Skip wells with edges</html",
+              "Skips wells with edges when checked",
+              true,
+              null);
       maxStdDev_ = new AnalysisProperty(this.getClass(),
               "Maximum Image Std. Dev.",
               "<html>Std. Dev. of grayscale values of original image<br>"
@@ -60,7 +76,7 @@ public class NuclearSizeModule  extends AnalysisModule {
               "<html>Minimum nuclear size (&micro;m<sup>2</sup>)</html>",
               "<html>Smallest size of nucleus in "
               + "&micro;m<sup>2</sup></html><br>"
-              + "Used to identify nuclei", 300.0, null);
+              + "Used to identify nuclei", 35.0, null);
       maxSizeN_ = new AnalysisProperty(this.getClass(),
               "<html>Maximum nuclear size (&micro;m<sup>2</sup>)</html>",
               "<html>Largest size of nucleus in "
@@ -70,26 +86,48 @@ public class NuclearSizeModule  extends AnalysisModule {
               "<html>Minimum positive size (&micro;m<sup>2</sup>)</html>",
               "<html>Smallest size of selected nucleus in "
               + "&micro;m<sup>2</sup></html><br>"
-              + "Used to generate hits", 300.0, null);
+              + "Used to generate hits", 450.0, null);
       maxSizeSN_ = new AnalysisProperty(this.getClass(),
               "<html>Maximum positive size (&micro;m<sup>2</sup>)</html>",
               "<html>Largest size of nucleus in "
               + "&micro;m<sup>2</sup></html><br> +"
               + "Used to generate hits", 1800.0, null);
+      sizeFilter_ = new AnalysisProperty(this.getClass(),
+              "<html>Minimum size of clustered cells (&micro;m<sup>2</sup>)</html>",
+              "<html>Nuclear size threshold in "
+              + "&micro;m<sup>2</sup></html><br> +"
+              + "Used to filter pre-watershed mask", 1250.0, null);
+      maxCirc_= new AnalysisProperty(this.getClass(),
+              "<html>Maximum circ </html>",
+              "<html>circ upper limit <br>"
+              + "Used to filter selected nucleus", 0.90, null);
+      minCirc_= new AnalysisProperty(this.getClass(),
+              "<html>Minimum circ </html>",
+              "<html>circ lower limit <br>"
+              + "Used to filter selected nucleus", 0.55, null);
+      sdFilter_= new AnalysisProperty(this.getClass(),
+              "<html>sd filter </html>",
+              "<html>upper limit of stdev in nucleus channel <br>"
+              + "Used to filter selected nucleus", 7000.0, null);
       
       edgeDetector_ = new EdgeDetectorSubModule();
 
-      List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
+      List<AnalysisProperty> apl = new ArrayList<>();
       for (AnalysisProperty ap : edgeDetector_.getAnalysisProperties()) {
          apl.add(ap);
       }
       
+      apl.add(skipWellsWithEdges_);
       apl.add(maxStdDev_);
       apl.add(maxMeanIntensity_);
       apl.add(minSizeN_);
       apl.add(maxSizeN_);
       apl.add(minSizeSN_);
       apl.add(maxSizeSN_);
+      apl.add(sizeFilter_);
+      apl.add(maxCirc_);
+      apl.add(minCirc_);
+      apl.add(sdFilter_);
 
       setAnalysisProperties(apl);
 
@@ -105,6 +143,13 @@ public class NuclearSizeModule  extends AnalysisModule {
    public ResultRois analyze(Studio mm, Image[] imgs, Roi roi, JSONObject parms) 
            throws AnalysisException {
       Roi restrictToThisRoi = edgeDetector_.analyze(mm, imgs);
+            
+      if (restrictToThisRoi != null && ((Boolean) skipWellsWithEdges_.get()) ) {
+         int pos = imgs[0].getCoords().getStagePosition();
+         mm.alerts().postAlert("Skip image", JustNucleiModule.class,
+                 "Edge detected at position " + pos );
+         return new ResultRois(null, null, null, this.getName());
+      }
       
       Image img = imgs[0];
       ImageProcessor iProcessor = mm.data().ij().createProcessor(img);
@@ -116,6 +161,8 @@ public class NuclearSizeModule  extends AnalysisModule {
          userRoiBounds = roi.getBounds();
       }
       ImagePlus ip = (new ImagePlus(UINAME, iProcessor.duplicate()));
+      Duplicator duppie = new Duplicator();
+      ImagePlus originalIp = duppie.run(ip);
 
       Calibration calibration = ip.getCalibration();
       calibration.pixelWidth = img.getMetadata().getPixelSizeUm();
@@ -160,7 +207,7 @@ public class NuclearSizeModule  extends AnalysisModule {
       IJ.run(ip, "Subtract Background...", "rolling=5 sliding");
       // Pre-filter to improve nuclear detection and slightly enlarge the masks
       IJ.run(ip, "Smooth", "");
-      IJ.run(ip, "Gaussian Blur...", "sigma=5.0");
+      //IJ.run(ip, "Gaussian Blur...", "sigma=5.0");
 
       // get the nuclear masks 
       IJ.setAutoThreshold(ip, "Otsu dark");
@@ -169,40 +216,103 @@ public class NuclearSizeModule  extends AnalysisModule {
       // Use this instead of erode/dilate or Close since we can pad the edges this way
       // and can still reject nuclei touching the edge (which is not true when 
       // eroding normall)
-      IJ.run(ip, "Options...", "iterations=1 count=1 black pad edm=Overwrite do=Close");
+      
+      // added by Xiaowei to exclude clustered cells
+      IJ.run("Set Measurements...", "center area integrated redirect=None decimal=2");
+      String analyzeMaskParameters =  "size=" + (Double) sizeFilter_.get() + "-Infinity" + "clear display add";
+      // do not use "exclude" option since this won't exclude ROI which connects with edge
+      roiManager_.reset();
+      IJ.run(ip, "Analyze Particles...", analyzeMaskParameters);
+      Roi[] clusterMask = roiManager_.getRoisAsArray();
+      
+      if (clusterMask != null) {
+         for (Roi mask : clusterMask) {
+            ip.setRoi(mask);
+            //IJ.run("setBackgroundColor(0, 0, 0)");
+            // this will set the pixels outside of the ROI to the backgroundcolor
+            // The automatic thresholding will not look at these pixels 
+            // (it only analyzes within the ROI)
+            IJ.run(ip, "Clear", "");
+         }
+      }
+      //added done
+      
+      //IJ.run(ip, "Options...", "iterations=1 count=1 black pad edm=Overwrite do=Close");
+      IJ.run(ip, "Fill Holes", "");
       IJ.run(ip, "Watershed", "");
 
-      // Now measure and store masks in ROI manager
-      IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
+      // Now measure and store all nuclei in ROI manager
+      IJ.run("Set Measurements...", "center area integrated redirect=None decimal=2");
       String analyzeParticlesParameters =  "size=" + (Double) minSizeN_.get() + "-" + 
-              (Double) maxSizeN_.get() + " exclude clear add";
+              (Double) maxSizeN_.get() + "clear display exclude add";
       // this roiManager reset is needed since Analyze Particles will not take 
       // this action if it does not find any Rois, leading to erronous results
       roiManager_.reset();
       IJ.run(ip, "Analyze Particles...", analyzeParticlesParameters);
+      ResultsTable resultsTable = Analyzer.getResultsTable();
       final Roi[] allNuclei = roiManager_.getRoisAsArray();
       
-      // Now measure and store masks in ROI manager
+      // Report results
+      /*
+      if (textWindow_ == null || !textWindow_.isVisible()) {
+         textWindow_ = new TextWindow("Nuclear Size", resultsTable.getColumnHeadings(), 450, 300);
+      }
+      for (int row = 0; row < resultsTable.size(); row++) {
+          
+        textWindow_.append( resultsTable.getRowAsString(row));
+      }
+      textWindow_.setVisible(true);
+       */    
+
+      // Now measure and store size-selected nuclei in ROI manager      
       IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
       analyzeParticlesParameters =  "size=" + (Double) minSizeSN_.get() + "-" + 
-              (Double) maxSizeSN_.get() + " exclude clear add";
+                (Double) maxSizeSN_.get() + "circularity=" + (Double) minCirc_.get() + "-" + (Double) maxCirc_.get() + " clear exclude add";
+      // added by Xiaowei, select for circularity to exclude lost focus cells
       // this roiManager reset is needed since Analyze Particles will not take 
       // this action if it does not find any Rois, leading to erronous results
       roiManager_.reset();
       IJ.run(ip, "Analyze Particles...", analyzeParticlesParameters);
-
-      // prepare the masks to be send to the DMD
       Roi[] selectedNuclei = roiManager_.getRoisAsArray();
+      
+      // Now screen through size/circ-selected nuclei to make sure them meeting standard deviation requirement (further exclude clustered cells)
+      // Didn't run this in JustNucleiModule to save time
+      ResultsTable rt = new ResultsTable();
+      Analyzer analyzer = new Analyzer(originalIp, Analyzer.MEAN + Analyzer.STD_DEV, rt);
+
+      List<Roi> sdFilteredList = new ArrayList<Roi>();
+      
+      for (Roi nuc : selectedNuclei) {
+         originalIp.setRoi(nuc);
+         analyzer.measure();
+         // IJ.run(cellImgIp2, "Measure", "");
+         int counter = rt.getCounter();
+         int col = rt.getColumnIndex("Mean");
+         double meanVal = rt.getValueAsDouble(col, counter - 1); //all the Area values
+         int sdCol = rt.getColumnIndex("StdDev");
+         double sdVal = rt.getValueAsDouble(sdCol, counter - 1);
+         //System.out.println("counter: " + counter + ", mean: " + meanVal + ", stdDev: " + sdVal);
+         if (sdVal < (Double) sdFilter_.get()) {
+            sdFilteredList.add(nuc);
+         }
+      }
+         
+      Roi[] sdFilteredNuclei = sdFilteredList.toArray(new Roi[sdFilteredList.size()]);
+      
       //mm.alerts().postAlert(UINAME, JustNucleiModule.class, 
       //        "Found " + allNuclei.length + " nuclei");
-      List convertRoiList = new ArrayList();
-      for (Roi selectedNuclei1 : selectedNuclei) {
+      
+      // prepare the masks to be send to the DMD
+      List<Roi> convertRoiList = new ArrayList();
+      for (Roi selectedNuclei1 : sdFilteredNuclei) {
          if (userRoiBounds != null) {
             Rectangle r2d = selectedNuclei1.getBounds();
             selectedNuclei1.setLocation(r2d.x + userRoiBounds.x, r2d.y + userRoiBounds.y);
          }
          convertRoiList.add(selectedNuclei1);
       }
+
+      
       Roi[] convertRois = new Roi[convertRoiList.size()];
       convertRois = (Roi[]) convertRoiList.toArray(convertRois);
       

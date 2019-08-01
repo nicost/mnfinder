@@ -97,6 +97,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
    private final AnalysisProperty testChannel_;
    private final AnalysisProperty minSizeN_;
    private final AnalysisProperty maxSizeN_;
+   private final AnalysisProperty showMasks_;
    
    private final EdgeDetectorSubModule edgeDetector_;
    private RoiManager roiManager_;
@@ -135,7 +136,11 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
               "<html>Maximum nuclear size (&micro;m<sup>2</sup>)</html>",
               "<html>Largest size of putative nucleus in "
               + "&micro;m<sup>2</sup></html>", 1800.0, null);
-
+      showMasks_ = new AnalysisProperty(this.getClass(), 
+               "<html>Show binary masks</html>",
+               "Show binary masks",
+               false, null);
+          
       edgeDetector_ = new EdgeDetectorSubModule();
 
       List<AnalysisProperty> apl = new ArrayList<>();
@@ -144,6 +149,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       apl.add(testChannel_);
       apl.add(minSizeN_);
       apl.add(maxSizeN_);
+      apl.add(showMasks_);
       for (AnalysisProperty ap : edgeDetector_.getAnalysisProperties()) {
          apl.add(ap);
       }
@@ -419,7 +425,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       // Get average intensities under nuclear mask and cytoplasmic mask
       if (textWindow_ == null || !textWindow_.isVisible()) {
          textWindow_ = new TextWindow("NucleoCytoplasmic Ratio", 
-                 "#\tx\ty\tnucl. Size\tnucl. Avg\tcyto Avg\tratio", 400, 250);
+                 "#\tx\ty\tnucl. Size\tnucl. Avg(nucCh.)\tnucl. Avg(cytoCh.)\tcyto. Size \tcyto. Avg\tn/c ratio", 400, 250);
       }
       textWindow_.setVisible(true);
       
@@ -433,7 +439,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
          for (Point2D_I32 p : nucleus) {
             sum += bNuc.get(p.x, p.y);
          }
-         final double nuclearAvg = sum / nucleus.size() - (nuclearBackgroundMinimum);
+         final double nuclearAvg = sum / nucleus.size();
          
          sum = 0.0;
          for (Point2D_I32 p : nucleus) {
@@ -448,10 +454,11 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
          }
          final double cAvg = sum / cyto.size();
          final double nuclearSize = nucleus.size() * pixelSurface;
+         final double cytoSize = cyto.size() * pixelSurface;
          if (nuclearSize > (double) minSizeN_.get() && nuclearSize < (double) maxSizeN_.get()) {
             textWindow_.append(pos + "-" + counter++ + "\t" + (int) centers.get(i).x + "\t"
-                    + (int) centers.get(i).y + "\t" + nucleus.size() * pixelSurface + "\t"
-                    + nuclearAvg + "\t" + cAvg + "\t" + nAvg / cAvg + "\n");
+                    + (int) centers.get(i).y + "\t" + nuclearSize + "\t" + nuclearAvg + "\t"
+                    + nAvg + "\t" + cytoSize + "\t" + cAvg + "\t" + nAvg / cAvg + "\n");
          }
       }
       
@@ -459,24 +466,25 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       
       /**
        * Uncomment to display the nuclear and cytoplasmic masks
-       *
-      GrayU8 dispImg = new GrayU8(thresholdedNuc2.getWidth(), thresholdedNuc2.getHeight());
-      for (int i = 0; i < nuclearClusters.size(); i++) {
-         List<Point2D_I32> cluster = nuclearClusters.get(i);
-         for (Point2D_I32 p : cluster) {
-            dispImg.set(p.x, p.y, dispImg.get(p.x, p.y) + 30);
+       */
+      if ((Boolean) showMasks_.get()) {
+         GrayU8 dispImg = new GrayU8(thresholdedNuc2.getWidth(), thresholdedNuc2.getHeight());
+         for (int i = 0; i < nuclearClusters.size(); i++) {
+            List<Point2D_I32> cluster = nuclearClusters.get(i);
+            for (Point2D_I32 p : cluster) {
+               dispImg.set(p.x, p.y, dispImg.get(p.x, p.y) + 30);
+            }
          }
-      }
-      for (int i = 0; i < cytoClusters.size(); i++) {
-         List<Point2D_I32> cluster = cytoClusters.get(i);
-         for (Point2D_I32 p : cluster) {
-            dispImg.set(p.x, p.y, dispImg.get(p.x, p.y) + 60);
+         for (int i = 0; i < cytoClusters.size(); i++) {
+            List<Point2D_I32> cluster = cytoClusters.get(i);
+            for (Point2D_I32 p : cluster) {
+               dispImg.set(p.x, p.y, dispImg.get(p.x, p.y) + 60);
+            }
          }
+         ImageProcessor convert = BoofCVImageConverter.convert(dispImg, false);
+         ImagePlus showMe = new ImagePlus("Boof", convert);
+         showMe.show();
       }
-      ImageProcessor convert = BoofCVImageConverter.convert(dispImg, false);
-      ImagePlus showMe = new ImagePlus("Boof", convert);
-      showMe.show();
-      */
       
       
       // Now measure and store masks in ROI manager
