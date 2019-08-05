@@ -16,6 +16,9 @@ import ij.text.TextWindow;
 import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
+import net.haesleinhuepf.clij.CLIJ;
+import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
+import net.haesleinhuepf.clij.coremem.enums.NativeTypeEnum;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.micromanager.Studio;
@@ -53,6 +56,10 @@ public class NuclearSizeModule  extends AnalysisModule {
 
    private final EdgeDetectorSubModule edgeDetector_;
    private RoiManager roiManager_;
+   
+   private final CLIJ clij_;
+         
+      
 
    public NuclearSizeModule() {
       // note: the type of the value when creating the AnalysisProperty determines
@@ -136,6 +143,8 @@ public class NuclearSizeModule  extends AnalysisModule {
       if (roiManager_ == null) {
          roiManager_ = new RoiManager();
       }
+      
+      clij_ = CLIJ.getInstance();
 
    }
 
@@ -151,7 +160,7 @@ public class NuclearSizeModule  extends AnalysisModule {
          return new ResultRois(null, null, null, this.getName());
       }
       
-      Image img = imgs[0];
+      Image img = imgs[1];
       ImageProcessor iProcessor = mm.data().ij().createProcessor(img);
 
       Rectangle userRoiBounds = null;
@@ -200,7 +209,30 @@ public class NuclearSizeModule  extends AnalysisModule {
          return new ResultRois(null, null, null, this.getName());
       }
 
-
+      ClearCLBuffer src = clij_.push(ip);
+      // create scratch images
+      ClearCLBuffer dst = clij_.create(src);
+      ClearCLBuffer dst2 = clij_.create(src);
+      ClearCLBuffer thresholded = clij_.create(src.getDimensions(), NativeTypeEnum.UnsignedByte);
+      // estimate background by blurring and subtracting minimum of blurred image
+      clij_.op().blur(src, dst, 400.0f, 400.0f);
+      float minimum = (float) clij_.op().minimumOfAllPixels(dst);
+      clij_.op().addImageAndScalar(dst, dst2, -minimum);
+      // subtract background from blurred image
+      clij_.op().subtractImages(src, dst2, dst);
+      // smooth (small gaussian blur)
+      clij_.op().meanBox(dst, dst2, 3, 3, 1);
+      // Otsu thresholding
+      clij_.op().automaticThreshold(dst2, thresholded, "Otsu");
+      // push back to CPU
+      ip = clij_.pull(thresholded);
+      ip.show();
+      src.close();
+      dst.close();
+      dst2.close();
+      
+/*      
+      
       // Even though we are flatfielding, results are much better after
       // background subtraction.  In one test, I get about 2 fold more nuclei
       // when doing this background subtraction
@@ -216,7 +248,7 @@ public class NuclearSizeModule  extends AnalysisModule {
       // Use this instead of erode/dilate or Close since we can pad the edges this way
       // and can still reject nuclei touching the edge (which is not true when 
       // eroding normall)
-      
+*/      
       // added by Xiaowei to exclude clustered cells
       IJ.run("Set Measurements...", "center area integrated redirect=None decimal=2");
       String analyzeMaskParameters =  "size=" + (Double) sizeFilter_.get() + "-Infinity" + "clear display add";
@@ -228,7 +260,7 @@ public class NuclearSizeModule  extends AnalysisModule {
       if (clusterMask != null) {
          for (Roi mask : clusterMask) {
             ip.setRoi(mask);
-            //IJ.run("setBackgroundColor(0, 0, 0)");
+            // IJ.run("setBackgroundColor(0, 0, 0)");
             // this will set the pixels outside of the ROI to the backgroundcolor
             // The automatic thresholding will not look at these pixels 
             // (it only analyzes within the ROI)

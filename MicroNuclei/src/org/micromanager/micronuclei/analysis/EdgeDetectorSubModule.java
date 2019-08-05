@@ -29,6 +29,8 @@ import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import java.util.ArrayList;
 import java.util.List;
+import net.haesleinhuepf.clij.CLIJ;
+import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import org.micromanager.Studio;
 import org.micromanager.data.Image;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
@@ -44,6 +46,7 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
    private final AnalysisProperty edgeDetectionChannel_;
    private final AnalysisProperty edgeMinMean_;
    private final AnalysisProperty edgeNrPixelDilation_;
+   private final CLIJ clij_;
    
    public EdgeDetectorSubModule() {
 
@@ -68,6 +71,8 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
       aps.add(edgeMinMean_);
       aps.add(edgeNrPixelDilation_);
       super.setAnalysisProperties(aps);
+      
+      clij_ = CLIJ.getInstance();
       
    }
    
@@ -100,7 +105,13 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
       double imageArea = ip.getWidth() * calibration.pixelWidth * 
               ip.getHeight() * calibration.pixelHeight;
       
-      IJ.setAutoThreshold(ip, "Huang dark");
+      ClearCLBuffer src = clij_.push(ip);
+      ClearCLBuffer dst = clij_.create(src);
+      clij_.op().automaticThreshold(src, dst, "Huang");
+      ip = clij_.pull(dst);
+      
+      // IJ.setAutoThreshold(ip, "Huang dark");
+      
       // Fill holes
       IJ.run(ip, "Convert to Mask", "");
       IJ.run(ip, "Options...", "iterations=1 count=1 black edm=Overwrite do=Close");
