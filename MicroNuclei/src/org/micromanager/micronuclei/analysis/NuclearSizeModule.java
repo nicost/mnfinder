@@ -38,8 +38,8 @@ public class NuclearSizeModule  extends AnalysisModule {
            "<html>Module that selects nuclei (imaged in the first channel), <br>" +
            "based on size<br>";
    private final AnalysisProperty skipWellsWithEdges_;
-   private final AnalysisProperty maxStdDev_;
-   private final AnalysisProperty maxMeanIntensity_;
+   //private final AnalysisProperty maxStdDev_;
+   //private final AnalysisProperty maxMeanIntensity_;
    private final AnalysisProperty minSizeN_;
    private final AnalysisProperty maxSizeN_;
    private final AnalysisProperty minSizeSN_;
@@ -64,6 +64,7 @@ public class NuclearSizeModule  extends AnalysisModule {
               "Skips wells with edges when checked",
               true,
               null);
+      /*
       maxStdDev_ = new AnalysisProperty(this.getClass(),
               "Maximum Image Std. Dev.",
               "<html>Std. Dev. of grayscale values of original image<br>"
@@ -72,6 +73,7 @@ public class NuclearSizeModule  extends AnalysisModule {
               "Maximum Image Mean Int.",
               "<html>If the average intensity of the image is higher<br>"
               + "than this number, the image will be skipped", 20000.0, null);
+      */
       minSizeN_ = new AnalysisProperty(this.getClass(),
               "<html>Minimum nuclear size (&micro;m<sup>2</sup>)</html>",
               "<html>Smallest size of nucleus in "
@@ -118,8 +120,8 @@ public class NuclearSizeModule  extends AnalysisModule {
       }
       
       apl.add(skipWellsWithEdges_);
-      apl.add(maxStdDev_);
-      apl.add(maxMeanIntensity_);
+      //apl.add(maxStdDev_);
+      //apl.add(maxMeanIntensity_);
       apl.add(minSizeN_);
       apl.add(maxSizeN_);
       apl.add(minSizeSN_);
@@ -179,6 +181,7 @@ public class NuclearSizeModule  extends AnalysisModule {
       }
 
       // check for edges by calculating stdev
+      /*
       ImageStatistics stat = ip.getStatistics(Measurements.MEAN+ Measurements.STD_DEV);
       final double stdDev = stat.stdDev;
       final double mean = stat.mean;
@@ -199,7 +202,7 @@ public class NuclearSizeModule  extends AnalysisModule {
                   ") is higher than the limit you set: " + maxMean);
          return new ResultRois(null, null, null, this.getName());
       }
-
+       */
 
       // Even though we are flatfielding, results are much better after
       // background subtraction.  In one test, I get about 2 fold more nuclei
