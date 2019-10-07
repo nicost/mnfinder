@@ -27,7 +27,6 @@ import boofcv.alg.misc.GImageStatistics;
 import boofcv.alg.misc.ImageStatistics;
 import boofcv.alg.misc.PixelMath;
 import boofcv.alg.nn.KdTreePoint2D_F32;
-import boofcv.core.image.ConvertImage;
 import boofcv.struct.ConnectRule;
 import boofcv.struct.image.GrayS32;
 import boofcv.struct.image.GrayU16;
@@ -98,6 +97,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
    private final AnalysisProperty minSizeN_;
    private final AnalysisProperty maxSizeN_;
    private final AnalysisProperty showMasks_;
+   private final AnalysisProperty useGPU_;
    
    private final EdgeDetectorSubModule edgeDetector_;
    private RoiManager roiManager_;
@@ -140,6 +140,10 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
                "<html>Show binary masks</html>",
                "Show binary masks",
                false, null);
+      useGPU_ = new AnalysisProperty(this.getClass(),
+               "<html>Use GPU</html",
+               "<html>Execute image analysis calculations on the GPU using OpenCL",
+               false, null);
           
       edgeDetector_ = new EdgeDetectorSubModule();
 
@@ -150,6 +154,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       apl.add(minSizeN_);
       apl.add(maxSizeN_);
       apl.add(showMasks_);
+      apl.add(useGPU_);
       for (AnalysisProperty ap : edgeDetector_.getAnalysisProperties()) {
          apl.add(ap);
       }
@@ -231,7 +236,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       final double pixelSurface = nuclImg.getMetadata().getPixelSizeUm()
               * nuclImg.getMetadata().getPixelSizeUm();
 
-      if (clke_ != null) {
+      if ((Boolean) useGPU_.get() && clke_ != null) {
          try {
             long[] dimensions = {nuclImg.getWidth(), nuclImg.getHeight()};
             int totalPixels = nuclImg.getWidth() * nuclImg.getHeight();
@@ -261,9 +266,6 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
             Kernels.erodeBox(clke_, clScratch3, clScratch2);
             Kernels.erodeBox(clke_, clScratch2, clScratch3);
             
-            
-
-            
             clScratch3.writeTo(dNuclImg.getPixelBuffer(), true);
             
             clNuclImg.close();
@@ -275,7 +277,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
             ReportingUtils.logError(clKexc);
          }
          
-      }
+      } 
 
       GrayU16 bNuc = (GrayU16) BoofCVImageConverter.mmToBoofCV(nuclImg, false);
       ImageGray igCyto = BoofCVImageConverter.mmToBoofCV(cytoImg, false);
@@ -292,8 +294,8 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       final int nuclearBackgroundMinimum = ImageStatistics.min(nuclearImgBackground_);
       PixelMath.minus(nuclearImgBackground_, nuclearBackgroundMinimum, nuclearImgBackground_);
       // Subtract background from nuclear image
-      PixelMath.subtract(bNuc, nuclearImgBackground_, backgroundSubtractedNuclearImg);
-      ConvertImage.convert(backgroundSubtractedNuclearImg, bNuc);
+      //PixelMath.subtract(bNuc, nuclearImgBackground_, backgroundSubtractedNuclearImg);
+      //ConvertImage.convert(backgroundSubtractedNuclearImg, bNuc);
       GBlurImageOps.gaussian(bNuc, gaussNuc_, -1, 3, null);
 
       int otsu2 = GThresholdImageOps.computeOtsu2(gaussNuc_, ImageStatistics.min(gaussNuc_),
@@ -302,11 +304,15 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       GrayU8 thresholdedNuc2 = gaussNuc_.createSameShape(GrayU8.class);
 
       GThresholdImageOps.threshold(gaussNuc_, thresholdedNuc, otsu2, false);
+      
+      ImagePlus tNuc = new ImagePlus("TNuc", 
+                        BoofCVImageConverter.convert(bNuc, false));
+      tNuc.show();
+      
 
       // close using dilate/erode
       BinaryImageOps.dilate4(thresholdedNuc, 2, thresholdedNuc2);
       BinaryImageOps.erode4(thresholdedNuc2, 2, thresholdedNuc);
-
       // Use ImageJ Watershed code.  Worth porting to BoofCV?
       ImageProcessor d = BoofCVImageConverter.convert(thresholdedNuc, false);
       EDM edm = new EDM();
@@ -378,12 +384,13 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
          centersList.add(entry.getValue());
       }
       nn.setPoints(centersList, true);
+      NearestNeighbor.Search<Point2D_F32> search = nn.createSearch();
       NnData<Point2D_F32> result = new NnData<>();
       // 4 should be enough...
       FastQueue<NnData<Point2D_F32>> fResults = new FastQueue(4, result.getClass(), true);
       for (int i =  0; i < centersList.size(); i++) {
          List<Point2D_I32> cyto = cytoClusters.get(i);
-         nn.findNearest(centersList.get(i), -1, 5, fResults);
+         search.findNearest(centersList.get(i), -1, 5, fResults);
          for (int j = 0; j < fResults.size(); j++) {
             NnData<Point2D_F32> candidate = fResults.get(j);
             if (i != candidate.index) { // make sure to not compare against ourselves
@@ -526,6 +533,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
               this.getName());
       rrs.reportOnImg(0);
       return rrs;
+      
    }
 
    @Override
