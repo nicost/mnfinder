@@ -299,12 +299,14 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
          centersList.add(entry.getValue());
       }
       nn.setPoints(centersList, true);
+      NearestNeighbor.Search<Point2D_F32> search = nn.createSearch();
       NnData<Point2D_F32> result = new NnData<>();
       // 4 should be enough...
       FastQueue<NnData<Point2D_F32>> fResults = new FastQueue(4, result.getClass(), true);
       for (int i =  0; i < centersList.size(); i++) {
          List<Point2D_I32> cyto = cytoClusters.get(i);
-         nn.findNearest(centersList.get(i), -1, 5, fResults);
+         search.findNearest(centersList.get(i), -1, 5, fResults);
+         // nn.findNearest(centersList.get(i), -1, 5, fResults);
          for (int j = 0; j < fResults.size(); j++) {
             NnData<Point2D_F32> candidate = fResults.get(j);
             if (i != candidate.index) { // make sure to not compare against ourselves
