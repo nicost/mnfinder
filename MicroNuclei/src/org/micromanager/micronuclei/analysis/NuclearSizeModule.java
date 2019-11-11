@@ -155,14 +155,14 @@ public class NuclearSizeModule  extends AnalysisModule {
       
       Image img = imgs[0];
       ImageProcessor iProcessor = mm.data().ij().createProcessor(img);
-
+      
       Rectangle userRoiBounds = null;
       if (roi != null) {
          iProcessor.setRoi(roi);
          iProcessor = iProcessor.crop();
          userRoiBounds = roi.getBounds();
       }
-      ImagePlus ip = (new ImagePlus(UINAME, iProcessor.duplicate()));
+      ImagePlus ip = (new ImagePlus(UINAME, iProcessor.duplicate()));  
       Duplicator duppie = new Duplicator();
       ImagePlus originalIp = duppie.run(ip);
 
@@ -281,7 +281,7 @@ public class NuclearSizeModule  extends AnalysisModule {
       // Now screen through size/circ-selected nuclei to make sure them meeting standard deviation requirement (further exclude clustered cells)
       // Didn't run this in JustNucleiModule to save time
       ResultsTable rt = new ResultsTable();
-      Analyzer analyzer = new Analyzer(originalIp, Analyzer.MEAN + Analyzer.STD_DEV, rt);
+      Analyzer analyzer = new Analyzer(originalIp, Analyzer.MEAN + Analyzer.STD_DEV + Analyzer.AREA, rt);
 
       List<Roi> sdFilteredList = new ArrayList<Roi>();
       
@@ -294,12 +294,14 @@ public class NuclearSizeModule  extends AnalysisModule {
          double meanVal = rt.getValueAsDouble(col, counter - 1); //all the Area values
          int sdCol = rt.getColumnIndex("StdDev");
          double sdVal = rt.getValueAsDouble(sdCol, counter - 1);
-         //System.out.println("counter: " + counter + ", mean: " + meanVal + ", stdDev: " + sdVal);
+         int sizeCol = rt.getColumnIndex("Area");
+         double sizeVal = rt.getValueAsDouble(sizeCol, counter -1);
+         System.out.println("counter: " + counter + ", mean: " + meanVal + ", stdDev: " + sdVal + ", size:" + sizeVal);
          if (sdVal < (Double) sdFilter_.get()) {
             sdFilteredList.add(nuc);
          }
       }
-         
+             
       Roi[] sdFilteredNuclei = sdFilteredList.toArray(new Roi[sdFilteredList.size()]);
       
       //mm.alerts().postAlert(UINAME, JustNucleiModule.class, 
