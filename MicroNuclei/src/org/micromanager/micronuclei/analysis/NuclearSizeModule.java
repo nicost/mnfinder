@@ -154,6 +154,8 @@ public class NuclearSizeModule  extends AnalysisModule {
       }
       
       Image img = imgs[0];
+      String posName = img.getMetadata().getPositionName("label");
+      System.out.println("#-" + posName);      
       ImageProcessor iProcessor = mm.data().ij().createProcessor(img);
       
       Rectangle userRoiBounds = null;
@@ -301,7 +303,7 @@ public class NuclearSizeModule  extends AnalysisModule {
             sdFilteredList.add(nuc);
          }
       }
-             
+            
       Roi[] sdFilteredNuclei = sdFilteredList.toArray(new Roi[sdFilteredList.size()]);
       
       //mm.alerts().postAlert(UINAME, JustNucleiModule.class, 
