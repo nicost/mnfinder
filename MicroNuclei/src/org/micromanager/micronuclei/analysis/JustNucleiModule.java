@@ -144,6 +144,8 @@ public class JustNucleiModule extends AnalysisModule {
    public ResultRois analyze(Studio mm, Image[] imgs, Roi userRoi, JSONObject parms) throws AnalysisException {
       Image img = imgs[0];
       ImageProcessor iProcessor = mm.data().ij().createProcessor(img);
+      String posName = img.getMetadata().getPositionName("label");
+      System.out.println("#-" + posName);
       
       //for BFP analysis
       Image img1 = imgs[1];
