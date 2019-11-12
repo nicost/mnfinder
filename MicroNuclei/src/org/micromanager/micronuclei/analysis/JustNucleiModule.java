@@ -22,6 +22,9 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.Roi;
 import ij.measure.Calibration;
+import ij.measure.ResultsTable;
+import ij.plugin.Duplicator;
+import ij.plugin.filter.Analyzer;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import java.awt.Rectangle;
@@ -57,6 +60,7 @@ public class JustNucleiModule extends AnalysisModule {
    private final AnalysisProperty sizeFilter_;
    private final AnalysisProperty maxCirc_;
    private final AnalysisProperty minCirc_;
+   private final AnalysisProperty sdFilter_;
    
    private final EdgeDetectorSubModule edgeDetector_;
    private RoiManager roiManager_;
@@ -104,6 +108,10 @@ public class JustNucleiModule extends AnalysisModule {
               "<html>Minimum circ </html>",
               "<html>circ lower limit <br>"
               + "Used to filter selected nucleus", 0.55, null);
+      sdFilter_= new AnalysisProperty(this.getClass(),
+              "<html>sd filter </html>",
+              "<html>upper limit of stdev in nucleus channel <br>"
+              + "Used to filter selected nucleus", 7000.0, null);
           
       edgeDetector_ = new EdgeDetectorSubModule();
 
@@ -120,6 +128,7 @@ public class JustNucleiModule extends AnalysisModule {
       apl.add(sizeFilter_);
       apl.add(maxCirc_);
       apl.add(minCirc_);
+      apl.add(sdFilter_);
 
       setAnalysisProperties(apl);
 
@@ -135,6 +144,13 @@ public class JustNucleiModule extends AnalysisModule {
    public ResultRois analyze(Studio mm, Image[] imgs, Roi userRoi, JSONObject parms) throws AnalysisException {
       Image img = imgs[0];
       ImageProcessor iProcessor = mm.data().ij().createProcessor(img);
+      String posName = img.getMetadata().getPositionName("label");
+      System.out.println("#-" + posName);
+      
+      //for BFP analysis
+      Image img1 = imgs[1];
+      ImageProcessor iProcessor1 = mm.data().ij().createProcessor(img1);
+
       Rectangle userRoiBounds = null;
       if (userRoi != null) {
          iProcessor.setRoi(userRoi);
@@ -152,6 +168,13 @@ public class JustNucleiModule extends AnalysisModule {
       }
 
       ImagePlus ip = (new ImagePlus(UINAME, iProcessor.duplicate()));
+      Duplicator duppie = new Duplicator();
+      ImagePlus originalIp = duppie.run(ip);
+      
+      //for BFP analysis
+      ImagePlus ip1 = (new ImagePlus(UINAME, iProcessor1.duplicate()));
+      ImagePlus originalIp1 = duppie.run(ip1);
+      
       if (restrictToThisRoi != null) {
          ip.setRoi(restrictToThisRoi);
          //IJ.run("setBackgroundColor(0, 0, 0)");
@@ -240,9 +263,70 @@ public class JustNucleiModule extends AnalysisModule {
       // this action if it does not find any Rois, leading to erronous results
       roiManager_.reset();
       IJ.run(ip, "Analyze Particles...", analyzeParticlesParameters);
+      Roi[] selectedNuclei = roiManager_.getRoisAsArray();
+      
+      ResultsTable rt = new ResultsTable();
+      Analyzer analyzer = new Analyzer(originalIp, Analyzer.MEAN + Analyzer.STD_DEV + Analyzer.AREA, rt);
 
+      List<Roi> sdFilteredList = new ArrayList<>();
+      
+      for (Roi nuc : selectedNuclei) {
+         originalIp.setRoi(nuc);
+         analyzer.measure();
+         // IJ.run(cellImgIp2, "Measure", "");
+         int counter = rt.getCounter();
+         int col = rt.getColumnIndex("Mean");
+         double meanVal = rt.getValueAsDouble(col, counter - 1); //all the Area values
+         int sdCol = rt.getColumnIndex("StdDev");
+         double sdVal = rt.getValueAsDouble(sdCol, counter - 1);
+         int sizeCol = rt.getColumnIndex("Area");
+         double sizeVal = rt.getValueAsDouble(sizeCol, counter - 1); //all the Area values
+         //System.out.println("GFP: " + counter + ", mean: " + meanVal + ", size: " + sizeVal + ", stdDev: " + sdVal);
+         //System.out.println("counter: " + counter + meanVal + sdVal + sizeVal);
+         if (sdVal < (Double) sdFilter_.get()) {
+            sdFilteredList.add(nuc);
+         }
+      }
+      
       // prepare the masks to be send to the DMD
-      Roi[] allNuclei = roiManager_.getRoisAsArray();
+      //Roi[] allNuclei = roiManager_.getRoisAsArray();
+      Roi[] allNuclei = sdFilteredList.toArray(new Roi[sdFilteredList.size()]);
+
+      // for BFP analysis
+      ResultsTable rt0 = new ResultsTable();
+      Analyzer analyzer0 = new Analyzer(originalIp, Analyzer.MEAN+ Analyzer.AREA + Analyzer.STD_DEV, rt0);
+      
+      for (Roi nuc : allNuclei) {
+         originalIp.setRoi(nuc);
+         analyzer0.measure();
+         // IJ.run(cellImgIp2, "Measure", "");
+         int counter0 = rt0.getCounter();
+         int col0 = rt0.getColumnIndex("Mean");
+         double meanVal0 = rt0.getValueAsDouble(col0, counter0 - 1); //all the Area values
+         int sdCol0 = rt0.getColumnIndex("StdDev");
+         double sdVal0 = rt0.getValueAsDouble(sdCol0, counter0 - 1);
+         int sizeCol0 = rt0.getColumnIndex("Area");
+         double sizeVal0 = rt0.getValueAsDouble(sizeCol0, counter0 - 1); //all the Area values
+         System.out.println("GFP: " + counter0 + ", mean: " + meanVal0  + ", size: " + sizeVal0 + ", stdDev: " + sdVal0);
+         //System.out.println("counter: " + counter1 + meanVal1+ sizeVal1);
+      }
+      
+      ResultsTable rt1 = new ResultsTable();
+      Analyzer analyzer1 = new Analyzer(originalIp1, Analyzer.MEAN+ Analyzer.AREA, rt1);
+      
+      for (Roi nuc : allNuclei) {
+         originalIp1.setRoi(nuc);
+         analyzer1.measure();
+         // IJ.run(cellImgIp2, "Measure", "");
+         int counter1 = rt1.getCounter();
+         int col1 = rt1.getColumnIndex("Mean");
+         double meanVal1 = rt1.getValueAsDouble(col1, counter1 - 1); //all the Area values
+         int sizeCol1 = rt1.getColumnIndex("Area");
+         double sizeVal1 = rt1.getValueAsDouble(sizeCol1, counter1 - 1); //all the Area values
+         System.out.println("BFP: " + counter1 + ", mean: " + meanVal1  + ", size: " + sizeVal1);
+         //System.out.println("counter: " + counter1 + meanVal1+ sizeVal1);
+      }
+      
       //mm.alerts().postAlert(UINAME, JustNucleiModule.class, 
       //        "Found " + allNuclei.length + " nuclei");
       List convertRoiList = new ArrayList();
