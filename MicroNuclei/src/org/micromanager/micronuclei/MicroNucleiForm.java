@@ -574,48 +574,50 @@ public class MicroNucleiForm extends MMFrame {
                try {
                   Coords.CoordsBuilder builder = store.getAnyImage().getCoords().copyBuilder();
                   builder.channel(0).time(0);
-                  int nrPositions = store.getAxisLength(Coords.STAGE_POSITION);
-                  int nrChannels = store.getAxisLength(Coords.CHANNEL);
+                  final int nrPositions = store.getAxisLength(Coords.STAGE_POSITION);
+                  final int nrChannels = store.getAxisLength(Coords.CHANNEL);
+                  final int nrTimePoints = store.getAxisLength(Coords.TIME_POINT);
                   Image[] imgs = new Image[nrChannels];
                   for (int p = 0; p < nrPositions && !stop_.get(); p++) {
                      try {
-                        for (int ch = 0; ch < nrChannels; ch++) {
-                           Coords coords = builder.stagePosition(p).channel(ch).build();
-                           imgs[ch] = store.getImage(coords);
-                        }
-                        if (imgs[0] != null) {
-                           dw.setDisplayedImageTo(builder.stagePosition(p).channel(0).build());
-                           ResultRois rr = analysisModule.analyze(gui_, imgs, userRoi, parms);
-                           if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
-                              RoiManager.getInstance().reset();
+                        for (int t = 0; t < nrTimePoints && !stop_.get(); t++) {
+                           for (int ch = 0; ch < nrChannels; ch++) {
+                              Coords coords = builder.stagePosition(p).channel(ch).time(t).build();
+                              imgs[ch] = store.getImage(coords);
                            }
-                           if (rr != null) {
-                              Roi[] hitRois = rr.getHitRois();
-                              if (hitRois != null) {
-                                 for (Roi roi : rr.getHitRois()) {
-                                    outTable.incrementCounter();
-                                    Rectangle bounds = roi.getBounds();
-                                    int x = bounds.x + (int) (0.5 * bounds.width);
-                                    int y = bounds.y + (int) (0.5 * bounds.height);
-                                    outTable.addValue(Terms.X, x);
-                                    outTable.addValue(Terms.Y, y);
-                                    outTable.addValue(Terms.POSITION, p);
-                                    if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
-                                       RoiManager.getInstance().addRoi(roi);
+                           if (imgs[0] != null) {
+                              dw.setDisplayPosition(builder.stagePosition(p).channel(0).time(t).build());
+                              ResultRois rr = analysisModule.analyze(gui_, imgs, userRoi, parms);
+                              if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
+                                 RoiManager.getInstance().reset();
+                              }
+                              if (rr != null) {
+                                 Roi[] hitRois = rr.getHitRois();
+                                 if (hitRois != null) {
+                                    for (Roi roi : rr.getHitRois()) {
+                                       outTable.incrementCounter();
+                                       Rectangle bounds = roi.getBounds();
+                                       int x = bounds.x + (int) (0.5 * bounds.width);
+                                       int y = bounds.y + (int) (0.5 * bounds.height);
+                                       outTable.addValue(Terms.X, x);
+                                       outTable.addValue(Terms.Y, y);
+                                       outTable.addValue(Terms.POSITION, p);
+                                       if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
+                                          RoiManager.getInstance().addRoi(roi);
+                                       }
                                     }
-                                 }
-                                 outTable.show(outTableName);
+                                    outTable.show(outTableName);
 
-                                 if (rr.getAllRois() != null) {
-                                    gui_.alerts().postAlert(FORMNAME, MicroNucleiForm.class,
-                                            "Analyzed " + rr.getAllRois().length
-                                            + " objects, found " + rr.getHitRois().length
-                                            + " objects to be photo-converted at position " + p);
+                                    if (rr.getAllRois() != null) {
+                                       gui_.alerts().postAlert(FORMNAME, MicroNucleiForm.class,
+                                               "Analyzed " + rr.getAllRois().length
+                                               + " objects, found " + rr.getHitRois().length
+                                               + " objects to be photo-converted at position " + p);
+                                    }
                                  }
                               }
                            }
                         }
-
                      } catch (JSONException ex) {
                      } catch (NullPointerException npe) {
                         ij.IJ.log("Null pointer exception at position : " + p);

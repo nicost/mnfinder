@@ -32,14 +32,9 @@ import boofcv.struct.image.GrayS32;
 import boofcv.struct.image.GrayU16;
 import boofcv.struct.image.GrayU8;
 import boofcv.struct.image.ImageGray;
-import clearcl.ClearCL;
-import clearcl.ClearCLBuffer;
-import clearcl.ClearCLContext;
-import clearcl.ClearCLDevice;
-import clearcl.backend.ClearCLBackends;
-import clearcl.ops.kernels.CLKernelException;
-import clearcl.ops.kernels.CLKernelExecutor;
-import clearcl.ops.kernels.Kernels;
+import org.micromanager.clops.CLKernelException;
+import org.micromanager.clops.CLKernelExecutor;
+import org.micromanager.clops.Kernels;
 import georegression.struct.point.Point2D_F32;
 import georegression.struct.point.Point2D_I32;
 import ij.IJ;
@@ -57,6 +52,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import net.haesleinhuepf.clij.clearcl.ClearCL;
+import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
+import net.haesleinhuepf.clij.clearcl.ClearCLContext;
+import net.haesleinhuepf.clij.clearcl.ClearCLDevice;
+import net.haesleinhuepf.clij.clearcl.backend.ClearCLBackends;
 import org.ddogleg.nn.FactoryNearestNeighbor;
 import org.ddogleg.nn.NearestNeighbor;
 import org.ddogleg.nn.NnData;
@@ -391,6 +391,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       for (int i =  0; i < centersList.size(); i++) {
          List<Point2D_I32> cyto = cytoClusters.get(i);
          search.findNearest(centersList.get(i), -1, 5, fResults);
+
          for (int j = 0; j < fResults.size(); j++) {
             NnData<Point2D_F32> candidate = fResults.get(j);
             if (i != candidate.index) { // make sure to not compare against ourselves

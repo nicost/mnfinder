@@ -16,7 +16,6 @@ import ij.text.TextWindow;
 import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
-import net.haesleinhuepf.clij.CLIJ;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import net.haesleinhuepf.clij.coremem.enums.NativeTypeEnum;
 import org.json.JSONException;
@@ -41,8 +40,8 @@ public class NuclearSizeModule  extends AnalysisModule {
            "<html>Module that selects nuclei (imaged in the first channel), <br>" +
            "based on size<br>";
    private final AnalysisProperty skipWellsWithEdges_;
-   private final AnalysisProperty maxStdDev_;
-   private final AnalysisProperty maxMeanIntensity_;
+   //private final AnalysisProperty maxStdDev_;
+   //private final AnalysisProperty maxMeanIntensity_;
    private final AnalysisProperty minSizeN_;
    private final AnalysisProperty maxSizeN_;
    private final AnalysisProperty minSizeSN_;
@@ -71,6 +70,7 @@ public class NuclearSizeModule  extends AnalysisModule {
               "Skips wells with edges when checked",
               true,
               null);
+      /*
       maxStdDev_ = new AnalysisProperty(this.getClass(),
               "Maximum Image Std. Dev.",
               "<html>Std. Dev. of grayscale values of original image<br>"
@@ -79,6 +79,7 @@ public class NuclearSizeModule  extends AnalysisModule {
               "Maximum Image Mean Int.",
               "<html>If the average intensity of the image is higher<br>"
               + "than this number, the image will be skipped", 20000.0, null);
+      */
       minSizeN_ = new AnalysisProperty(this.getClass(),
               "<html>Minimum nuclear size (&micro;m<sup>2</sup>)</html>",
               "<html>Smallest size of nucleus in "
@@ -125,8 +126,8 @@ public class NuclearSizeModule  extends AnalysisModule {
       }
       
       apl.add(skipWellsWithEdges_);
-      apl.add(maxStdDev_);
-      apl.add(maxMeanIntensity_);
+      //apl.add(maxStdDev_);
+      //apl.add(maxMeanIntensity_);
       apl.add(minSizeN_);
       apl.add(maxSizeN_);
       apl.add(minSizeSN_);
@@ -160,16 +161,20 @@ public class NuclearSizeModule  extends AnalysisModule {
          return new ResultRois(null, null, null, this.getName());
       }
       
-      Image img = imgs[1];
-      ImageProcessor iProcessor = mm.data().ij().createProcessor(img);
 
+      Image img = imgs[0];
+      String posName = img.getMetadata().getPositionName("label");
+      System.out.println("#-" + posName);  
+      
+      ImageProcessor iProcessor = mm.data().ij().createProcessor(img);
+      
       Rectangle userRoiBounds = null;
       if (roi != null) {
          iProcessor.setRoi(roi);
          iProcessor = iProcessor.crop();
          userRoiBounds = roi.getBounds();
       }
-      ImagePlus ip = (new ImagePlus(UINAME, iProcessor.duplicate()));
+      ImagePlus ip = (new ImagePlus(UINAME, iProcessor.duplicate()));  
       Duplicator duppie = new Duplicator();
       ImagePlus originalIp = duppie.run(ip);
 
@@ -188,6 +193,7 @@ public class NuclearSizeModule  extends AnalysisModule {
       }
 
       // check for edges by calculating stdev
+      /*
       ImageStatistics stat = ip.getStatistics(Measurements.MEAN+ Measurements.STD_DEV);
       final double stdDev = stat.stdDev;
       final double mean = stat.mean;
@@ -208,6 +214,7 @@ public class NuclearSizeModule  extends AnalysisModule {
                   ") is higher than the limit you set: " + maxMean);
          return new ResultRois(null, null, null, this.getName());
       }
+<<<<<<< HEAD
 
       ClearCLBuffer src = clij_.push(ip);
       // create scratch images
@@ -233,6 +240,7 @@ public class NuclearSizeModule  extends AnalysisModule {
       
 /*      
       
+
       // Even though we are flatfielding, results are much better after
       // background subtraction.  In one test, I get about 2 fold more nuclei
       // when doing this background subtraction
@@ -310,7 +318,7 @@ public class NuclearSizeModule  extends AnalysisModule {
       // Now screen through size/circ-selected nuclei to make sure them meeting standard deviation requirement (further exclude clustered cells)
       // Didn't run this in JustNucleiModule to save time
       ResultsTable rt = new ResultsTable();
-      Analyzer analyzer = new Analyzer(originalIp, Analyzer.MEAN + Analyzer.STD_DEV, rt);
+      Analyzer analyzer = new Analyzer(originalIp, Analyzer.MEAN + Analyzer.STD_DEV + Analyzer.AREA, rt);
 
       List<Roi> sdFilteredList = new ArrayList<Roi>();
       
@@ -323,12 +331,14 @@ public class NuclearSizeModule  extends AnalysisModule {
          double meanVal = rt.getValueAsDouble(col, counter - 1); //all the Area values
          int sdCol = rt.getColumnIndex("StdDev");
          double sdVal = rt.getValueAsDouble(sdCol, counter - 1);
-         //System.out.println("counter: " + counter + ", mean: " + meanVal + ", stdDev: " + sdVal);
+         int sizeCol = rt.getColumnIndex("Area");
+         double sizeVal = rt.getValueAsDouble(sizeCol, counter -1);
+         System.out.println("counter: " + counter + ", mean: " + meanVal + ", stdDev: " + sdVal + ", size:" + sizeVal);
          if (sdVal < (Double) sdFilter_.get()) {
             sdFilteredList.add(nuc);
          }
       }
-         
+            
       Roi[] sdFilteredNuclei = sdFilteredList.toArray(new Roi[sdFilteredList.size()]);
       
       //mm.alerts().postAlert(UINAME, JustNucleiModule.class, 
