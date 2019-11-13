@@ -145,7 +145,7 @@ public class JustNucleiModule extends AnalysisModule {
       Image img = imgs[0];
       ImageProcessor iProcessor = mm.data().ij().createProcessor(img);
       String posName = img.getMetadata().getPositionName("label");
-      System.out.println("#-" + posName);
+      System.out.println("#-" + posName + ", TimePoint: " + img.getCoords().getT());
       
       //for BFP analysis
       Image img1 = imgs[1];
