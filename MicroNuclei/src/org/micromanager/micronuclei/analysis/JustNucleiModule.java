@@ -177,7 +177,7 @@ public class JustNucleiModule extends AnalysisModule {
       
       if (restrictToThisRoi != null) {
          ip.setRoi(restrictToThisRoi);
-         //IJ.run("setBackgroundColor(0, 0, 0)");
+         // IJ.setBackgroundColor(0, 0, 0);
          // this will set the pixels outside of the ROI to the backgroundcolor
          // The automatic thresholding will not look at these pixels 
          // (it only analyzes within the ROI)
@@ -237,17 +237,19 @@ public class JustNucleiModule extends AnalysisModule {
       roiManager_.reset();
       IJ.run(ip, "Analyze Particles...", analyzeMaskParameters);
       Roi[] clusterMask = roiManager_.getRoisAsArray();
-      
+      // IJ.setBackgroundColor(0, 0, 0);
       if (clusterMask != null) {
          for (Roi mask : clusterMask) {
             ip.setRoi(mask);
-            //IJ.run("setBackgroundColor(0, 0, 0)");
-            // this will set the pixels outside of the ROI to the backgroundcolor
+            // this will set the pixels of the ROI to the backgroundcolor
             // The automatic thresholding will not look at these pixels 
             // (it only analyzes within the ROI)
             IJ.run(ip, "Clear", "");
+            //ip.killRoi();
+            ip.deleteRoi();
          }
       }
+      // ip.show();
       //added done
       
       //IJ.run(ip, "Options...", "iterations=1 count=1 black pad edm=Overwrite do=Close");
