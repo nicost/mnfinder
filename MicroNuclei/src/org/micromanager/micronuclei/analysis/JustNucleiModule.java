@@ -141,7 +141,11 @@ public class JustNucleiModule extends AnalysisModule {
    }
 
    @Override
-   public ResultRois analyze(Studio mm, Image[] imgs, Roi userRoi, JSONObject parms) throws AnalysisException {
+   public ResultRois analyze(Studio mm, Image[] imgs, Roi userRoi, JSONObject parms) throws AnalysisException {    
+      // set up ImageJ so that things work as expected
+      IJ.run("Options...", "iterations=1 count=1 black do=Nothing");      
+      IJ.setBackgroundColor(0, 0, 0);
+      
       Image img = imgs[0];
       ImageProcessor iProcessor = mm.data().ij().createProcessor(img);
       String posName = img.getMetadata().getPositionName("label");
@@ -232,25 +236,19 @@ public class JustNucleiModule extends AnalysisModule {
       
       // added by Xiaowei to exclude clustered cells
       IJ.run("Set Measurements...", "center area integrated redirect=None decimal=2");
-      String analyzeMaskParameters =  "size=" + (Double) sizeFilter_.get() + "-Infinity" + "clear display add";
+      String analyzeMaskParameters =  "size=" + (Double) sizeFilter_.get() + "-Infinity" + "clear add";
       // do not use "exclude" option since this won't exclude ROI which connects with edge
       roiManager_.reset();
       IJ.run(ip, "Analyze Particles...", analyzeMaskParameters);
       Roi[] clusterMask = roiManager_.getRoisAsArray();
-      // IJ.setBackgroundColor(0, 0, 0);
       if (clusterMask != null) {
          for (Roi mask : clusterMask) {
             ip.setRoi(mask);
             // this will set the pixels of the ROI to the backgroundcolor
-            // The automatic thresholding will not look at these pixels 
-            // (it only analyzes within the ROI)
             IJ.run(ip, "Clear", "");
-            //ip.killRoi();
             ip.deleteRoi();
          }
       }
-      // ip.show();
-      //added done
       
       //IJ.run(ip, "Options...", "iterations=1 count=1 black pad edm=Overwrite do=Close");
       IJ.run(ip, "Fill Holes", "");
