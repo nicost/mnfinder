@@ -89,13 +89,17 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
    private TextWindow textWindow_;
    
    // Intermediate BoofCV images.  Keep references for efficiency
-   private GrayU16 nuclearImgBackground_;
-   private GrayS32 backgroundSubtractedNuclearImg;
-   private GrayU16 gaussNuc_;
-   private GrayS32 contourImg_;
-   private GrayU16 cytoBlurred_;
-   private GrayU8 cytoMask_;
-
+   // since our class is recreated every run, they need to be static
+   private static GrayU16 nuclearImgBackground_;
+   private static GrayS32 backgroundSubtractedNuclearImg;
+   private static GrayU16 gaussNuc_;
+   private static GrayS32 contourImg_;
+   private static GrayU16 cytoBlurred_;
+   private static GrayU8 cytoMask_;
+   private static GrayU8 thresholdedNuc_;   
+   private static GrayU8 thresholdedNuc2_;
+   
+   
    public NucleoCytoplasmicRatio() {
       // note: the type of the value when creating the AnalysisProperty determines
       // the allowed type, and can create problems when the user enters something
@@ -198,6 +202,9 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       final double pixelSurface = nuclImg.getMetadata().getPixelSizeUm() * 
               nuclImg.getMetadata().getPixelSizeUm();
 
+      
+      long start = System.currentTimeMillis();
+      
       GrayU16 bNuc = (GrayU16) BoofCVImageConverter.mmToBoofCV(nuclImg, false);
       ImageGray igCyto = BoofCVImageConverter.mmToBoofCV(cytoImg, false);
       nuclearImgBackground_ = (GrayU16) createSameShapeIfNeeded(bNuc, 
@@ -208,6 +215,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       contourImg_ = (GrayS32) createSameShapeIfNeeded(bNuc, contourImg_, GrayS32.class);
       
       // Heavy blur to create a "background" image
+      /*  Skip because it is slow
       GBlurImageOps.gaussian(bNuc, nuclearImgBackground_, -1, 400, null);
       // subtract the minimum from background to avoid values < 0 after subtraction
       final int nuclearBackgroundMinimum = ImageStatistics.min(nuclearImgBackground_);
@@ -215,25 +223,25 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       // Subtract background from nuclear image
       PixelMath.subtract(bNuc, nuclearImgBackground_, backgroundSubtractedNuclearImg);
       ConvertImage.convert(backgroundSubtractedNuclearImg, bNuc);
+      */
       GBlurImageOps.gaussian(bNuc, gaussNuc_, -1, 3, null);
   
       int otsu2 = GThresholdImageOps.computeOtsu2(gaussNuc_, ImageStatistics.min(gaussNuc_),
               ImageStatistics.max(gaussNuc_));
-      GrayU8 thresholdedNuc = gaussNuc_.createSameShape(GrayU8.class);
-      GrayU8 thresholdedNuc2 = gaussNuc_.createSameShape(GrayU8.class);
-
-      GThresholdImageOps.threshold(gaussNuc_, thresholdedNuc, otsu2, false);
+      thresholdedNuc_ = (GrayU8) createSameShapeIfNeeded(gaussNuc_, thresholdedNuc_, GrayU8.class);
+      thresholdedNuc2_ = (GrayU8) createSameShapeIfNeeded(gaussNuc_, thresholdedNuc2_, GrayU8.class);
+      GThresholdImageOps.threshold(gaussNuc_, thresholdedNuc_, otsu2, false);
 
       // close using dilate/erode
-      BinaryImageOps.dilate4(thresholdedNuc, 2, thresholdedNuc2);
-      BinaryImageOps.erode4(thresholdedNuc2, 2, thresholdedNuc);
+      BinaryImageOps.dilate4(thresholdedNuc_, 2, thresholdedNuc2_);
+      BinaryImageOps.erode4(thresholdedNuc2_, 2, thresholdedNuc_);
    
       // Use ImageJ Watershed code.  Worth porting to BoofCV?
-      ImageProcessor d = BoofCVImageConverter.convert(thresholdedNuc, false);
+      ImageProcessor d = BoofCVImageConverter.convert(thresholdedNuc_, false);
       EDM edm = new EDM();
       edm.toWatershed(d);
       // note: d shares pixels with thesholdedNuc, so we can erode thresholdedNuc directly!
-      BinaryImageOps.erode4(thresholdedNuc, 2, thresholdedNuc2);
+      BinaryImageOps.erode4(thresholdedNuc_, 2, thresholdedNuc2_);
 
 
       /*
@@ -258,9 +266,15 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       IJ.run(nuclIp, "Options...", "iterations=1 count=1 black pad edm=Overwrite do=Erode");
       ImageGray igNuc = BoofCVImageConverter.convert(nuclIp.getProcessor(), false);
       */
+      
+      
+      long endImgAnalysis = System.currentTimeMillis();
+      long duration = endImgAnalysis - start;
+      System.out.println("Img analysis: " + duration + " msec");
+
 
       List<Contour> contours = 
-                    BinaryImageOps.contour(thresholdedNuc2, ConnectRule.FOUR, contourImg_);
+                    BinaryImageOps.contour(thresholdedNuc2_, ConnectRule.FOUR, contourImg_);
       List<List<Point2D_I32>> tmpNuclearClusters = 
                     BinaryImageOps.labelToClusters(contourImg_, contours.size(), null);
       Map<Integer, List<Point2D_I32>> nuclearClusters = new HashMap<>(tmpNuclearClusters.size());
@@ -277,14 +291,14 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
          // this defines an "empty" ring between nucleus and cytoplasm
          for (int i = 0; i < 3; i++) {
             expandedNuclearCluster = 
-                 BinaryListOps.dilate4_2D_I32(expandedNuclearCluster, thresholdedNuc2.width, thresholdedNuc2.height);
+                 BinaryListOps.dilate4_2D_I32(expandedNuclearCluster, thresholdedNuc2_.width, thresholdedNuc2_.height);
          }
          Set<Point2D_I32>cytoCluster = 
-                 BinaryListOps.dilate4_2D_I32(expandedNuclearCluster, thresholdedNuc2.width, thresholdedNuc2.height);
+                 BinaryListOps.dilate4_2D_I32(expandedNuclearCluster, thresholdedNuc2_.width, thresholdedNuc2_.height);
          // this defines the "thickness" of the cytoplasmic ring
          for (int i = 0; i < 4; i++) {
             cytoCluster = 
-                 BinaryListOps.dilate4_2D_I32(cytoCluster, thresholdedNuc2.width, thresholdedNuc2.height);
+                 BinaryListOps.dilate4_2D_I32(cytoCluster, thresholdedNuc2_.width, thresholdedNuc2_.height);
          }
          cellClusters.put(index, cytoCluster);
          cytoCluster = BinaryListOps.subtract(cytoCluster, expandedNuclearCluster);
@@ -379,19 +393,35 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
          final double nuclearSize = nucleus.size() * pixelSurface;
          final double cytoSize = cyto.size() * pixelSurface;
          if (nuclearSize > (double) minSizeN_.get() && nuclearSize < (double) maxSizeN_.get()) {
-            textWindow_.append(pos + "-" + counter++ + "\t" + (int) centers.get(i).x + "\t"
-                    + (int) centers.get(i).y + "\t" + nuclearSize + "\t" + nuclearAvg + "\t"
-                    + nAvg + "\t" + cytoSize + "\t" + cAvg + "\t" + nAvg / cAvg + "\n");
+            StringBuilder sb = new StringBuilder();
+            sb.append(pos).append( "-").append(counter).append("\t").
+                    append((int) centers.get(i).x).append("\t").
+                    append((int) centers.get(i).y).append("\t").
+                    append(nuclearSize).append("\t").
+                    append(nuclearAvg).append("\t").
+                    append(nAvg).append("\t").
+                    append(cytoSize).append("\t").
+                    append(cAvg).append("\t").
+                    append(nAvg / cAvg).append("\n");            
+            textWindow_.append(sb.toString());
          }
       }
       
       
       
+      long endAnalysis = System.currentTimeMillis();
+      duration = endAnalysis - endImgAnalysis;
+      
+      System.out.println("Analysis: " + duration + " msec");
+      
+      
+      
+      
       /**
-       * Uncomment to display the nuclear and cytoplasmic masks
+       * Display nuclear and cytoplasmic masks if desired
        */
       if ((Boolean) showMasks_.get()) {
-         GrayU8 dispImg = new GrayU8(thresholdedNuc2.getWidth(), thresholdedNuc2.getHeight());
+         GrayU8 dispImg = new GrayU8(thresholdedNuc2_.getWidth(), thresholdedNuc2_.getHeight());
          for (int i = 0; i < nuclearClusters.size(); i++) {
             List<Point2D_I32> cluster = nuclearClusters.get(i);
             for (Point2D_I32 p : cluster) {
