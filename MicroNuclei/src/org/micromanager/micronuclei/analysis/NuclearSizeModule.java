@@ -5,24 +5,19 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.Roi;
 import ij.measure.Calibration;
-import ij.measure.Measurements;
 import ij.measure.ResultsTable;
 import ij.plugin.Duplicator;
 import ij.plugin.filter.Analyzer;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
-import ij.process.ImageStatistics;
 import ij.text.TextWindow;
 import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
-import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
-import net.haesleinhuepf.clij.coremem.enums.NativeTypeEnum;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.micromanager.Studio;
 import org.micromanager.data.Image;
-import org.micromanager.internal.utils.NumberUtils;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import static org.micromanager.micronuclei.analysisinterface.AnalysisModule.CELLCOUNT;
@@ -55,9 +50,7 @@ public class NuclearSizeModule  extends AnalysisModule {
 
    private final EdgeDetectorSubModule edgeDetector_;
    private RoiManager roiManager_;
-   
-   private final CLIJ clij_;
-         
+
       
 
    public NuclearSizeModule() {
@@ -144,8 +137,7 @@ public class NuclearSizeModule  extends AnalysisModule {
       if (roiManager_ == null) {
          roiManager_ = new RoiManager();
       }
-      
-      clij_ = CLIJ.getInstance();
+
 
    }
 
@@ -320,7 +312,7 @@ public class NuclearSizeModule  extends AnalysisModule {
       ResultsTable rt = new ResultsTable();
       Analyzer analyzer = new Analyzer(originalIp, Analyzer.MEAN + Analyzer.STD_DEV + Analyzer.AREA, rt);
 
-      List<Roi> sdFilteredList = new ArrayList<Roi>();
+      List<Roi> sdFilteredList = new ArrayList<>();
       
       for (Roi nuc : selectedNuclei) {
          originalIp.setRoi(nuc);

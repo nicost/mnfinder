@@ -29,8 +29,6 @@ import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import java.util.ArrayList;
 import java.util.List;
-import net.haesleinhuepf.clij.CLIJ;
-import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
 import org.micromanager.Studio;
 import org.micromanager.data.Image;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
@@ -46,7 +44,6 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
    private final AnalysisProperty edgeDetectionChannel_;
    private final AnalysisProperty edgeMinMean_;
    private final AnalysisProperty edgeNrPixelDilation_;
-   private final CLIJ clij_;
    
    public EdgeDetectorSubModule() {
 
@@ -65,14 +62,13 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
               "<html>Nr of pixels to expand the edge with</html>", 
               36,
               null);
-      List<AnalysisProperty> aps = new ArrayList<AnalysisProperty>();
+      List<AnalysisProperty> aps = new ArrayList<>();
       
       aps.add(edgeDetectionChannel_);
       aps.add(edgeMinMean_);
       aps.add(edgeNrPixelDilation_);
       super.setAnalysisProperties(aps);
-      
-      clij_ = CLIJ.getInstance();
+
       
    }
    
@@ -105,10 +101,6 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
       double imageArea = ip.getWidth() * calibration.pixelWidth * 
               ip.getHeight() * calibration.pixelHeight;
       
-      ClearCLBuffer src = clij_.push(ip);
-      ClearCLBuffer dst = clij_.create(src);
-      clij_.op().automaticThreshold(src, dst, "Huang");
-      ip = clij_.pull(dst);
       
       // IJ.setAutoThreshold(ip, "Huang dark");
       
