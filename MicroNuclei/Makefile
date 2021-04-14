@@ -21,19 +21,23 @@ MMPATH = ../../micromanager2Viewer3D
 MMARTIFACTS = $(MMPATH)/dependencies/artifacts
 IJJARPATH = $(MMARTIFACTS)/imagej/ij-1.51s.jar
 MMJARPATH = $(MMPATH)/mmstudio/MMJ_.jar
-SCIJAVAJARPATH = $(MMARTIFACTS)/compile/scijava-common-2.66.0.jar
+SCIJAVAJARPATH = $(MMARTIFACTS)/compile/scijava-common-2.77.0.jar
 MMCOREJARPATH = $(MMPATH)/MMCoreJ_wrap/MMCoreJ.jar
 MIGJARPATH = $(MMARTIFACTS)/compile/miglayout-swing-4.2.jar
 MIGCOREJARPATH = $(MMARTIFACTS)/compile/miglayout-core-4.2.jar
 GUAVAJARPATH = $(MMARTIFACTS)/compile/guava-17.0.jar
 PROJECTORJARPATH = $(MMPATH)/libraries/Projector.jar
-DDOGLEGJARPATH = $(MMPATH)/compile/ddogleg-0.16.jar
+DDOGLEGJARPATH = $(MMARTIFACTS)/compile/ddogleg-0.18.jar
+GEOREGRESSIONPATH = $(MMARTIFACTS)/compile/georegression-0.22.jar
+BOOFCVIPPATH = $(MMARTIFACTS)/compile/boofcv-ip-0.36.jar
+BOOFCVGEOPATH = $(MMARTIFACTS)/compile/boofcv-geo-0.36.jar
+BOOFCVTYPESPATH = $(MMARTIFACTS)/compile/boofcv-types-0.36.jar
 
 .SUFFIXES: .java .class
 ../MicroNuclei.jar:  $(SOURCEFILES)
 	test -d build || mkdir build
 	rm -rf build/org
-	$(JC) -source 1.8 -target 1.8 -sourcepath src -classpath $(IJJARPATH):$(MMJARPATH):$(MMCOREJARPATH):$(MIGCOREJARPATH):$(MIGJARPATH):$(GUAVAJARPATH):$(PROJECTORJARPATH):$(SCIJAVAJARPATH):$(DDOGLEGJARPATH):. src/org/micromanager/micronuclei/MicroNucleiPlugin.java -d build
+	$(JC) -source 1.8 -target 1.8 -sourcepath src -classpath $(IJJARPATH):$(MMJARPATH):$(MMCOREJARPATH):$(MIGCOREJARPATH):$(MIGJARPATH):$(GUAVAJARPATH):$(PROJECTORJARPATH):$(SCIJAVAJARPATH):$(DDOGLEGJARPATH):$(GEOREGRESSIONPATH):$(BOOFCVIPPATH):$(BOOFCVGEOPATH):$(BOOFCVTYPESPATH):. src/org/micromanager/micronuclei/MicroNucleiPlugin.java -d build
 	## Work around bug in 'jar': jar cf MM_.jar -C bin/ bin/* does not work
 	cd build && jar cf ../../MicroNuclei.jar * 
 
