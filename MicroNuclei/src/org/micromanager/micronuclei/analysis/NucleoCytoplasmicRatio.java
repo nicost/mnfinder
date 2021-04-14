@@ -25,9 +25,6 @@ import boofcv.alg.filter.binary.GThresholdImageOps;
 import boofcv.alg.filter.blur.GBlurImageOps;
 import boofcv.alg.misc.GImageStatistics;
 import boofcv.alg.misc.ImageStatistics;
-import boofcv.alg.misc.PixelMath;
-import boofcv.alg.nn.KdTreePoint2D_F32;
-import boofcv.core.image.ConvertImage;
 import boofcv.struct.ConnectRule;
 import boofcv.struct.image.GrayS32;
 import boofcv.struct.image.GrayU16;
@@ -42,6 +39,17 @@ import ij.plugin.filter.EDM;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import ij.text.TextWindow;
+import mmcorej.org.json.JSONException;
+import mmcorej.org.json.JSONObject;
+import org.micromanager.Studio;
+import org.micromanager.data.Image;
+import org.micromanager.internal.utils.imageanalysis.BoofCVImageConverter;
+import org.micromanager.micronuclei.analysisinterface.AnalysisException;
+import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
+import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
+import org.micromanager.micronuclei.analysisinterface.ResultRois;
+import org.micromanager.micronuclei.utilities.BinaryListOps;
+
 import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,22 +57,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.ddogleg.nn.FactoryNearestNeighbor;
-import org.ddogleg.nn.NearestNeighbor;
-import org.ddogleg.nn.NnData;
-import org.ddogleg.struct.FastQueue;
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.micromanager.Studio;
-import org.micromanager.data.Image;
-import org.micromanager.micronuclei.analysisinterface.AnalysisException;
-import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
-import static org.micromanager.micronuclei.analysisinterface.AnalysisModule.CELLCOUNT;
-import static org.micromanager.micronuclei.analysisinterface.AnalysisModule.OBJECTCOUNT;
-import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
-import org.micromanager.micronuclei.analysisinterface.ResultRois;
-import org.micromanager.micronuclei.utilities.BinaryListOps;
-import org.micromanager.internal.utils.imageanalysis.BoofCVImageConverter;
 
 /**
  *
@@ -73,16 +65,13 @@ import org.micromanager.internal.utils.imageanalysis.BoofCVImageConverter;
 public class NucleoCytoplasmicRatio extends AnalysisModule {
 
    private final String UINAME = "Nuclear-Cytoplasmic Ratio";
-   private final String DESCRIPTION
-           = "<html>Locate nuclei based on nuclear channel, <br>"
-           + "calculate nucl/cytoplasmic ration in another.";
 
-   private final AnalysisProperty skipWellsWithEdges_;
-   private final AnalysisProperty nuclearChannel_;
-   private final AnalysisProperty testChannel_;
-   private final AnalysisProperty minSizeN_;
-   private final AnalysisProperty maxSizeN_;
-   private final AnalysisProperty showMasks_;
+   private final AnalysisProperty<Boolean> skipWellsWithEdges_;
+   private final AnalysisProperty<Integer> nuclearChannel_;
+   private final AnalysisProperty<Integer> testChannel_;
+   private final AnalysisProperty<Double> minSizeN_;
+   private final AnalysisProperty<Double> maxSizeN_;
+   private final AnalysisProperty<Boolean> showMasks_;
    
    private final EdgeDetectorSubModule edgeDetector_;
    private RoiManager roiManager_;
@@ -104,28 +93,28 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       // note: the type of the value when creating the AnalysisProperty determines
       // the allowed type, and can create problems when the user enters something
       // different
-      nuclearChannel_ = new AnalysisProperty(this.getClass(), 
+      nuclearChannel_ = new AnalysisProperty<>(this.getClass(),
               "<html>Channel nr. for nuclei</html>",
               "Channel nr for nuclei",
               1, null);
-      testChannel_ = new AnalysisProperty(this.getClass(), 
+      testChannel_ = new AnalysisProperty<>(this.getClass(),
               "<html>Channel nr. for nucleo-cytoplasmic ratio</html>",
               "Channel nr. for nucleo-cytoplasmic ratio",
               2, null);
-      skipWellsWithEdges_ = new AnalysisProperty(this.getClass(),
+      skipWellsWithEdges_ = new AnalysisProperty<>(this.getClass(),
               "<html>Skip wells with edges</html",
               "Skips wells with edges when checked",
               true,
               null);
-      minSizeN_ = new AnalysisProperty(this.getClass(),
+      minSizeN_ = new AnalysisProperty<>(this.getClass(),
               "<html>Minimum nuclear size (&micro;m<sup>2</sup>)</html>",
               "<html>Smallest size of putative nucleus in "
               + "&micro;m<sup>2</sup></html>", 300.0, null);
-      maxSizeN_ = new AnalysisProperty(this.getClass(),
+      maxSizeN_ = new AnalysisProperty<>(this.getClass(),
               "<html>Maximum nuclear size (&micro;m<sup>2</sup>)</html>",
               "<html>Largest size of putative nucleus in "
               + "&micro;m<sup>2</sup></html>", 1800.0, null);
-      showMasks_ = new AnalysisProperty(this.getClass(), 
+      showMasks_ = new AnalysisProperty<>(this.getClass(),
                "<html>Show binary masks</html>",
                "Show binary masks",
                false, null);
@@ -140,9 +129,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       apl.add(minSizeN_);
       apl.add(maxSizeN_);
       apl.add(showMasks_);
-      for (AnalysisProperty ap : edgeDetector_.getAnalysisProperties()) {
-         apl.add(ap);
-      }
+      apl.addAll(edgeDetector_.getAnalysisProperties());
       apl.add(skipWellsWithEdges_);
 
       setAnalysisProperties(apl);
@@ -157,12 +144,12 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
 
    @Override
    public ResultRois analyze(Studio mm, Image[] imgs, Roi userRoi, JSONObject parms) throws AnalysisException {
-      int nC = (int) nuclearChannel_.get() - 1;
+      int nC = nuclearChannel_.get() - 1;
       if (nC < 0 || nC > imgs.length - 1) {
          String msg = "Channel nr. for nuclei should be between 1 and " + (imgs.length + 1);
          throw new AnalysisException(msg);
       }
-      int cC = (int) testChannel_.get() - 1;
+      int cC = testChannel_.get() - 1;
       if (cC < 0 || cC > imgs.length - 1) {
           String msg = "Channel nr. for cytoplasm should be between 1 and " + (imgs.length + 1);
          throw new AnalysisException(msg);
@@ -182,7 +169,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       Roi restrictToThisRoi;
       restrictToThisRoi= edgeDetector_.analyze(mm, imgs); 
       
-      if (restrictToThisRoi != null && ((Boolean) skipWellsWithEdges_.get()) ) {
+      if (restrictToThisRoi != null && skipWellsWithEdges_.get() ) {
          int pos = imgs[0].getCoords().getStagePosition();
          mm.alerts().postAlert("Skip image", JustNucleiModule.class,
                  "Edge detected at position " + pos );
@@ -307,6 +294,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       }
       
       // find the n cell masks closest to this one.  Subtract neighboring cellmask from this cytoplasm mask
+      /*
       NearestNeighbor<Point2D_F32> nn = FactoryNearestNeighbor.kdtree(new KdTreePoint2D_F32());
       List<Point2D_F32> centersList = new ArrayList<>(centers.size());
       for (Map.Entry<Integer, Point2D_F32> entry : centers.entrySet()) {
@@ -335,6 +323,8 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
             }
          }
       }
+
+       */
       
       // Make cytoplasmic mask to "AND" our little cyto circles
       GrayU16 originalCyto = (GrayU16) igCyto;
@@ -493,6 +483,8 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
    
    @Override
    public String getDescription() {
+      String DESCRIPTION = "<html>Locate nuclei based on nuclear channel, <br>"
+              + "calculate nucl/cytoplasmic ration in another.";
       return DESCRIPTION;
    }
    

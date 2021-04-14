@@ -30,8 +30,8 @@ import ij.process.ImageProcessor;
 import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
-import org.json.JSONException;
-import org.json.JSONObject;
+import mmcorej.org.json.JSONException;
+import mmcorej.org.json.JSONObject;
 import org.micromanager.Studio;
 import org.micromanager.data.Image;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
@@ -49,21 +49,17 @@ import java.io.IOException;
 public class JustNucleiModule extends AnalysisModule {
 
    private final String UINAME = "Zap Some Nuclei";
-   private final String DESCRIPTION
-           = "<html>Simple module that finds nuclei in the first channel, <br>"
-           + "and identifies a user-defined percentage of these<br>"
-           + "as hits";
 
-   private final AnalysisProperty skipWellsWithEdges_;
-   private final AnalysisProperty percentageOfNuclei_;
+   private final AnalysisProperty<Boolean> skipWellsWithEdges_;
+   private final AnalysisProperty<Double> percentageOfNuclei_;
    // private final AnalysisProperty maxStdDev_;
    // private final AnalysisProperty maxMeanIntensity_;
-   private final AnalysisProperty minSizeN_;
-   private final AnalysisProperty maxSizeN_;
-   private final AnalysisProperty sizeFilter_;
-   private final AnalysisProperty maxCirc_;
-   private final AnalysisProperty minCirc_;
-   private final AnalysisProperty sdFilter_;
+   private final AnalysisProperty<Double> minSizeN_;
+   private final AnalysisProperty<Double> maxSizeN_;
+   private final AnalysisProperty<Double> sizeFilter_;
+   private final AnalysisProperty<Double> maxCirc_;
+   private final AnalysisProperty<Double> minCirc_;
+   private final AnalysisProperty<Double> sdFilter_;
    
    private final EdgeDetectorSubModule edgeDetector_;
    private RoiManager roiManager_;
@@ -74,12 +70,12 @@ public class JustNucleiModule extends AnalysisModule {
       // the allowed type, and can create problems when the user enters something
       // different
       
-      skipWellsWithEdges_ = new AnalysisProperty(this.getClass(),
+      skipWellsWithEdges_ = new AnalysisProperty<>(this.getClass(),
               "<html>Skip wells with edges</html",
               "Skips wells with edges when checked",
               true,
               null);
-      percentageOfNuclei_ = new AnalysisProperty(this.getClass(),
+      percentageOfNuclei_ = new AnalysisProperty<>(this.getClass(),
               "Percentage of nuclei to be converted", null, 10.0, null);
       /*
       maxStdDev_ = new AnalysisProperty(this.getClass(),
@@ -91,35 +87,35 @@ public class JustNucleiModule extends AnalysisModule {
               "<html>If the average intensity of the image is higher<br>"
               + "than this number, the image will be skipped", 20000.0, null);
       */
-      minSizeN_ = new AnalysisProperty(this.getClass(),
+      minSizeN_ = new AnalysisProperty<>(this.getClass(),
               "<html>Minimum nuclear size (&micro;m<sup>2</sup>)</html>",
               "<html>Smallest size of putative nucleus in "
               + "&micro;m<sup>2</sup></html>", 300.0, null);
-      maxSizeN_ = new AnalysisProperty(this.getClass(),
+      maxSizeN_ = new AnalysisProperty<>(this.getClass(),
               "<html>Maximum nuclear size (&micro;m<sup>2</sup>)</html>",
               "<html>Largest size of putative nucleus in "
               + "&micro;m<sup>2</sup></html>", 1800.0, null);
-      sizeFilter_ = new AnalysisProperty(this.getClass(),
+      sizeFilter_ = new AnalysisProperty<>(this.getClass(),
               "<html>Minimum size of clustered cells (&micro;m<sup>2</sup>)</html>",
               "<html>Nuclear size threshold in "
               + "&micro;m<sup>2</sup></html><br> +"
               + "Used to filter pre-watershed mask", 1250.0, null);
-      maxCirc_= new AnalysisProperty(this.getClass(),
+      maxCirc_= new AnalysisProperty<>(this.getClass(),
               "<html>Maximum circ </html>",
               "<html>circ upper limit <br>"
               + "Used to filter selected nucleus", 0.90, null);
-      minCirc_= new AnalysisProperty(this.getClass(),
+      minCirc_= new AnalysisProperty<>(this.getClass(),
               "<html>Minimum circ </html>",
               "<html>circ lower limit <br>"
               + "Used to filter selected nucleus", 0.55, null);
-      sdFilter_= new AnalysisProperty(this.getClass(),
+      sdFilter_= new AnalysisProperty<>(this.getClass(),
               "<html>sd filter </html>",
               "<html>upper limit of stdev in nucleus channel <br>"
               + "Used to filter selected nucleus", 7000.0, null);
           
       edgeDetector_ = new EdgeDetectorSubModule();
 
-      List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
+      List<AnalysisProperty> apl = new ArrayList<>();
       edgeDetector_.getAnalysisProperties().forEach((ap) -> {
          apl.add(ap);
       });
@@ -179,7 +175,7 @@ public class JustNucleiModule extends AnalysisModule {
 
             Roi restrictToThisRoi = edgeDetector_.analyze(mm, imgs);
 
-            if (restrictToThisRoi != null && ((Boolean) skipWellsWithEdges_.get())) {
+            if (restrictToThisRoi != null && skipWellsWithEdges_.get()) {
                 int pos = imgs[0].getCoords().getStagePosition();
                 mm.alerts().postAlert("Skip image", JustNucleiModule.class,
                         "Edge detected at position " + pos);
@@ -249,7 +245,7 @@ public class JustNucleiModule extends AnalysisModule {
 
             // added by Xiaowei to exclude clustered cells
             IJ.run("Set Measurements...", "center area integrated redirect=None decimal=2");
-            String analyzeMaskParameters = "size=" + (Double) sizeFilter_.get() + "-Infinity" + "clear add";
+            String analyzeMaskParameters = "size=" + sizeFilter_.get() + "-Infinity" + "clear add";
             // do not use "exclude" option since this won't exclude ROI which connects with edge
             roiManager_.reset();
             IJ.run(ip, "Analyze Particles...", analyzeMaskParameters);
@@ -269,8 +265,8 @@ public class JustNucleiModule extends AnalysisModule {
 
             // Now measure and store masks in ROI manager
             IJ.run("Set Measurements...", "area centroid center bounding fit shape redirect=None decimal=2");
-            String analyzeParticlesParameters = "size=" + (Double) minSizeN_.get() + "-"
-                    + (Double) maxSizeN_.get() + "circularity=" + (Double) minCirc_.get() + "-" + (Double) maxCirc_.get() + " exclude clear add";
+            String analyzeParticlesParameters = "size=" +  minSizeN_.get() + "-"
+                    + maxSizeN_.get() + "circularity=" +  minCirc_.get() + "-" + maxCirc_.get() + " exclude clear add";
             // add circularity filter to exclude cells lost focus/ clustered cells
             // this roiManager reset is needed since Analyze Particles will not take 
             // this action if it does not find any Rois, leading to erronous results
@@ -296,7 +292,7 @@ public class JustNucleiModule extends AnalysisModule {
                 double sizeVal = rt.getValueAsDouble(sizeCol, counter - 1); //all the Area values
                 //System.out.println("GFP: " + counter + ", mean: " + meanVal + ", size: " + sizeVal + ", stdDev: " + sdVal);
                 //System.out.println("counter: " + counter + meanVal + sdVal + sizeVal);
-                if (sdVal < (Double) sdFilter_.get()) {
+                if (sdVal < sdFilter_.get()) {
                     sdFilteredList.add(nuc);
                 }
             }
@@ -348,9 +344,9 @@ public class JustNucleiModule extends AnalysisModule {
 
             //mm.alerts().postAlert(UINAME, JustNucleiModule.class, 
             //        "Found " + allNuclei.length + " nuclei");
-            List convertRoiList = new ArrayList();
-            List nonConvertRoiList = new ArrayList();
-            int nrNucleiToSkip = (int) (1 / ((Double) percentageOfNuclei_.get() / 100.0));
+            List<Roi> convertRoiList = new ArrayList<>();
+            List<Roi> nonConvertRoiList = new ArrayList<>();
+            int nrNucleiToSkip = (int) (1 / (percentageOfNuclei_.get() / 100.0));
             for (int i = 0; i < allNuclei.length; i++) {
                 if (userRoiBounds != null) {
                     Rectangle r2d = allNuclei[i].getBounds();
@@ -363,9 +359,9 @@ public class JustNucleiModule extends AnalysisModule {
                 }
             }
             Roi[] convertRois = new Roi[convertRoiList.size()];
-            convertRois = (Roi[]) convertRoiList.toArray(convertRois);
+            convertRois = convertRoiList.toArray(convertRois);
             Roi[] nonConvertRois = new Roi[nonConvertRoiList.size()];
-            nonConvertRois = (Roi[]) nonConvertRoiList.toArray(nonConvertRois);
+            nonConvertRois = nonConvertRoiList.toArray(nonConvertRois);
 
             try {
                 parms.put(CELLCOUNT, allNuclei.length + parms.getInt(CELLCOUNT));
@@ -399,7 +395,9 @@ public class JustNucleiModule extends AnalysisModule {
    
    @Override
    public String getDescription() {
-      return DESCRIPTION;
+      return "<html>Simple module that finds nuclei in the first channel, <br>"
+         + "and identifies a user-defined percentage of these<br>"
+         + "as hits";
    }
    
 }

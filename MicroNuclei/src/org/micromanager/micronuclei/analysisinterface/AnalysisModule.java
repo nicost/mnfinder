@@ -21,7 +21,8 @@ package org.micromanager.micronuclei.analysisinterface;
 
 import ij.gui.Roi;
 import java.util.List;
-import org.json.JSONObject;
+
+import mmcorej.org.json.JSONObject;
 import org.micromanager.Studio;
 import org.micromanager.data.Image;
 
@@ -54,7 +55,7 @@ public abstract class AnalysisModule  {
     * @return - array of Rois containing the objects of interest
     * @throws AnalysisException 
     */
-   public abstract ResultRois analyze (Studio studio, Image[] imgs, Roi roi, JSONObject parms) 
+   public abstract ResultRois analyze (Studio studio, Image[] imgs, Roi roi, JSONObject parms)
            throws AnalysisException;
   
    

@@ -41,28 +41,28 @@ import org.micromanager.micronuclei.analysisinterface.AnalysisSubModule;
  * @author nico
  */
 public class EdgeDetectorSubModule extends AnalysisSubModule {  
-   private final AnalysisProperty edgeDetectionChannel_;
-   private final AnalysisProperty edgeMinMean_;
-   private final AnalysisProperty edgeNrPixelDilation_;
+   private final AnalysisProperty<Integer> edgeDetectionChannel_;
+   private final AnalysisProperty<Double> edgeMinMean_;
+   private final AnalysisProperty<Integer> edgeNrPixelDilation_;
    
    public EdgeDetectorSubModule() {
 
-      edgeDetectionChannel_ = new AnalysisProperty(this.getClass(), 
+      edgeDetectionChannel_ = new AnalysisProperty<>(this.getClass(),
               "Channel # for plate edge Detection",
               "<html>Channel used to detect edge of the plate</html>", 
               1, 
               null);
-      edgeMinMean_ = new AnalysisProperty(this.getClass(), 
+      edgeMinMean_ = new AnalysisProperty<>(this.getClass(),
               "Min. Mean Int. of edge",
               "<html>Minimum intensity to accept given area as an edge</html>", 
               20000.0, 
               null);
-      edgeNrPixelDilation_ = new AnalysisProperty(this.getClass(), 
+      edgeNrPixelDilation_ = new AnalysisProperty<>(this.getClass(),
               "Expand edge with # of pixels",
               "<html>Nr of pixels to expand the edge with</html>", 
               36,
               null);
-      List<AnalysisProperty> aps = new ArrayList<AnalysisProperty>();
+      List<AnalysisProperty> aps = new ArrayList<>();
       
       aps.add(edgeDetectionChannel_);
       aps.add(edgeMinMean_);
@@ -82,7 +82,7 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
       }
       
       // "translate" from 1-based user display to 0-based channel storage
-      int channelNr = (Integer) edgeDetectionChannel_.get() - 1;
+      int channelNr = edgeDetectionChannel_.get() - 1;
       if (imgs.length < channelNr || channelNr < 0) {
          // TODO: report problem back to the user
          return null;
@@ -106,13 +106,13 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
       IJ.run(ip, "Options...", "iterations=1 count=1 black edm=Overwrite do=Close");
       IJ.run(ip, "Options...", "iterations=1 count=1 black edm=Overwrite do=Fill Holes");
       // Expand the edge a bit to avoid weird things next to the edge
-      IJ.run(ip, "Options...", "iterations=" + (Integer) edgeNrPixelDilation_.get() + " count=1 black edm=Overwrite do=Dilate");
+      IJ.run(ip, "Options...", "iterations=" + edgeNrPixelDilation_.get() + " count=1 black edm=Overwrite do=Dilate");
       
       // Run particle analysis....
       // get the largest selection, 
       
       // Now measure and store masks in ROI manager
-      String analyzeParticlesParameters =  "size=" + (Double) (0.1 * imageArea) + "-" + 
+      String analyzeParticlesParameters =  "size=" +  (0.1 * imageArea) + "-" +
                imageArea + " clear add";
       // this roiManager reset is needed since Analyze Particles will not take 
       // this action if it does not find any Rois, leading to erronous results
@@ -127,7 +127,7 @@ public class EdgeDetectorSubModule extends AnalysisSubModule {
          analyzer.measure();
          double val = rt.getValue("Mean", 0);
          // cutoff to make sure this is a real edge
-         if (val > (Double) edgeMinMean_.get() ) {
+         if (val > edgeMinMean_.get() ) {
             ip.setRoi(candidates[0]);
             IJ.run (ip, "Make Inverse", "");
             roi = ip.getRoi();

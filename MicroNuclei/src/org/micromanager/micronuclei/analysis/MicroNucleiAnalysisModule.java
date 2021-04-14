@@ -38,8 +38,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.json.JSONException;
-import org.json.JSONObject;
+import mmcorej.org.json.JSONException;
+import mmcorej.org.json.JSONObject;
 
 import org.micromanager.Studio;
 import org.micromanager.data.Image;
@@ -59,61 +59,56 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
 
    private int nucleiCount_ = 0;
    private int zappedNucleiCount_ = 0;
-   private final AnalysisProperty minSizeMN_, maxSizeMN_, minSizeN_, maxSizeN_,
-           maxDistance_, minNMNPerNucleus_, maxStdDev_, maxNumberOfNuclei_,
-           maxNumberOfZaps_, checkInSmallerImage_, minEdgeDistance_,
-           maxMeanIntensity_;
-   private final String UINAME = "MicroNucleiAnalysis";
-   private final String DESCRIPTION
-           = "<html>Identifies cells with micro-nuclei by comparing<br>"
-           + "two masks, one obtained after smoothing the image, <br>"
-           + "the other after sharpening the image.";
+   private final AnalysisProperty<Double> minSizeMN_, maxSizeMN_, minSizeN_, maxSizeN_,
+           maxDistance_,  maxStdDev_, minEdgeDistance_, maxMeanIntensity_;
+   private final AnalysisProperty<Integer> maxNumberOfZaps_,  minNMNPerNucleus_, maxNumberOfNuclei_;
+   private final AnalysisProperty<Boolean> checkInSmallerImage_;
 
    public MicroNucleiAnalysisModule() {
       // note: the type of the value when creating the AnalysisProperty determines
       // the allowed type, and can create problems when the user enters something
       // different
-      maxStdDev_ = new AnalysisProperty(this.getClass(),
+      maxStdDev_ = new AnalysisProperty<>(this.getClass(),
               "Maximum Std. Dev.",
               "<html>Std. Dev. of grayscale values of original image<br>"
               + "Used to exclude images with edges</html>", 12500.0, null);
-      maxMeanIntensity_ = new AnalysisProperty(this.getClass(),
+      maxMeanIntensity_ = new AnalysisProperty<>(this.getClass(),
               "Maximum Mean Int.",
               "<html>If the average intensity of the image is higher<br>"
               + "than this number, the image will be skipped", 20000.0, null);
-      minSizeMN_ = new AnalysisProperty(this.getClass(),
+      minSizeMN_ = new AnalysisProperty<>(this.getClass(),
               "<html>Minimum micronuclear size (&micro;m<sup>2</sup>)</html>",
               null, 20.0, null);
-      maxSizeMN_ = new AnalysisProperty(this.getClass(),
+      maxSizeMN_ = new AnalysisProperty<>(this.getClass(),
               "<html>Maximum micronuclear size (&micro;m<sup>2</sup>)</html>",
               null, 800.0, null);
-      minSizeN_ = new AnalysisProperty(this.getClass(),
+      minSizeN_ = new AnalysisProperty<>(this.getClass(),
               "<html>Minimum nuclear size (&micro;m<sup>2</sup>)</html>", null, 
               80.0, null);
-      maxSizeN_ = new AnalysisProperty(this.getClass(),
+      maxSizeN_ = new AnalysisProperty<>(this.getClass(),
               "<html>Maximum nuclear size (&micro;m<sup>2</sup>)</html>", null, 
               800.0, null);
-      maxDistance_ = new AnalysisProperty(this.getClass(),
+      maxDistance_ = new AnalysisProperty<>(this.getClass(),
               "<html>Maximum distance (&micro;m)</html>",
               " <html>Maximum distance (&micro;m)</html> between center of micronucleu and center of nucleus", 
               25.0, null);
-      minNMNPerNucleus_ = new AnalysisProperty(this.getClass(),
+      minNMNPerNucleus_ = new AnalysisProperty<>(this.getClass(),
               "Minimum number of micronuclei",
               "Minimum number of micronuclei per \"nucleus\"", 3, null);
-      minEdgeDistance_ = new AnalysisProperty(this.getClass(),
+      minEdgeDistance_ = new AnalysisProperty<>(this.getClass(),
               "<html>Minimum distance from the edge (&micro;m<sup>2</sup>)</html>",
               null, 10.0, null);
-      maxNumberOfNuclei_ = new AnalysisProperty(this.getClass(),
+      maxNumberOfNuclei_ = new AnalysisProperty<>(this.getClass(),
               "Maximum number of nuclei per image",
               "Do not include images that have more than this number of nuclei", 
               250, null);
-      maxNumberOfZaps_ = new AnalysisProperty(this.getClass(),
+      maxNumberOfZaps_ = new AnalysisProperty<>(this.getClass(),
               "Skip image if more than this number should be zapped", null, 15, null);
-      checkInSmallerImage_ = new AnalysisProperty(this.getClass(),
+      checkInSmallerImage_ = new AnalysisProperty<>(this.getClass(),
               "Check again in subregion", "When checked, will re-analyze the image, only looking \n"
               + "at a local, small area.  This can improve accuracy at the cost of speed", 
               true, null);
-      List<AnalysisProperty> apl = new ArrayList<AnalysisProperty>();
+      List<AnalysisProperty> apl = new ArrayList<>();
       apl.add(maxStdDev_);
       apl.add(maxMeanIntensity_);
       apl.add(minSizeMN_);
@@ -169,8 +164,8 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       double mean = statistics.mean;
       // do not analyze images whose stdev or mean is higher than user-specified value
       // Use these criteria to remove images showing well edges
-      final double maxStdDev = (Double) maxStdDev_.get();
-      final double maxMean = (Double) maxMeanIntensity_.get();
+      final double maxStdDev = maxStdDev_.get();
+      final double maxMean = maxMeanIntensity_.get();
       int pos = image.getCoords().getStagePosition();
       if (stdDev > maxStdDev) {
          studio.alerts().postAlert("Skip image", MicroNucleiAnalysisModule.class,
@@ -193,8 +188,8 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       Roi[] hits = analyzeImagePlus(imp, cal, parms, nrNuclei);
       nucleiCount_ += nrNuclei.get();
 
-      if ((Boolean) checkInSmallerImage_.get()) {
-         ArrayList<Roi> cleanedHits = new ArrayList<Roi>();
+      if (checkInSmallerImage_.get()) {
+         ArrayList<Roi> cleanedHits = new ArrayList<>();
          // Check all our hits by taking a subregion of the original image 
          // and re-running the analysis
          ij.IJ.log("Running sub-analysis");
@@ -245,32 +240,31 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       }
 
       // microNuclei allowed sizes
-      final double microNucleiMinSize = (Double) minSizeMN_.get();
-      final double microNucleiMaxSize = (Double) maxSizeMN_.get();
+      final double microNucleiMinSize = minSizeMN_.get();
+      final double microNucleiMaxSize = maxSizeMN_.get();
       // nuclei allowed sized
-      final double nucleiMinSize = (Double) minSizeN_.get();
-      final double nucleiMaxSize = (Double) maxSizeN_.get();
+      final double nucleiMinSize = minSizeN_.get();
+      final double nucleiMaxSize = maxSizeN_.get();
       // max distance a micronucleus can be separated from a nucleus
-      final double maxDistance = (Double) maxDistance_.get();
+      final double maxDistance = maxDistance_.get();
       // min distance a micronucleus should be from the edge of the image
-      final double minEdgeDistance = (Double) minEdgeDistance_.get(); // in microns
+      final double minEdgeDistance = minEdgeDistance_.get(); // in microns
       // minimum number of "micronuclei" we want per nucleus to score as a hit
-      final int minNumMNperNucleus = (Integer) minNMNPerNucleus_.get();
+      final int minNumMNperNucleus =  minNMNPerNucleus_.get();
 
       // if the image has more than this number of nuclei, do not zap
-      final int maxNumberOfNuclei = (Integer) maxNumberOfNuclei_.get();
+      final int maxNumberOfNuclei = maxNumberOfNuclei_.get();
       // if more than this number of nuclei should be zapped, skip zapping altogether
-      final int maxNumberOfZaps = (Integer) maxNumberOfZaps_.get();
+      final int maxNumberOfZaps = maxNumberOfZaps_.get();
 
       // start of the main code
-      List<Point2D.Double> microNuclei = new ArrayList<Point2D.Double>();
-      Map<Point2D.Double, Roi> microNucleiROIs = new HashMap<Point2D.Double, Roi>();
-      Map<Point2D.Double, ArrayList<Point2D.Double>> nuclei
-              = new HashMap<Point2D.Double, ArrayList<Point2D.Double>>();
+      List<Point2D.Double> microNuclei = new ArrayList<>();
+      Map<Point2D.Double, Roi> microNucleiROIs = new HashMap<>();
+      Map<Point2D.Double, ArrayList<Point2D.Double>> nuclei = new HashMap<>();
       //nucleiContents = new ArrayList();
-      Map<Point2D.Double, Roi> nucleiRois = new HashMap<Point2D.Double, Roi>();
-      Map<Point2D.Double, Double> nucleiSizes = new HashMap<Point2D.Double, Double>();
-      List<Point2D.Double> zapNuclei = new ArrayList<Point2D.Double>();
+      Map<Point2D.Double, Roi> nucleiRois = new HashMap<>();
+      Map<Point2D.Double, Double> nucleiSizes = new HashMap<>();
+      List<Point2D.Double> zapNuclei = new ArrayList<>();
 
       // clean results table	
       ResultsTable res = ij.measure.ResultsTable.getResultsTable();
@@ -296,7 +290,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       }
       rm.reset();
       IJ.run(microNucleiImp, "Analyze Particles...", "size="
-              + (Double) microNucleiMinSize + "-" + (Double) microNucleiMaxSize
+              + microNucleiMinSize + "-" + microNucleiMaxSize
               + "  exclude  clear add");
 
       // Build up a list of potential micronuclei
@@ -334,8 +328,8 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       rt.reset();
       // include large nuclei here so that we will assign the corresponding microNuclei 
       // correctly.  Weed these out later
-      IJ.run(nucleiImp, "Analyze Particles...", "size=" + (Double) nucleiMinSize + "-"
-              + (Double) nucleiMaxSize + " exclude clear add");
+      IJ.run(nucleiImp, "Analyze Particles...", "size=" + nucleiMinSize + "-"
+              + nucleiMaxSize + " exclude clear add");
       rt.updateResults();
 
       // get nuclei from RoiManager and add to our list of nuclei:
@@ -352,7 +346,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
             yc *= calibration.getX(1.0);
             Point2D.Double pt = new java.awt.geom.Point2D.Double(xc, yc);
             nucleiRois.put(pt, roi);
-            ArrayList<Point2D.Double> containedMNs = new ArrayList<Point2D.Double>();
+            ArrayList<Point2D.Double> containedMNs = new ArrayList<>();
             nuclei.put(pt, containedMNs);
             nucleiSizes.put(pt, rt.getValue("Area", counter));
             counter++;
@@ -427,7 +421,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
       res.show("Results");
 
       // get a list with rois that we want to zap
-      ArrayList<Roi> zapRois = new ArrayList<Roi>();
+      ArrayList<Roi> zapRois = new ArrayList<>();
       for (Point2D.Double p : zapNuclei) {
          Roi roi = nucleiRois.get(p);
          zapRois.add(roi);
@@ -450,7 +444,7 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
 
       nrNuclei.set(nuclei.size());
 
-      return zapRois.toArray(new Roi[zapRois.size()]);
+      return zapRois.toArray(new Roi[0]);
    }
 
    /**
@@ -508,12 +502,14 @@ public class MicroNucleiAnalysisModule extends AnalysisModule {
 
    @Override
    public String getName() {
-      return UINAME;
+      return "MicroNucleiAnalysis";
    }
 
    @Override
    public String getDescription() {
-      return DESCRIPTION;
+      return  "<html>Identifies cells with micro-nuclei by comparing<br>"
+              + "two masks, one obtained after smoothing the image, <br>"
+              + "the other after sharpening the image.";
    }
 
 }

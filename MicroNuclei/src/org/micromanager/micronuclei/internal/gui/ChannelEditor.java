@@ -29,7 +29,7 @@ import javax.swing.JTable;
 import javax.swing.table.TableCellEditor;
 import mmcorej.StrVector;
 import org.micromanager.Studio;
-import org.micromanager.events.internal.ChannelGroupEvent;
+import org.micromanager.events.ChannelGroupChangedEvent;
 
 /**
  * Editor for Channel name component in Channel table
@@ -38,14 +38,14 @@ import org.micromanager.events.internal.ChannelGroupEvent;
  */
 public final class ChannelEditor extends AbstractCellEditor implements TableCellEditor {
 
-   private final JComboBox channelSelect_;   
+   private final JComboBox<String> channelSelect_;
    private final Studio studio_;
    private final BasePanel basePanel_;
    
    public ChannelEditor(Studio studio, BasePanel basePanel) {
       studio_ = studio;
       basePanel_ = basePanel;
-      channelSelect_ = new JComboBox();
+      channelSelect_ = new JComboBox<>();
       String channelGroup = studio_.core().getChannelGroup();
       if (channelGroup != null) {
          updateChannelList(channelGroup);
@@ -53,8 +53,8 @@ public final class ChannelEditor extends AbstractCellEditor implements TableCell
    }
    
    @Subscribe
-   public void onChannelGroupChanged (ChannelGroupEvent cge) {
-         updateChannelList(studio_.core().getChannelGroup());
+   public void onChannelGroupChanged (ChannelGroupChangedEvent cge) {
+         updateChannelList(cge.getNewChannelGroup());
    }
    
    public void updateChannelList (String channelGroup) {
@@ -76,14 +76,11 @@ public final class ChannelEditor extends AbstractCellEditor implements TableCell
       for (ItemListener it : channelSelect_.getItemListeners()) {
          channelSelect_.removeItemListener(it);
       }
-      channelSelect_.addItemListener(new ItemListener() {
-         @Override
-            public void itemStateChanged(ItemEvent ie) {
-               if (ie.getStateChange() == ItemEvent.SELECTED) {
-                  fireEditingStopped();
-                  basePanel_.updateColor(rowIndex);
-                  basePanel_.updateExposureTime(rowIndex);
-               }
+      channelSelect_.addItemListener(ie -> {
+            if (ie.getStateChange() == ItemEvent.SELECTED) {
+               fireEditingStopped();
+               basePanel_.updateColor(rowIndex);
+               basePanel_.updateExposureTime(rowIndex);
             }
          });
 

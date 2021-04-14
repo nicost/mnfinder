@@ -32,44 +32,9 @@ import ij.process.ImageProcessor;
 import ij.process.ImageStatistics;
 import ij.text.TextPanel;
 import ij.text.TextWindow;
-
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.Insets;
-import java.awt.Polygon;
-import java.awt.Rectangle;
-import java.awt.Window;
-import java.awt.event.ActionEvent;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.swing.BorderFactory;
-import javax.swing.JButton;
-import javax.swing.JCheckBox;
-import javax.swing.JComboBox;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JTabbedPane;
-import javax.swing.JTextField;
-import javax.swing.ToolTipManager;
-import javax.swing.border.TitledBorder;
-
+import mmcorej.org.json.JSONException;
+import mmcorej.org.json.JSONObject;
 import net.miginfocom.swing.MigLayout;
-
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import org.micromanager.MultiStagePosition;
 import org.micromanager.PositionList;
 import org.micromanager.PropertyMap;
@@ -87,50 +52,78 @@ import org.micromanager.data.PipelineErrorException;
 import org.micromanager.data.SummaryMetadata;
 import org.micromanager.data.internal.DefaultImage;
 import org.micromanager.display.ChannelDisplaySettings;
+import org.micromanager.display.DataViewer;
 import org.micromanager.display.DisplaySettings;
 import org.micromanager.display.DisplayWindow;
 import org.micromanager.events.ShutdownCommencingEvent;
-import org.micromanager.internal.MMStudio;
-
 import org.micromanager.internal.utils.FileDialogs;
-import org.micromanager.internal.utils.MMFrame;
 import org.micromanager.internal.utils.MMScriptException;
 import org.micromanager.internal.utils.NumberUtils;
 import org.micromanager.internal.utils.ReportingUtils;
+import org.micromanager.internal.utils.WindowPositioning;
 import org.micromanager.micronuclei.analysis.GreenCellsModule;
-
-import org.micromanager.projector.internal.ProjectorControlForm;
-
 import org.micromanager.micronuclei.analysis.JustNucleiModule;
 import org.micromanager.micronuclei.analysis.MicroNucleiAnalysisModule;
 import org.micromanager.micronuclei.analysis.NuclearSizeModule;
 import org.micromanager.micronuclei.analysis.NucleoCytoplasmicRatio;
-import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
+import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
-import org.micromanager.micronuclei.analysisinterface.PropertyException;
 import org.micromanager.micronuclei.analysisinterface.ResultRois;
 import org.micromanager.micronuclei.internal.data.ChannelInfo;
 import org.micromanager.micronuclei.internal.gui.ChannelPanel;
 import org.micromanager.micronuclei.internal.gui.ConvertChannelPanel;
-import org.micromanager.micronuclei.internal.gui.ResultsListener;
 import org.micromanager.micronuclei.internal.gui.PropertyGUI;
+import org.micromanager.micronuclei.internal.gui.ResultsListener;
 import org.micromanager.projector.Mapping;
 import org.micromanager.projector.ProjectionDevice;
 import org.micromanager.projector.ProjectorActions;
+import org.micromanager.projector.internal.ProjectorControlForm;
 import org.micromanager.propertymap.MutablePropertyMapView;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTabbedPane;
+import javax.swing.JTextField;
+import javax.swing.ToolTipManager;
+import javax.swing.border.TitledBorder;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Insets;
+import java.awt.Polygon;
+import java.awt.Rectangle;
+import java.awt.Toolkit;
+import java.awt.Window;
+import java.awt.event.ActionEvent;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 /**
  *
  * @author nico
  */
-public class MicroNucleiForm extends MMFrame {
+public class MicroNucleiForm extends JFrame {
    
    private final Studio gui_;
    private final MutablePropertyMapView settings_;
-   private final Font arialSmallFont_;
-   private final Dimension buttonSize_;
    private final JTextField saveTextField_;
    private final ChannelPanel channelPanel_;
    private final ConvertChannelPanel convertChannelPanel_;
@@ -177,9 +170,9 @@ public class MicroNucleiForm extends MMFrame {
       for (AnalysisModule module : analysisModules_) {
          analysisModulesNames_.add(module.getName());
       }
-      
-      arialSmallFont_ = new Font("Arial", Font.PLAIN, 12);
-      buttonSize_ = new Dimension(70, 21);
+
+      Font arialSmallFont_ = new Font("Arial", Font.PLAIN, 12);
+      Dimension buttonSize_ = new Dimension(70, 21);
 
       super.setLayout(new MigLayout("flowx, fill, insets 8"));
       super.setTitle(FORMNAME);     
@@ -195,9 +188,7 @@ public class MicroNucleiForm extends MMFrame {
       acqPanel.add(saveTextField_);
       
       final JButton dirButton = myButton(buttonSize_, arialSmallFont_, "...");
-      dirButton.addActionListener((ActionEvent e) -> {
-         dirActionPerformed(e);
-      });
+      dirButton.addActionListener(this::dirActionPerformed);
       acqPanel.add(dirButton, "wrap");
 
       // TODO: the channel drop-downs are populated from the channelgroup.
@@ -226,7 +217,8 @@ public class MicroNucleiForm extends MMFrame {
               !gui.getDataManager().getApplicationPipelineConfigurators(false).isEmpty());
       useOnTheFlyProcessorPipeline_.addActionListener((ActionEvent ae) -> {
          if (useOnTheFlyProcessorPipeline_.isSelected()) {
-            ((MMStudio) gui).getPipelineFrame().setVisible(true);
+            // TODO: figure out what this was supposed to do
+            //((MMStudio) gui).getPipelineFrame().setVisible(true);
          }
       });
       analysisPanel.add(useOnTheFlyProcessorPipeline_, "span 2, center, wrap");
@@ -235,7 +227,7 @@ public class MicroNucleiForm extends MMFrame {
       final List<String> modulesInUse = settings_.getStringList(
               MODULELIST, "");
       
-      final JComboBox analysisModulesBox = new JComboBox (unUsedModules(
+      final JComboBox<String> analysisModulesBox = new JComboBox (unUsedModules(
               analysisModules_, modulesInUse).toArray()); 
       final JButton addModuleButton = new JButton ("Add");
       addModuleButton.addActionListener((ActionEvent e) -> {
@@ -270,14 +262,13 @@ public class MicroNucleiForm extends MMFrame {
       analysisPanel.add(analysisModulesBox);
       analysisPanel.add(addModuleButton, "wrap");
       analysisPanel.add(removeModuleButton, "skip 1, wrap");
-    
-      for (int i = 0; i < analysisModules_.size(); i++) {
-         AnalysisModule module = analysisModules_.get(i);
+
+      for (AnalysisModule module : analysisModules_) {
          String newModule = module.getName();
          if (modulesInUse.contains(newModule)) {
             JPanel panel = makeModulePanel(new JPanel(new MigLayout(
                     "flowx, fill, insets 8")), module);
-            convertChannelPanel_.addConvertChannel();   
+            convertChannelPanel_.addConvertChannel();
             modulesPane.addTab(newModule, panel);
          }
       }
@@ -289,9 +280,7 @@ public class MicroNucleiForm extends MMFrame {
       doZap_ = new JCheckBox("Zap");
       doZap_.setSelected(settings_.getBoolean(DOZAP, false));
       doZap_.setFont(arialSmallFont_);
-      doZap_.addActionListener((ActionEvent ae) -> {
-         settings_.putBoolean(DOZAP, doZap_.isSelected());
-      });
+      doZap_.addActionListener((ActionEvent ae) -> settings_.putBoolean(DOZAP, doZap_.isSelected()));
       super.add (doZap_);
       
       useDisplay_ = new JCheckBox("Use display");
@@ -320,9 +309,7 @@ public class MicroNucleiForm extends MMFrame {
       super.add(runButton, "span 3, split 3, center");
 
       final JButton stopButton = myButton(buttonSize_, arialSmallFont_, "Stop");
-      stopButton.addActionListener((ActionEvent e) -> {
-         stop_.set(true);
-      });
+      stopButton.addActionListener((ActionEvent e) -> stop_.set(true));
       super.add(stopButton, "center");
       
       final JButton testButton = myButton(buttonSize_, arialSmallFont_, "Test");
@@ -331,10 +318,12 @@ public class MicroNucleiForm extends MMFrame {
          myThread.init(true);
       });
       super.add(testButton, "center, wrap");
-            
 
-      super.loadAndRestorePosition(100, 100, 350, 250);
-      
+      super.setIconImage(Toolkit.getDefaultToolkit().getImage(
+              getClass().getResource("/org/micromanager/icons/microscope.gif")));
+      super.setBounds(100, 100, 350, 250);
+      WindowPositioning.setUpBoundsMemory(this, this.getClass(), null);
+
       super.pack();
       
       super.setResizable(false);
@@ -402,7 +391,7 @@ public class MicroNucleiForm extends MMFrame {
       return label;
    }
 
-   private void updateChannels(JComboBox box, String selectedChannel, 
+   private void updateChannels(JComboBox<String> box, String selectedChannel,
            boolean addEmpty) {
       box.removeAllItems();
       if (addEmpty) {
@@ -436,7 +425,7 @@ public class MicroNucleiForm extends MMFrame {
     * Looks for modules with the given names in our list of 
     * analysisModules
     * Maintains the same order as the input list of names
-    * @param name - desired name of analysis module
+    * @param names - desired names of analysis modules
     * @return the first AnalysisModule with this name or null if not found
     */
    private List<AnalysisModule> modulesFromNames(List<String> names) {
@@ -467,8 +456,6 @@ public class MicroNucleiForm extends MMFrame {
                runTest();
             }
                
-         } catch (MMScriptException ex) {
-            gui_.getLogManager().showError(ex, "Error during acquisition");
          } catch (org.micromanager.data.DatastoreRewriteException drex) {
             gui_.getLogManager().showError(drex, "Failed to save data.");
          }
@@ -500,9 +487,8 @@ public class MicroNucleiForm extends MMFrame {
     *
     * @throws MMScriptException
     * @throws JSONException
-    * @throws org.micromanager.micronuclei.analysisinterface.PropertyException
     */
-   public void runTest() throws MMScriptException, JSONException, PropertyException {
+   public void runTest() throws MMScriptException, JSONException {
 
       final List<String> modulesInUse = settings_.getStringList(
               MODULELIST, "");
@@ -525,12 +511,15 @@ public class MicroNucleiForm extends MMFrame {
 
          JSONObject parms = analysisSettings(showMasks_.isSelected());
 
-         DisplayWindow dw = gui_.displays().getCurrentWindow();
+         DataViewer dataViewer = gui_.displays().getActiveDataViewer();
+         DisplayWindow dw = null;
+         if (dataViewer instanceof DisplayWindow) {
+            dw = (DisplayWindow) dataViewer;
+         }
 
          try {
             if (dw == null) {
                // ImageJ window.  Forget everything about MM windows:
-               dw = null;
                try {
                   ip = IJ.getImage();
                } catch (Exception ex) {
@@ -562,8 +551,10 @@ public class MicroNucleiForm extends MMFrame {
 
             } else { // MM display
                DataProvider store = dw.getDataProvider();
-               Roi userRoi = dw.getImagePlus().getRoi();
                ip = dw.getImagePlus();
+               Roi userRoi = ip.getRoi();
+               //ip = gui_.data().ij().createProcessor(dw.getDisplayedImages().get(0));
+               // ip = dw.getImagePlus();
                /*
                if (parms.getBoolean(AnalysisModule.SHOWMASKS)) {
                   RoiManager.getInstance().runCommand("Show All");
@@ -874,8 +865,7 @@ public class MicroNucleiForm extends MMFrame {
                // Analyze and zap
                boolean zapThem = false;
                List<ResultRois> resultRoiList = new ArrayList<>();
-               for (int amNr = 0; amNr < analysisModules.size(); amNr++) {
-                  AnalysisModule analysisModule = analysisModules.get(amNr);
+               for (AnalysisModule analysisModule : analysisModules) {
                   ResultRois rr = analysisModule.analyze(gui_, imgs, null,
                           parmsMap.get(analysisModule));
                   rr.reportOnZapChannel(0); // Pre-Zap
@@ -1181,8 +1171,8 @@ public class MicroNucleiForm extends MMFrame {
    
    /**
     * makes border with centered title text
-    * @param title
-    * @return
+    * @param title title to be added to Border
+    * @return TitledBOrder
     */
    public static TitledBorder makeTitledBorder(String title) {
       TitledBorder myBorder = BorderFactory.createTitledBorder(

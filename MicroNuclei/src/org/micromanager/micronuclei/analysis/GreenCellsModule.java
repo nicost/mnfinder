@@ -30,14 +30,13 @@ import ij.process.ImageProcessor;
 import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
-import org.json.JSONException;
-import org.json.JSONObject;
+
+import mmcorej.org.json.JSONObject;
+import mmcorej.org.json.JSONException;
 import org.micromanager.Studio;
 import org.micromanager.data.Image;
 import org.micromanager.micronuclei.analysisinterface.AnalysisException;
 import org.micromanager.micronuclei.analysisinterface.AnalysisModule;
-import static org.micromanager.micronuclei.analysisinterface.AnalysisModule.CELLCOUNT;
-import static org.micromanager.micronuclei.analysisinterface.AnalysisModule.OBJECTCOUNT;
 import org.micromanager.micronuclei.analysisinterface.AnalysisProperty;
 import org.micromanager.micronuclei.analysisinterface.ResultRois;
 
