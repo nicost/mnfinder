@@ -25,6 +25,7 @@ import boofcv.alg.filter.binary.GThresholdImageOps;
 import boofcv.alg.filter.blur.GBlurImageOps;
 import boofcv.alg.misc.GImageStatistics;
 import boofcv.alg.misc.ImageStatistics;
+import boofcv.alg.nn.KdTreePoint2D_F32;
 import boofcv.struct.ConnectRule;
 import boofcv.struct.image.GrayS32;
 import boofcv.struct.image.GrayU16;
@@ -41,6 +42,10 @@ import ij.process.ImageProcessor;
 import ij.text.TextWindow;
 import mmcorej.org.json.JSONException;
 import mmcorej.org.json.JSONObject;
+import org.ddogleg.nn.FactoryNearestNeighbor;
+import org.ddogleg.nn.NearestNeighbor;
+import org.ddogleg.nn.NnData;
+import org.ddogleg.struct.FastQueue;
 import org.micromanager.Studio;
 import org.micromanager.data.Image;
 import org.micromanager.internal.utils.imageanalysis.BoofCVImageConverter;
@@ -294,7 +299,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       }
       
       // find the n cell masks closest to this one.  Subtract neighboring cellmask from this cytoplasm mask
-      /*
+
       NearestNeighbor<Point2D_F32> nn = FactoryNearestNeighbor.kdtree(new KdTreePoint2D_F32());
       List<Point2D_F32> centersList = new ArrayList<>(centers.size());
       for (Map.Entry<Integer, Point2D_F32> entry : centers.entrySet()) {
@@ -304,7 +309,8 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
       NearestNeighbor.Search<Point2D_F32> search = nn.createSearch();
       NnData<Point2D_F32> result = new NnData<>();
       // 4 should be enough...
-      FastQueue<NnData<Point2D_F32>> fResults = new FastQueue(4, result.getClass(), true);
+      FastQueue<NnData<Point2D_F32>> fResults = new FastQueue<>(NnData::new);
+     // FastQueue<NnData<Point2D_F32>> fResults = new FastQueue(4, result.getClass(), true);
       for (int i =  0; i < centersList.size(); i++) {
          List<Point2D_I32> cyto = cytoClusters.get(i);
          search.findNearest(centersList.get(i), -1, 5, fResults);
@@ -324,7 +330,7 @@ public class NucleoCytoplasmicRatio extends AnalysisModule {
          }
       }
 
-       */
+
       
       // Make cytoplasmic mask to "AND" our little cyto circles
       GrayU16 originalCyto = (GrayU16) igCyto;
