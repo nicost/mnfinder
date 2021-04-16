@@ -158,13 +158,15 @@ public class JustNucleiModule extends AnalysisModule {
             Image img = imgs[0];
             ImageProcessor iProcessor = mm.data().ij().createProcessor(img);
             String posName = img.getMetadata().getPositionName("label");
-            out_.write("#-" + posName + ", TimePoint: " + img.getCoords().getT());
-            out_.newLine();
+            if (out_ != null) {
+                out_.write("#-" + posName + ", TimePoint: " + img.getCoords().getT());
+                out_.newLine();
+            }
             //System.out.println("#-" + posName + ", TimePoint: " + img.getCoords().getT());
 
             //for BFP analysis
-            Image img1 = imgs[1];
-            ImageProcessor iProcessor1 = mm.data().ij().createProcessor(img1);
+            // Image img1 = imgs[1];
+            // ImageProcessor iProcessor1 = mm.data().ij().createProcessor(img1);
 
             Rectangle userRoiBounds = null;
             if (userRoi != null) {
@@ -187,8 +189,8 @@ public class JustNucleiModule extends AnalysisModule {
             ImagePlus originalIp = duppie.run(ip);
 
             //for BFP analysis
-            ImagePlus ip1 = (new ImagePlus(UINAME, iProcessor1.duplicate()));
-            ImagePlus originalIp1 = duppie.run(ip1);
+            // ImagePlus ip1 = (new ImagePlus(UINAME, iProcessor1.duplicate()));
+            // ImagePlus originalIp1 = duppie.run(ip1);
 
             if (restrictToThisRoi != null) {
                 ip.setRoi(restrictToThisRoi);
@@ -316,31 +318,37 @@ public class JustNucleiModule extends AnalysisModule {
                 double sdVal0 = rt0.getValueAsDouble(sdCol0, counter0 - 1);
                 int sizeCol0 = rt0.getColumnIndex("Area");
                 double sizeVal0 = rt0.getValueAsDouble(sizeCol0, counter0 - 1); //all the Area values
-                out_.write("GFP: " + counter0 + ", mean: " + meanVal0 + ", size: " + sizeVal0 + ", stdDev: " + sdVal0);
-                out_.newLine();
+                if (out_ != null) {
+                    out_.write("GFP: " + counter0 + ", mean: " + meanVal0 + ", size: " + sizeVal0 + ", stdDev: " + sdVal0);
+                    out_.newLine();
+                }
                 //System.out.println("GFP: " + counter0 + ", mean: " + meanVal0  + ", size: " + sizeVal0 + ", stdDev: " + sdVal0);
                 //System.out.println("counter: " + counter1 + meanVal1+ sizeVal1);
             }
 
             ResultsTable rt1 = new ResultsTable();
-            Analyzer analyzer1 = new Analyzer(originalIp1, Analyzer.MEAN + Analyzer.AREA, rt1);
+            // Analyzer analyzer1 = new Analyzer(originalIp1, Analyzer.MEAN + Analyzer.AREA, rt1);
 
             for (Roi nuc : allNuclei) {
-                originalIp1.setRoi(nuc);
-                analyzer1.measure();
+                // originalIp1.setRoi(nuc);
+                // analyzer1.measure();
                 // IJ.run(cellImgIp2, "Measure", "");
-                int counter1 = rt1.getCounter();
-                int col1 = rt1.getColumnIndex("Mean");
-                double meanVal1 = rt1.getValueAsDouble(col1, counter1 - 1); //all the Area values
-                int sizeCol1 = rt1.getColumnIndex("Area");
-                double sizeVal1 = rt1.getValueAsDouble(sizeCol1, counter1 - 1); //all the Area values
-                out_.write("BFP: " + counter1 + ", mean: " + meanVal1 + ", size: " + sizeVal1);
-                out_.newLine();
+                //int counter1 = rt1.getCounter();
+                //int col1 = rt1.getColumnIndex("Mean");
+                //double meanVal1 = rt1.getValueAsDouble(col1, counter1 - 1); //all the Area values
+                //int sizeCol1 = rt1.getColumnIndex("Area");
+                //double sizeVal1 = rt1.getValueAsDouble(sizeCol1, counter1 - 1); //all the Area values
+                //if (out_ != null) {
+                //    out_.write("BFP: " + counter1 + ", mean: " + meanVal1 + ", size: " + sizeVal1);
+                 //   out_.newLine();
+                //}
                 //System.out.println("BFP: " + counter1 + ", mean: " + meanVal1  + ", size: " + sizeVal1);
                 //System.out.println("counter: " + counter1 + meanVal1+ sizeVal1);
             }
 
-            out_.flush();
+            if (out_ != null) {
+                out_.flush();
+            }
 
             //mm.alerts().postAlert(UINAME, JustNucleiModule.class, 
             //        "Found " + allNuclei.length + " nuclei");
